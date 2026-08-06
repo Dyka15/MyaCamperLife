@@ -90,6 +90,7 @@
     <string name="genere_posizione">Posizione</string>
     <string name="genere_nota">Nota</string>
     <string name="genere_foto">Foto</string>
+    <string name="genere_rifornimento">Rifornimento</string>
     <string name="voce_senza_testo">senza descrizione</string>
 
     <!-- Rifornimento -->
