@@ -48,6 +48,7 @@ fun TappeContent(
     onPosizione: () -> Unit,
     onFoto: () -> Unit,
     onNota: () -> Unit,
+    onLitri: () -> Unit,
     onTappa: (Tappa) -> Unit,
 ) {
     LazyColumn(
@@ -56,7 +57,7 @@ fun TappeContent(
     ) {
         item {
             Testata(corrente, prossima)
-            AzioniRapide(onPosizione, onFoto, onNota)
+            AzioniRapide(onPosizione, onFoto, onNota, onLitri)
             HorizontalDivider()
         }
 
@@ -109,7 +110,12 @@ private fun Testata(corrente: Tappa?, prossima: Tappa?) {
 }
 
 @Composable
-private fun AzioniRapide(onPosizione: () -> Unit, onFoto: () -> Unit, onNota: () -> Unit) {
+private fun AzioniRapide(
+    onPosizione: () -> Unit,
+    onFoto: () -> Unit,
+    onNota: () -> Unit,
+    onLitri: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -119,6 +125,7 @@ private fun AzioniRapide(onPosizione: () -> Unit, onFoto: () -> Unit, onNota: ()
         AzioneRapida(R.drawable.ic_posizione, R.string.azione_posizione, onPosizione)
         AzioneRapida(R.drawable.ic_foto, R.string.azione_foto, onFoto)
         AzioneRapida(R.drawable.ic_nota, R.string.azione_nota, onNota)
+        AzioneRapida(R.drawable.ic_litri, R.string.azione_litri, onLitri)
     }
 }
 

@@ -1,6 +1,10 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Consumi
+import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Genere
+import it.myacamperlife.app.dominio.Punto
+import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
@@ -58,6 +62,9 @@ class Archivio(private val radice: File) {
 
     fun tabellaFoto(slug: String): Tabella =
         Tabella(File(cartellaViaggio(slug), FotoTabella.NOME_FILE), FotoTabella.COLONNE)
+
+    fun tabellaRifornimenti(slug: String): Tabella =
+        Tabella(File(cartellaViaggio(slug), RifornimentiTabella.NOME_FILE), RifornimentiTabella.COLONNE)
 
     fun cartellaFoto(slug: String): File =
         File(cartellaViaggio(slug), FotoTabella.CARTELLA).apply { mkdirs() }
@@ -261,6 +268,102 @@ class Archivio(private val radice: File) {
         aggiornaDiario(slug, adesso.toLocalDate())
     }
 
+    /**
+     * Registra un rifornimento.
+     *
+     * `pieno` decide se il tratto e' misurabile: solo fra due pieni si sa
+     * quanto carburante e' entrato per quei chilometri. Vale la pena chiederlo
+     * ogni volta, anche se sembra un dettaglio.
+     */
+    fun registraRifornimento(
+        slug: String,
+        km: Int,
+        litri: Double,
+        euro: Double? = null,
+        pieno: Boolean = true,
+        posizione: Posizione? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ) {
+        tabellaRifornimenti(slug).accoda(
+            mapOf(
+                Csv.ID to nuovoId(),
+                Csv.TS to ts(adesso),
+                RifornimentiTabella.KM to km.toString(),
+                RifornimentiTabella.LITRI to Csv.numero(litri, 2),
+                RifornimentiTabella.EURO to (euro?.let { Csv.numero(it) } ?: ""),
+                RifornimentiTabella.PIENO to Csv.booleano(pieno),
+                RifornimentiTabella.LUOGO to Csv.testo(luogo(slug)),
+                RifornimentiTabella.LAT to coordinata(posizione?.lat),
+                RifornimentiTabella.LON to coordinata(posizione?.lon),
+            ),
+        )
+        aggiornaDiario(slug, adesso.toLocalDate())
+    }
+
+    // --- consumi e autonomia -------------------------------------------------
+
+    fun rifornimenti(slug: String): List<Rifornimento> = tabellaRifornimenti(slug)
+        .vive()
+        .mapNotNull { riga ->
+            val id = riga.id ?: return@mapNotNull null
+            val istante = runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull()
+                ?: return@mapNotNull null
+            val km = riga.intero(RifornimentiTabella.KM) ?: return@mapNotNull null
+            val litri = riga.numero(RifornimentiTabella.LITRI) ?: return@mapNotNull null
+            Rifornimento(
+                id = id,
+                istante = istante,
+                km = km,
+                litri = litri,
+                euro = riga.numero(RifornimentiTabella.EURO),
+                pieno = riga.booleano(RifornimentiTabella.PIENO),
+                luogo = riga.testo(RifornimentiTabella.LUOGO),
+                lat = riga.numero(RifornimentiTabella.LAT),
+                lon = riga.numero(RifornimentiTabella.LON),
+            )
+        }
+        .sortedBy { it.istante }
+
+    fun consumo(slug: String): Consumo = Consumi.calcola(rifornimenti(slug))
+
+    /**
+     * Tutti i punti con coordinate registrati nel viaggio: check-in, posizioni,
+     * note, foto, rifornimenti.
+     *
+     * E' la base della stima dell'autonomia, e usarli **tutti** e non solo i
+     * check-in e' la differenza fra vedere una gita fuori itinerario e non
+     * vederla.
+     */
+    fun punti(slug: String): List<Punto> = buildList {
+        fun raccogli(righe: List<Riga>, colonnaLat: String, colonnaLon: String) {
+            righe.forEach { riga ->
+                val istante = runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull()
+                    ?: return@forEach
+                val lat = riga.numero(colonnaLat) ?: return@forEach
+                val lon = riga.numero(colonnaLon) ?: return@forEach
+                add(Punto(istante, lat, lon))
+            }
+        }
+        raccogli(tabellaSpostamenti(slug).vive(), SpostamentiTabella.LAT, SpostamentiTabella.LON)
+        raccogli(tabellaNote(slug).vive(), NoteTabella.LAT, NoteTabella.LON)
+        raccogli(tabellaFoto(slug).vive(), FotoTabella.LAT, FotoTabella.LON)
+        raccogli(tabellaRifornimenti(slug).vive(), RifornimentiTabella.LAT, RifornimentiTabella.LON)
+    }.sortedBy { it.istante }
+
+    // --- impostazioni --------------------------------------------------------
+
+    fun impostazioni(): Impostazioni {
+        val file = File(radice, NOME_IMPOSTAZIONI)
+        if (!file.exists()) return Impostazioni()
+        return runCatching { json.decodeFromString<Impostazioni>(file.readText(Charsets.UTF_8)) }
+            .getOrDefault(Impostazioni())
+    }
+
+    fun salvaImpostazioni(impostazioni: Impostazioni) {
+        radice.mkdirs()
+        File(radice, NOME_IMPOSTAZIONI).writeText(json.encodeToString(impostazioni), Charsets.UTF_8)
+    }
+
     // --- diario --------------------------------------------------------------
 
     /** Tutte le voci del viaggio, in ordine di ora. */
@@ -268,6 +371,7 @@ class Archivio(private val radice: File) {
         spostamenti = tabellaSpostamenti(slug).vive(),
         note = tabellaNote(slug).vive(),
         foto = tabellaFoto(slug).vive(),
+        rifornimenti = tabellaRifornimenti(slug).vive(),
     )
 
     fun aggiornaDiario(slug: String, giorno: LocalDate) {
@@ -384,6 +488,23 @@ class Archivio(private val radice: File) {
             appendLine("| `tappa` | Dove eri quando l'hai scattata |")
             appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")
             appendLine()
+            appendLine("## rifornimenti.csv")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `km` | Il contachilometri al rifornimento |")
+            appendLine("| `litri` | Litri messi |")
+            appendLine("| `euro` | Importo speso, se registrato |")
+            appendLine("| `pieno` | `si` se il serbatoio e' stato riempito. Solo fra due pieni il consumo e' calcolabile |")
+            appendLine("| `luogo` | Dove eri, secondo l'itinerario |")
+            appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")
+            appendLine()
+            appendLine("## impostazioni.json")
+            appendLine()
+            appendLine("`kmConUnPieno`: quanti chilometri fa il mezzo con un serbatoio pieno.")
+            appendLine("Serve alla stima dell'autonomia. Le chiavi API non stanno qui: vivono")
+            appendLine("nell'archivio cifrato dell'app.")
+            appendLine()
             appendLine("## diario.md")
             appendLine()
             appendLine("Non e' una tabella: e' il diario del viaggio, una sezione per giorno.")
@@ -397,6 +518,7 @@ class Archivio(private val radice: File) {
     companion object {
         const val NOME_CARTELLA = "MyaCamperLife"
         private const val NOME_VIAGGIO = "viaggio.json"
+        private const val NOME_IMPOSTAZIONI = "impostazioni.json"
 
         /**
          * Il nome della cartella di un viaggio: `2026-08-toscana`.

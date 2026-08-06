@@ -5,11 +5,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import it.myacamperlife.app.archivio.Archivio
 import it.myacamperlife.app.archivio.Documenti
+import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.archivio.Posizione
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Viaggio
+import it.myacamperlife.app.dominio.Autonomia
+import it.myacamperlife.app.dominio.Consumi
+import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.NomeFoto
+import it.myacamperlife.app.dominio.StimaAutonomia
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
 import it.myacamperlife.app.dominio.Voce
@@ -47,6 +52,11 @@ class ViaggiViewModel(
         val tappe: List<Tappa> = emptyList(),
         val voci: List<Voce> = emptyList(),
         val diario: String = "",
+        val consumo: Consumo = Consumo(emptyList()),
+        val autonomia: Autonomia? = null,
+        val kmConUnPieno: Int? = null,
+        /** L'ultimo contachilometri registrato: precompila la form. */
+        val ultimoKm: Int? = null,
         val inCorso: Boolean = false,
         val avviso: Avviso? = null,
     ) {
@@ -66,6 +76,8 @@ class ViaggiViewModel(
         data class TappaAggiunta(val nome: String) : Avviso
         data object NotaRegistrata : Avviso
         data object FotoRegistrata : Avviso
+        data object RifornimentoRegistrato : Avviso
+        data object ImpostazioniSalvate : Avviso
     }
 
     private val _stato = MutableStateFlow(Stato())
@@ -90,16 +102,46 @@ class ViaggiViewModel(
 
     private suspend fun aggiornaViaggio(viaggio: Viaggio) {
         val dati = withContext(Dispatchers.IO) {
-            Triple(
-                archivio.tappe(viaggio.slug),
-                archivio.voci(viaggio.slug),
-                archivio.diario(viaggio.slug).testo(),
+            val slug = viaggio.slug
+            val rifornimenti = archivio.rifornimenti(slug)
+            val kmConUnPieno = archivio.impostazioni().kmConUnPieno
+            DatiViaggio(
+                tappe = archivio.tappe(slug),
+                voci = archivio.voci(slug),
+                diario = archivio.diario(slug).testo(),
+                consumo = Consumi.calcola(rifornimenti),
+                autonomia = StimaAutonomia.calcola(
+                    kmConUnPieno = kmConUnPieno,
+                    rifornimenti = rifornimenti,
+                    punti = archivio.punti(slug),
+                ),
+                kmConUnPieno = kmConUnPieno,
+                ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
             )
         }
         _stato.update {
-            it.copy(aperto = viaggio, tappe = dati.first, voci = dati.second, diario = dati.third)
+            it.copy(
+                aperto = viaggio,
+                tappe = dati.tappe,
+                voci = dati.voci,
+                diario = dati.diario,
+                consumo = dati.consumo,
+                autonomia = dati.autonomia,
+                kmConUnPieno = dati.kmConUnPieno,
+                ultimoKm = dati.ultimoKm,
+            )
         }
     }
+
+    private data class DatiViaggio(
+        val tappe: List<Tappa>,
+        val voci: List<Voce>,
+        val diario: String,
+        val consumo: Consumo,
+        val autonomia: Autonomia?,
+        val kmConUnPieno: Int?,
+        val ultimoKm: Int?,
+    )
 
     fun apri(viaggio: Viaggio) = viewModelScope.launch { aggiornaViaggio(viaggio) }
 
@@ -181,6 +223,31 @@ class ViaggiViewModel(
             val nome = NomeFoto.per(OffsetDateTime.now(), archivio.luogo(slug))
             File(archivio.cartellaFoto(slug), nome)
         }
+    }
+
+    fun registraRifornimento(km: Int, litri: Double, euro: Double?, pieno: Boolean) =
+        operazione { slug ->
+            archivio.registraRifornimento(
+                slug = slug,
+                km = km,
+                litri = litri,
+                euro = euro,
+                pieno = pieno,
+                posizione = posizioni.ultimaNota(),
+            )
+            Avviso.RifornimentoRegistrato
+        }
+
+    /**
+     * Salva i km con un pieno. Vive fuori da [operazione] perche' e' una
+     * impostazione globale: si puo' cambiare anche senza un viaggio aperto.
+     */
+    fun salvaKmConUnPieno(km: Int?) = viewModelScope.launch {
+        withContext(Dispatchers.IO) {
+            archivio.salvaImpostazioni(archivio.impostazioni().copy(kmConUnPieno = km))
+        }
+        _stato.update { it.copy(kmConUnPieno = km, avviso = Avviso.ImpostazioniSalvate) }
+        _stato.value.aperto?.let { aggiornaViaggio(it) }
     }
 
     fun registraFoto(file: File, didascalia: String?) = operazione { slug ->

@@ -53,3 +53,17 @@ object FotoTabella {
 
 /** Coordinate, quando il GPS le ha date. */
 data class Posizione(val lat: Double, val lon: Double)
+
+object RifornimentiTabella {
+    const val NOME_FILE = "rifornimenti.csv"
+
+    const val KM = "km"
+    const val LITRI = "litri"
+    const val EURO = "euro"
+    const val PIENO = "pieno"
+    const val LUOGO = "luogo"
+    const val LAT = "lat"
+    const val LON = "lon"
+
+    val COLONNE = listOf(Csv.ID, Csv.TS, Csv.CANCELLATO, KM, LITRI, EURO, PIENO, LUOGO, LAT, LON)
+}

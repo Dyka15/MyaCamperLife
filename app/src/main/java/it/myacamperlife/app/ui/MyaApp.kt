@@ -43,11 +43,14 @@ import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.ui.diario.DiarioContent
+import it.myacamperlife.app.ui.numeri.NumeriContent
 import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
 import it.myacamperlife.app.ui.viaggi.AzioniTappaDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
 import it.myacamperlife.app.ui.viaggi.ElencoViaggiContent
+import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
+import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
 import it.myacamperlife.app.ui.viaggi.ViaggiViewModel
 import java.io.File
@@ -56,6 +59,7 @@ import kotlinx.coroutines.launch
 private enum class Scheda(val etichetta: Int, val icona: Int) {
     VIAGGIO(R.string.scheda_viaggio, R.drawable.ic_tab_viaggio),
     DIARIO(R.string.scheda_diario, R.drawable.ic_tab_diario),
+    NUMERI(R.string.scheda_numeri, R.drawable.ic_tab_numeri),
 }
 
 /**
@@ -66,8 +70,8 @@ private enum class Scheda(val etichetta: Int, val icona: Int) {
  * coerenti passando dall'una all'altra.
  *
  * Le schede compaiono solo dentro un viaggio: fuori non ci sarebbe niente da
- * separare. **Numeri** ed **Esplora** si aggiungono quando avranno qualcosa da
- * mostrare, fasi 3 e 7.
+ * separare. **Esplora** si aggiunge alla fase 7, quando avra' qualcosa da
+ * mostrare.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +88,8 @@ fun MyaApp(vista: ViaggiViewModel) {
     var coordinateGps by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var fotoScattata by remember { mutableStateOf<File?>(null) }
     var fotoInAttesa by remember { mutableStateOf<File?>(null) }
+    var rifornimentoAperto by remember { mutableStateOf(false) }
+    var impostazioniAperte by remember { mutableStateOf(false) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -141,6 +147,14 @@ fun MyaApp(vista: ViaggiViewModel) {
                                 contentDescription = stringResource(R.string.azione_indietro),
                             )
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { impostazioniAperte = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_impostazioni),
+                            contentDescription = stringResource(R.string.impostazioni_titolo),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -219,10 +233,18 @@ fun MyaApp(vista: ViaggiViewModel) {
                         }
                     },
                     onNota = { notaAperta = true },
+                    onLitri = { rifornimentoAperto = true },
                     onTappa = { tappaScelta = it },
                 )
 
-                else -> DiarioContent(voci = stato.voci, giorni = stato.giorni)
+                scheda == Scheda.DIARIO -> DiarioContent(voci = stato.voci, giorni = stato.giorni)
+
+                else -> NumeriContent(
+                    consumo = stato.consumo,
+                    autonomia = stato.autonomia,
+                    kmConUnPieno = stato.kmConUnPieno,
+                    onImpostaKm = { impostazioniAperte = true },
+                )
             }
 
             // Una barra sottile in cima mentre si scrive: le scritture sono
@@ -263,6 +285,22 @@ fun MyaApp(vista: ViaggiViewModel) {
                 fotoScattata = null
                 vista.scartaFoto(file)
             },
+        )
+    }
+
+    if (rifornimentoAperto) {
+        RifornimentoDialog(
+            ultimoKm = stato.ultimoKm,
+            onSalva = vista::registraRifornimento,
+            onChiudi = { rifornimentoAperto = false },
+        )
+    }
+
+    if (impostazioniAperte) {
+        ImpostazioniDialog(
+            kmConUnPieno = stato.kmConUnPieno,
+            onSalva = vista::salvaKmConUnPieno,
+            onChiudi = { impostazioniAperte = false },
         )
     }
 
@@ -322,4 +360,6 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     is ViaggiViewModel.Avviso.TappaAggiunta -> stringResource(R.string.tappa_aggiunta, avviso.nome)
     ViaggiViewModel.Avviso.NotaRegistrata -> stringResource(R.string.nota_registrata)
     ViaggiViewModel.Avviso.FotoRegistrata -> stringResource(R.string.foto_registrata)
+    ViaggiViewModel.Avviso.RifornimentoRegistrato -> stringResource(R.string.rifornimento_registrato)
+    ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
 }

@@ -5,6 +5,7 @@
     <!-- Schede -->
     <string name="scheda_viaggio">Viaggio</string>
     <string name="scheda_diario">Diario</string>
+    <string name="scheda_numeri">Numeri</string>
 
     <!-- Azioni -->
     <string name="azione_importa">Importa itinerario</string>
@@ -22,6 +23,7 @@
     <string name="azione_posizione">Posizione</string>
     <string name="azione_foto">Foto</string>
     <string name="azione_nota">Nota</string>
+    <string name="azione_litri">Litri</string>
 
     <!-- Elenco vuoto -->
     <string name="vuoto_titolo">Nessun viaggio</string>
@@ -89,4 +91,41 @@
     <string name="genere_nota">Nota</string>
     <string name="genere_foto">Foto</string>
     <string name="voce_senza_testo">senza descrizione</string>
+
+    <!-- Rifornimento -->
+    <string name="rifornimento_titolo">Rifornimento</string>
+    <string name="rifornimento_km">Chilometri</string>
+    <string name="rifornimento_ultimo_km">Ultimo registrato: %1$d</string>
+    <string name="rifornimento_litri">Litri</string>
+    <string name="rifornimento_euro">Euro</string>
+    <string name="rifornimento_pieno">Pieno</string>
+    <string name="rifornimento_pieno_spiegazione">Solo fra due pieni si può calcolare il consumo.</string>
+    <string name="rifornimento_registrato">Rifornimento registrato</string>
+
+    <!-- Impostazioni -->
+    <string name="impostazioni_titolo">Impostazioni</string>
+    <string name="impostazioni_km_pieno">Km con un pieno</string>
+    <string name="impostazioni_km_pieno_spiegazione">Quanti chilometri fa il camper con un serbatoio pieno. Serve a stimare l\'autonomia. Lascia vuoto per non usarla.</string>
+    <string name="impostazioni_salvate">Impostazioni salvate</string>
+
+    <!-- Numeri -->
+    <string name="numeri_autonomia">Autonomia</string>
+    <string name="numeri_consumo">Consumo</string>
+    <string name="numeri_tratti">Tratti fra due pieni</string>
+    <string name="autonomia_km">%1$d km</string>
+    <string name="autonomia_dettaglio">%1$d km stimati dall\'ultimo pieno, su %2$d</string>
+    <string name="autonomia_e_una_stima">Stima dai punti registrati e in linea d\'aria: i chilometri veri sono di più.</string>
+    <string name="autonomia_senza_punti">Dall\'ultimo pieno non hai registrato niente: questa è l\'autonomia di partenza, non una misura.</string>
+    <string name="autonomia_senza_parametro">Per stimare l\'autonomia serve sapere quanti chilometri fa il camper con un pieno.</string>
+    <string name="autonomia_imposta">Imposta i km con un pieno</string>
+    <string name="autonomia_senza_pieno">Registra un pieno e l\'autonomia comincia a contare da lì.</string>
+    <string name="consumo_km_litro">%1$s km/l</string>
+    <string name="consumo_litri_100">Litri per 100 km</string>
+    <string name="consumo_euro_100">Euro per 100 km</string>
+    <string name="consumo_misurato_su">Misurato su</string>
+    <string name="consumo_km_e_litri">%1$d km, %2$s litri</string>
+    <string name="consumo_servono_due_pieni">Servono due pieni per calcolare un consumo: fra il primo e il secondo si sa quanto carburante è entrato per quei chilometri.</string>
+    <string name="tratto_km">Da %1$d a %2$d</string>
+    <string name="tratto_dettaglio">%1$d km, %2$s litri</string>
+    <string name="tratto_euro">%1$s €</string>
 </resources>

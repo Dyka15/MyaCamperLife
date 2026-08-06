@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Tre cursori: impostazioni. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M3,6h11v2H3zM17,6h4v2h-4zM3,11h4v2H3zM10,11h11v2H10zM3,16h11v2H3zM17,16h4v2h-4z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M13.5,7a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0zM6.5,12a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0zM13.5,17a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0z" />
+</vector>

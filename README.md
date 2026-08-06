@@ -25,7 +25,8 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1 e 2 di 9 realizzate.** L'app registra una giornata di viaggio, tutta senza rete.
+**Fasi 1, 2 e 3 di 9 realizzate.** L'app registra una giornata di viaggio e calcola i
+consumi del mezzo, tutto senza rete.
 
 Itinerario:
 
@@ -37,16 +38,24 @@ Itinerario:
 
 Diario:
 
-- registra posizione, note e foto con tre tocchi dalla schermata d'apertura
+- registra posizione, note, foto e rifornimenti con quattro tocchi dalla schermata
+  d'apertura
 - le foto si chiamano `foto_AAAAMMGG_HHMMSS_Localita.jpg`, come già oggi
 - scrive `diario.md`: un file per viaggio, una sezione per giorno, aggiornata a ogni evento
-- le giornate si sfogliano nella scheda **Diario**
 
-Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv` e `FORMATI.md` che spiega le
-colonne. Nessuna rete usata; l'unico permesso è la posizione, chiesto quando serve.
+Numeri:
 
-Restano le fasi 3–9: consumi, spese, briefing serale, meteo, punti di interesse offline,
-client AI.
+- consumo **pieno-a-pieno**: km/l, litri e euro per 100 km, tratto per tratto e in media
+  pesata sui chilometri
+- **autonomia residua stimata** dai km con un pieno, meno i chilometri dedotti da tutti i
+  punti registrati — check-in, posizioni, foto, rifornimenti
+- ogni numero dichiara com'è nato: una stima si chiama stima
+
+Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
+`impostazioni.json` e `FORMATI.md` che spiega le colonne. Nessuna rete usata; l'unico
+permesso è la posizione, chiesto quando serve.
+
+Restano le fasi 4–9: spese, briefing serale, meteo, punti di interesse offline, client AI.
 
 ## Documenti
 

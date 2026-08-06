@@ -58,6 +58,7 @@ object VociDelGiorno {
         spostamenti: List<Riga>,
         note: List<Riga>,
         foto: List<Riga>,
+        rifornimenti: List<Riga> = emptyList(),
     ): List<Voce> = buildList {
         spostamenti.forEach { riga ->
             val istante = istante(riga) ?: return@forEach
@@ -88,7 +89,34 @@ object VociDelGiorno {
                 ),
             )
         }
+        rifornimenti.forEach { riga ->
+            val istante = istante(riga) ?: return@forEach
+            add(Voce(istante, Genere.RIFORNIMENTO, descrizioneRifornimento(riga)))
+        }
     }.sortedBy { it.istante }
+
+    /**
+     * "Pieno a Orvieto: 62,3 litri, 107,16 EUR".
+     *
+     * Il testo si compone qui e non in Cronaca perche' formattare i numeri con
+     * la virgola decimale e' una regola dell'archivio, e il dominio non deve
+     * dipendere dall'archivio.
+     */
+    private fun descrizioneRifornimento(riga: Riga): String {
+        val pieno = riga.booleano(RifornimentiTabella.PIENO)
+        val luogo = riga.testo(RifornimentiTabella.LUOGO)
+        val litri = riga.numero(RifornimentiTabella.LITRI)
+        val euro = riga.numero(RifornimentiTabella.EURO)
+
+        val testa = if (pieno) "pieno" else "rifornimento"
+        val dove = luogo?.let { " a $it" }.orEmpty()
+        val quanto = listOfNotNull(
+            litri?.let { "${Csv.numero(it, 1)} litri" },
+            euro?.let { "${Csv.numero(it)} \u20AC" },
+        ).joinToString(", ")
+
+        return if (quanto.isEmpty()) "$testa$dove" else "$testa$dove: $quanto"
+    }
 
     /** I giorni che hanno almeno una voce. */
     fun giorni(voci: List<Voce>): List<LocalDate> =
