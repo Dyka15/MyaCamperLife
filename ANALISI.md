@@ -1,9 +1,9 @@
-# CamperLife — App Android offline
+# MyaCamperLife — App Android offline
 
 Analisi di fattibilità per sostituire i workflow n8n + bot Telegram con un'app Android
 che funzioni anche senza rete, salvando su file locali.
 
-Versione 2, 6 agosto 2026.
+Versione 3, 6 agosto 2026.
 
 Per la descrizione del prodotto — input, output, funzionalità, schermate — vedi
 [PROGETTO.md](PROGETTO.md). Questo documento risponde a *si può fare*, quello a
@@ -38,8 +38,8 @@ funzione: *questa cosa la sa fare il telefono da solo, o serve qualcuno all'altr
 
 | | Funzioni |
 |---|---|
-| ✅ **Offline pieno** | Itinerario (import, elenco, check-in, salta, aggiungi), diario (posizione, note, foto, rifornimenti), consumi e autonomia, spese, raggruppamento tappe per giorno, notifica serale, tutto lo storico e la sua consultazione |
-| 🔶 **Offline con scorta** | Meteo, distanze e tempi di guida, geocoding inverso, prezzi carburante, POI nei dintorni. Non si calcolano sul posto, ma si possono **scaricare in anticipo** e usare offline: le tappe sono note prima di partire |
+| ✅ **Offline pieno** | Itinerario (import, elenco, check-in, salta, aggiungi), diario (posizione, note, foto), rifornimenti, consumi, autonomia residua e avviso di rifornimento, spese, raggruppamento tappe per giorno, briefing serale, tutto lo storico e la sua consultazione |
+| 🔶 **Offline con scorta** | Meteo, distanze e tempi di guida, geocoding inverso, POI nei dintorni. Non si calcolano sul posto, ma si possono **scaricare in anticipo** e usare offline: le tappe sono note prima di partire |
 | ❌ **Solo online** | Esplora con AI e ricerca web, pagina di diario in prosa, avvisi stradali ragionati (ZTL, limiti). Restano **funzioni dell'app** — schermate come le altre — ma richiedono connessione nel momento in cui le si usa. Fuori portata del tutto: sincronizzazione Drive/Sheets e l'accesso da un secondo dispositivo |
 
 La categoria interessante è la seconda. Quasi tutto ciò che sembra richiedere rete
@@ -61,9 +61,8 @@ L'app non è un contenitore da cui i dati vanno estratti: **scrive file leggibil
 quei file sono il formato ufficiale**. Tre ragioni concrete, non ideologiche:
 
 1. **Il diario in prosa continuerà a nascere da un modello linguistico.** Se i dati
-   della giornata stanno in un Markdown o in un CSV, si danno in pasto a Claude o a
-   Gemini quando c'è rete, senza alcuna integrazione. L'app non sostituisce l'AI:
-   **la rifornisce**.
+   della giornata stanno in un Markdown o in un CSV, si danno in pasto al modello quando
+   c'è rete, senza alcuna integrazione. L'app non sostituisce l'AI: **la rifornisce**.
 2. **Interoperabilità con quello che già esiste.** Gli itinerari arrivano oggi come
    `.md` con un blocco JSON `waypoints`: l'app legge quel formato identico. I file dei
    dati riproducono le colonne delle schede del foglio Sheets, così i due mondi si
@@ -79,8 +78,8 @@ niente database: **`append` su un `.csv`**.
 La scelta di un file per tipo invece di un registro unico non è un dettaglio: ricalca
 esattamente le schede del foglio Sheets di oggi — "Diario di viaggio", "Spostamenti" —
 e risolve da sola il problema che un registro unico avrebbe, cioè righe con colonne
-diverse a seconda dell'evento. Ogni file ha le sue colonne e basta. La migrazione
-diventa banale: si scarica ogni scheda come CSV e si mette nella cartella.
+diverse a seconda dell'evento. Ogni file ha le sue colonne e basta. E se un giorno si
+volesse ripescare qualcosa dal foglio Sheets, le colonne coincidono.
 
 ```
 rifornimenti.csv
@@ -88,8 +87,8 @@ id;ts;km;litri;euro;pieno;luogo;lat;lon
 b7c2;2026-08-06T18:05:00+02:00;48210;62,3;107,16;si;Orvieto;42,7185;12,1112
 
 spese.csv
-id;ts;categoria;euro;valuta;cambio;tappa;scontrino
-c1d4;2026-08-06T20:11:00+02:00;sosta;18,00;EUR;;Orvieto;
+id;ts;categoria;euro;modalita;valuta;cambio;tappa;scontrino
+c1d4;2026-08-06T20:11:00+02:00;sosta;18,00;contanti;EUR;;Orvieto;
 ```
 
 **Punto e virgola come separatore, virgola come decimale.** È la sola combinazione che
@@ -124,9 +123,13 @@ In memoria si carica tutto: un anno di viaggi intensi sono qualche migliaio di r
 dieci anni qualche decina di migliaia. Filtri e totali si fanno in Kotlin su liste,
 senza query.
 
-**JSON resta solo dove il CSV non c'entra**: la configurazione del mezzo e la scorta
-meteo, che è annidata (previsioni orarie) e nessuno aprirà mai in un foglio. La regola:
-**CSV per i dati che potresti voler guardare, JSON per la cache tecnica.**
+**JSON resta solo dove il CSV non c'entra**: le impostazioni e la scorta meteo, che è
+annidata (previsioni orarie) e nessuno aprirà mai in un foglio. La regola: **CSV per i
+dati che potresti voler guardare, JSON per la configurazione e la cache tecnica.**
+
+Le chiavi API non stanno in nessuno dei due: vanno nell'archivio cifrato dell'app. La
+cartella può finire dentro una cartella sincronizzata su un cloud, e una chiave in chiaro
+lì dentro sarebbe un errore difficile da accorgersi.
 
 Una cosa il CSV non la fa, e va detta: non descrive sé stesso. Un file con una colonna
 in più e nessuno che ricordi cosa significhi è un problema che JSON non avrebbe. Si
@@ -170,32 +173,35 @@ a gestori file, e non serve. `WRITE_EXTERNAL_STORAGE` su API 33+ non fa più nul
 ### Alberatura
 
 ```
-CamperLife/
+MyaCamperLife/
 ├── FORMATI.md                     le colonne di ogni file, mezza pagina
-├── mezzo.json                     serbatoi, consumi medi, scadenze
+├── impostazioni.json              km con un pieno, briefing, modello principale
 ├── viaggi/
 │   └── 2026-08-toscana/
-│       ├── viaggio.json           nome, date, equipaggio
+│       ├── viaggio.json           nome, date
 │       ├── tappe.csv              waypoint, stato, data di check-in
-│       ├── spostamenti.csv        posizioni e check-in — come la scheda di oggi
+│       ├── spostamenti.csv        posizioni e check-in
 │       ├── note.csv               note di viaggio
 │       ├── rifornimenti.csv       km, litri, importo, pieno sì/no
-│       ├── spese.csv              categoria, importo, valuta
+│       ├── spese.csv              categoria, importo, modalità, valuta
 │       ├── foto.csv               nome file, didascalia, coordinate
 │       ├── foto/
 │       │   └── foto_20260806_143012_Orvieto.jpg
-│       └── diario/
-│           └── 2026-08-06.md      cronaca, poi prosa (sez. 6.2)
+│       └── diario.md              un file per viaggio, una sezione per giorno
 ├── scorta/                        dati scaricati in anticipo (sez. 5)
 │   ├── meteo.json                 annidato: resta JSON
 │   └── tratte.csv                 da, a, km, minuti
-├── poi/europa.sqlite              estratto OSM, sola lettura
-└── digest-2026.md                 riepilogo compatto da dare a un modello
+└── poi/europa.sqlite              estratto OSM, sola lettura
 ```
 
-Non c'è più una cartella `esporta/`: **l'esportazione non esiste come passo separato**,
-perché ogni file è già nel formato con cui si aprirebbe. Resta solo il digest, che non è
-un export dei dati ma un riassunto scritto per essere letto da un modello.
+Non c'è nessuna cartella `esporta/`: **l'esportazione non esiste come passo separato**,
+perché ogni file è già nel formato con cui si aprirebbe.
+
+**Il diario è l'unico file che non si accoda soltanto.** Ha una sezione per giorno; una
+giornata nuova si aggiunge in fondo, ma rigenerarne una riscrive la sua sezione in mezzo
+al file. Si fa scrivendo una copia e rinominandola sopra l'originale — atomico, quindi
+nessun file a metà — e non è il percorso frequente, quindi il costo non conta. Gli eventi
+grezzi restano nei CSV: una sezione di diario si può sempre ricostruire.
 
 ---
 
@@ -286,7 +292,6 @@ sostituto offline utile.
 | Aree di sosta camper e campeggi vicine | ✅ | Estratto OpenStreetMap: `tourism=caravan_site`, `tourism=camp_site` |
 | Punti di carico e scarico | ✅ | `amenity=sanitary_dump_station`, `waste_disposal` — copertura italiana disomogenea ma reale |
 | Distributori di carburante | ✅ | `amenity=fuel`, circa 25.000 in Italia |
-| Prezzi del carburante | 🔶 | Open data Osservaprezzi MIMIT: anagrafica impianti e prezzi praticati, pubblicati ogni giorno in CSV compresso (i prezzi sono quelli in vigore alle 8:00 del giorno prima). Si scarica quando c'è rete, si consulta offline con la data del dato in chiaro |
 | Attrazioni, ristoranti | 🔶 | `tourism=*`, `amenity=restaurant`: nomi e coordinate sì, recensioni e descrizioni no. Utile per "cosa c'è qui", inutile per "dove mangio bene" |
 | Supermercati con parcheggio adatto ai camper | 🔶 | I supermercati sì, il giudizio "adatto ai camper" non è un dato che OSM contenga. Al massimo si stima dalla superficie del parcheggio |
 | Meteo puntuale | 🔶 | Vedi 5.1 |
@@ -319,7 +324,7 @@ Il cuore del sistema, e la parte che offline funziona meglio di oggi.
 | Foto con la convenzione di nome attuale | ✅ | `foto_AAAAMMGG_HHMMSS[_localita].jpg`, stessa regola, generato in locale |
 | Caricamento foto su Google Drive | ❌ offline | Vedi sotto |
 | Riga sul foglio "Spostamenti" | ✅ | Diventa una riga in `spostamenti.csv`, con le stesse colonne della scheda di oggi: il foglio Sheets diventa un file locale, senza cambiare forma |
-| Pagina di diario generata dall'AI | ❌ | Vedi sezione 6 |
+| Pagina di diario generata dall'AI | ❌ | La cronaca si genera in locale; la prosa no. Vedi sezione 6 |
 | Storico consultabile | ✅ | E consultabile senza rete, che è il punto |
 
 **Le foto restano locali.** Implementare OAuth Google e l'API Drive nell'app è
@@ -373,16 +378,20 @@ esclusi quelli del primo pieno, divisi per i chilometri percorsi. I riempimenti 
 si accumulano nel segmento invece di produrre numeri fantasiosi. Da qui km/l,
 l/100 km, €/100 km e €/km.
 
-**Autonomia.** Il consumo medio giornaliero di acqua e gas si ricava dallo storico dei
-rimbocchi: litri caricati diviso giorni fra un carico e il successivo. Con la capacità
-dei serbatoi in `mezzo.json` si stima quanto resta. È una **stima da storico, non una
-misura**: va presentata come tale.
+**Autonomia residua.** Un solo parametro impostato a mano — i **km con un pieno** — meno
+i chilometri stimati dall'ultimo pieno. Quei chilometri non vengono da un contachilometri
+letto in continuo, che l'app non ha: si sommano le distanze delle tappe di cui si è fatto
+check-in dopo l'ultimo pieno, prese dalle tratte precalcolate (sez. 5.2) o dalla linea
+d'aria se non ci sono.
 
-**Sensori di bordo: no.** Leggere davvero i livelli richiede hardware. I pannelli CBE e
-Schaudt non espongono nulla di pubblico; Truma passa dal suo cloud. Qualche dispositivo
-BLE ha protocolli documentati dalla comunità (shunt Victron, alcuni BMS) e funzionerebbe
-offline via Bluetooth, ma dipende interamente da cosa è installato sul mezzo. Fuori
-scope finché non si sa (sez. 9).
+Ne segue una proprietà da dichiarare in interfaccia: la stima è **ottimista**, perché i
+giri fuori itinerario non li vede. L'avviso "domani serve rifornire" del briefing serale
+confronta i chilometri previsti per il giorno dopo con l'autonomia residua, e va letto
+come un promemoria, non come una misura.
+
+**Niente livelli di bordo.** Acqua, grigie, gas e batteria non si registrano: fuori scope
+per decisione, non per difficoltà tecnica. Cade con essi ogni ragione di leggere sensori
+via Bluetooth, che era l'unico pezzo del progetto dipendente da hardware ignoto.
 
 **OBD-II: no.** Il PID del contachilometri non è standard e la resa varia da veicolo a
 veicolo. Il chilometraggio si digita: sono tre secondi al rifornimento.
@@ -394,13 +403,12 @@ Tutto offline tranne un dettaglio.
 
 | Funzione | Verdetto |
 |---|---|
-| Voci con categoria, importo, tappa, metodo di pagamento | ✅ |
-| Totali per viaggio, per giorno, per categoria; spesa media giornaliera | ✅ |
-| Divisione per persona | ✅ |
+| Voci con categoria, importo, tappa | ✅ |
+| Modalità di pagamento: contanti, POS, carta di credito | ✅ |
+| Totali per viaggio, per giorno, per categoria e per modalità | ✅ |
 | Foto dello scontrino | ✅ |
 | Lettura automatica dell'importo dallo scontrino | 🔶 ML Kit riconosce il testo **interamente sul dispositivo**. Il modello va incluso nell'APK (pochi MB) e non nella variante consegnata da Play Services, che vuole un download iniziale |
 | Valuta estera | 🔶 Il cambio è un dato di rete: si salva il tasso *sul momento della registrazione*, modificabile a mano, così la voce resta corretta per sempre senza riconnettersi |
-| Import CSV dalla banca | ✅ |
 | Pedaggi automatici | ❌ manuali |
 
 ---
@@ -412,9 +420,15 @@ Tre dati sembrano richiedere connettività e non la richiedono, se ci si organiz
 ### 5.1 Meteo
 
 Open-Meteo è gratuito, non richiede chiave e restituisce fino a sedici giorni. Le tappe
-future sono note. Quindi: **ogni volta che c'è rete, si scaricano le previsioni per
-tutte le tappe programmate e si salvano in `scorta/meteo.json`**. Alle 19:00 la notifica
-usa la scorta e dichiara sempre l'età del dato ("previsione di stamattina alle 9").
+future sono note. Quindi: **alle 19:00, se c'è connessione, si scaricano le previsioni
+per le tappe da domani in avanti e si salvano in `scorta/meteo.json`**; poi il briefing
+si compone con quello che c'è, dichiarando sempre l'età del dato ("meteo di ieri sera
+alle 19").
+
+Scarico e notifica sono lo stesso lavoro serale, in quest'ordine, e il primo non può far
+fallire il secondo: se la richiesta va in errore o in timeout, il briefing esce comunque.
+Nelle impostazioni c'è anche un "aggiorna adesso", per quando si sa di stare per entrare
+in una zona senza campo.
 
 Il workflow `MyMeteo Custom` con il suo webhook non serve più: la formattazione del
 messaggio diventa codice nell'app.
@@ -468,7 +482,7 @@ Le soluzioni per ciascuna funzione sono diverse fra loro:
 | Funzione | Sostituto offline |
 |---|---|
 | **Ingresso in linguaggio naturale** ("ieri 60 litri a 1,72 a Orvieto") | Form strutturate, più un **parser deterministico** per una grammatica ristretta: numeri con unità, date relative, nomi di località conosciute. Copre le frasi che si usano davvero, che sono poche e ripetitive. Più il **dettato vocale offline** di Android (`createOnDeviceSpeechRecognizer`, API 33+), che richiede il pacchetto lingua italiana installato: si parla, il parser interpreta, la form si presenta precompilata da confermare |
-| **Pagina di diario in prosa** | Un template deterministico che compone gli eventi della giornata in Markdown: tappe, posizioni, note, foto, rifornimenti, spese. Non è prosa, è una cronaca ordinata — che è precisamente l'input ideale da dare a Claude quando c'è rete. **L'app produce la giornata strutturata, il modello ci scrive sopra.** Il file `diario/2026-08-06.md` nasce come cronaca e viene sostituito dalla versione in prosa quando e se si passa dal modello |
+| **Pagina di diario in prosa** | Un template deterministico che compone gli eventi della giornata in Markdown: tappe, posizioni, note, foto, rifornimenti, spese. Non è prosa, è una cronaca ordinata — che è precisamente l'input ideale da dare al modello quando c'è rete. **L'app produce la giornata strutturata, il modello ci scrive sopra.** La sezione del giorno in `diario.md` nasce come cronaca e viene sostituita dalla prosa quando e se si passa dal modello |
 | **Ricerca nello storico a domande** | Filtri strutturati e ricerca testuale sulle note. In memoria, su questi volumi, è istantaneo |
 | **Suggerimenti e ragionamento sui dintorni** | Il dataset POI di 4.3 risponde a "cosa c'è nel raggio di 5 km". Non risponde a "vale la pena". Quella domanda resta al modello, online — vedi 6.2 |
 
@@ -483,32 +497,47 @@ prompt e cosa gli si dà in pasto.
 | Uso | Cosa si manda | Cosa torna |
 |---|---|---|
 | **Esplora** | La domanda, la posizione, il meteo in cache, i POI locali già trovati | La risposta ragionata, salvata come `dossier` della tappa così resta leggibile offline |
-| **Diario in prosa** | La cronaca strutturata della giornata, generata in locale | Il testo che sostituisce `diario/2026-08-06.md`; l'originale resta come sorgente |
+| **Diario in prosa** | La cronaca strutturata della giornata, generata in locale | Il testo che sostituisce la sezione di quel giorno in `diario.md`; gli eventi restano nei CSV |
 
 **La ricerca web è compresa nel modello, non è un pezzo in più.** È il dettaglio che
-rende la cosa semplice: sia le API di Claude sia quelle di Gemini espongono uno strumento
-di ricerca eseguito lato server. L'app manda una domanda, il modello cerca da sé e
-risponde con le fonti. Non serve integrare un motore di ricerca, né riprodurre la catena
-che oggi vive in n8n.
+rende la cosa semplice: sia Gemini sia Grok espongono uno strumento di ricerca eseguito
+lato server. L'app manda una domanda, il modello cerca da sé e risponde con le fonti. Non
+serve integrare un motore di ricerca, né riprodurre la catena che oggi vive in n8n.
 
-**Quale modello.** Continuità da un lato, integrazione più semplice dall'altro:
+### Due modelli, uno di riserva
 
-| | Nota |
-|---|---|
-| **Gemini** | È quello che il sistema usa già: il prompt di Esplora si trasporta senza riscritture. La ricerca è il *grounding* con Google Search — sui modelli Gemini 3 include 5.000 richieste al mese gratuite, poi 14 $ ogni 1.000 ricerche |
-| **Claude** | Strumento `web_search` eseguito lato server, 10 $ ogni 1.000 ricerche più i token. Prosa migliore, ed è già il posto dove nascono gli itinerari `.md`: un motivo concreto di coerenza |
+**Gemini principale, Grok di riserva.** Gemini perché è quello che il sistema usa già: il
+prompt di Esplora si trasporta senza riscritture. Grok dietro, perché una funzione che
+dipende da un solo fornitore è una funzione che sparisce quando quel fornitore ha una
+brutta giornata.
 
-Consiglio: **Claude Sonnet per il diario in prosa, e la scelta è aperta su Esplora.**
-Sonnet costa 3 $/15 $ per milione di token (in offerta 2 $/10 $ fino al 31 agosto 2026);
-Opus 5 sta a 5 $/25 $ e non serve per scrivere una pagina di diario. Su Esplora la
-continuità con il prompt esistente ha un valore reale, quindi vale provare entrambi.
+| | Ricerca | Token |
+|---|---|---|
+| **Gemini** (principale) | *Grounding* con Google Search: sui modelli Gemini 3, 5.000 richieste al mese gratuite, poi 14 $ ogni 1.000 ricerche | secondo il modello scelto |
+| **Grok** (riserva) | Live Search: 5 $ ogni 1.000 chiamate | Grok 4.5 a 2 $/6 $ per milione di token |
+
+**Quando scatta la riserva.** Da sola, senza chiedere: errore HTTP, timeout, quota
+esaurita. Non su una risposta che semplicemente non piace — quello sarebbe un giudizio, e
+l'app non è in grado di darlo. La risposta porta scritto quale dei due l'ha prodotta: se
+il tono di una pagina di diario cambia da un giorno all'altro, si deve poter capire
+perché.
+
+Il vantaggio pratico di questa coppia va oltre la resilienza: la riserva costa **meno del
+principale** sulla ricerca, quindi non c'è la tentazione di scegliere il ripiego scomodo.
+
+**Un solo client per entrambi.** Cambiano indirizzo, forma della richiesta e chiave; la
+logica — costruisci il prompt, manda, leggi la risposta, salva su file — è la stessa. Il
+fallback è un `try` sul secondo indirizzo, non un secondo sottosistema.
+
+Se è configurata una chiave sola, non c'è riserva e l'app lo dice. Se non ce n'è nessuna,
+le funzioni AI non compaiono e tutto il resto funziona come sempre.
 
 **Il costo è trascurabile, e conviene dirlo con i numeri.** Una richiesta di Esplora sono
-qualche migliaio di token in ingresso e un migliaio in uscita: **fra due e tre centesimi**,
-più una ricerca a un centesimo. Una pagina di diario, senza ricerca, sta sotto il
-centesimo. Anche con dieci interrogazioni al giorno per due settimane di viaggio si parla
-di **pochi euro per vacanza** — meno di una notte in area di sosta. Il tetto di spesa si
-imposta comunque sul pannello del fornitore.
+qualche migliaio di token in ingresso e un migliaio in uscita: **pochi centesimi**, ricerca
+compresa. Una pagina di diario, senza ricerca, sta sotto il centesimo. Anche con dieci
+interrogazioni al giorno per due settimane di viaggio si parla di **pochi euro per
+vacanza** — meno di una notte in area di sosta. Il tetto di spesa si imposta comunque sul
+pannello di ciascun fornitore.
 
 **La chiave API.** Va inserita dall'utente una volta nelle impostazioni e conservata in
 `EncryptedSharedPreferences`. Su questo serve una precisazione onesta: **una chiave
@@ -533,9 +562,9 @@ un giorno per volta, quando il bot risponde.
 Vale metterlo per iscritto perché condiziona il progetto: **l'app non compete con il
 modello, gli fa da organo di senso e da memoria.** Raccoglie sul campo, senza rete, in un
 formato che il modello digerisce; il modello interviene quando c'è connessione e quando
-serve giudizio. `digest-2026.md` resta utile anche così: è il riepilogo compatto
-da dare in pasto a una conversazione, quando si vuole ragionare su più viaggi insieme
-invece che su una giornata.
+serve giudizio. E se un giorno si vuole ragionare su più viaggi insieme invece che su una
+giornata, i file sono già lì da dare in pasto a una conversazione: non serve che l'app
+prepari un riassunto in anticipo.
 
 ---
 
@@ -559,18 +588,19 @@ invece che su una giornata.
         └───────────────────┘   └──────────────────────┘
 
         ┌──────────────────────────────────────────────┐
-        │  Rifornitore di scorta (quando c'è rete)     │
-        │  Open-Meteo · OSRM · Osservaprezzi           │
+        ┌──────────────────────────────────────────────┐
+        │  Rifornitore di scorta                       │
+        │  Open-Meteo alle 19:00 · OSRM all'import     │
         └───────────────────┬──────────────────────────┘
                             ▼
-                    scorta/*.json   ← letta sempre, mai indispensabile
+                    scorta/*   ← letta sempre, mai indispensabile
 
         ┌──────────────────────────────────────────────┐
         │  Client AI (quando c'è rete e su richiesta)  │
-        │  domanda → modello + ricerca web → risposta  │
+        │  Gemini → se cade → Grok, ricerca compresa   │
         └───────────────────┬──────────────────────────┘
                             ▼
-             dossier di tappa · diario/*.md in prosa
+             dossier di tappa · sezioni di diario.md in prosa
              (scritti su file: restano leggibili offline)
 
         ┌──────────────────────────────────────────────┐
@@ -592,9 +622,10 @@ Due invarianti da rispettare in tutto il codice:
 ### Dominio testabile
 
 Come `TimePhrase` in Cicala, la logica che conta va in funzioni pure senza dipendenze
-Android, coperte da JUnit: calcolo pieno-a-pieno, autonomia dei serbatoi, divisione
-delle spese, raggruppamento delle tappe per data, emisenoverso, parser dei `waypoints`,
-lettura e fusione dei CSV. Sono i punti dove un errore silenzioso è peggio di un crash.
+Android, coperte da JUnit: calcolo pieno-a-pieno, autonomia residua e soglia dell'avviso
+di rifornimento, totali delle spese, raggruppamento delle tappe per data, emisenoverso,
+parser dei `waypoints`, lettura e fusione dei CSV, sostituzione di una sezione in
+`diario.md`. Sono i punti dove un errore silenzioso è peggio di un crash.
 
 ### Permessi
 
@@ -630,25 +661,29 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | Fase | Contenuto | Verificabile con |
 |---|---|---|
 | **1** | Scaffolding, lettura e scrittura dei CSV, import `.md` con `waypoints`, elenco tappe | apri sul telefono un itinerario che hai già |
-| **2** | Diario: posizione GPS, note, foto con la convenzione di nome, check-in, salta/ripristina, aggiungi tappa | una giornata di viaggio registrata senza rete |
-| **3** | Import dello storico: le schede del foglio Sheets scaricate in CSV | i dati di oggi entrano nell'app. L'export non serve: i file sono già CSV |
-| **4** | Rifornimenti e consumi pieno-a-pieno, autonomia serbatoi | km/l del viaggio scorso |
-| **5** | Spese: voci, categorie, totali, divisione, foto scontrino | conto di fine viaggio |
-| **6** | Notifica serale 19:00 offline-first: raggruppamento tappe, `BootReceiver`, watchdog, onboarding HyperOS | riavvii il telefono, alle 19:00 arriva |
-| **7** | Rifornimento scorta: Open-Meteo, precalcolo tratte OSRM | carichi l'itinerario a casa, in viaggio i dati ci sono |
-| **8** | Geocoding inverso offline (GeoNames) + POI offline da OSM | "cosa c'è vicino" in mezzo al nulla |
-| **9** | Client AI: Esplora a due strati, diario in prosa, coda delle giornate da narrare | l'ultima cosa che restava su Telegram |
-| **10** | Rifiniture: specchio SAF, digest, dettato vocale, parser deterministico | |
+| **2** | Diario: posizione GPS, note, foto con la convenzione di nome, check-in, salta/ripristina, aggiungi tappa, `diario.md` | una giornata di viaggio registrata senza rete |
+| **3** | Rifornimenti, consumi pieno-a-pieno, km con un pieno, autonomia residua | km/l e autonomia del viaggio scorso |
+| **4** | Spese: voci, categorie, modalità di pagamento, totali, foto scontrino | conto di fine viaggio |
+| **5** | Briefing serale 19:00 offline: raggruppamento tappe, avviso rifornimento, `BootReceiver`, watchdog, onboarding HyperOS | riavvii il telefono, alle 19:00 arriva |
+| **6** | Rete: scarico meteo alle 19:00, precalcolo tratte OSRM | il briefing porta il meteo, e i km di domani sono quelli veri |
+| **7** | Geocoding inverso offline (GeoNames) + POI offline da OSM | "cosa c'è vicino" in mezzo al nulla |
+| **8** | Client AI: Gemini con Grok di riserva, Esplora a due strati, giornate in prosa | l'ultima cosa che restava su Telegram |
+| **9** | Rifiniture: specchio SAF, dettato vocale, parser deterministico | |
 
-Le fasi 1–6 non toccano la rete: **si può arrivare a un'app utile senza scrivere una riga
+Le fasi 1–5 non toccano la rete: **si può arrivare a un'app utile senza scrivere una riga
 di codice di networking.** È un buon ordine anche per questo — e mette il client AI in
 fondo, dove è un'aggiunta e non un prerequisito.
 
-Nota di scoping: **n8n si può spegnere alla fine della fase 9**, non prima. Fino a quel
+Una dipendenza da tenere presente: l'avviso di rifornimento della fase 5 ha bisogno delle
+distanze fra le tappe, che in fase 5 sono ancora la linea d'aria. Funziona, ed è
+volutamente ottimista; con la fase 6 diventa preciso. Meglio così che aspettare la rete
+per avere l'avviso.
+
+Nota di scoping: **n8n si può spegnere alla fine della fase 8**, non prima. Fino a quel
 momento il bot resta la via per Esplora e per la prosa del diario, e non dà fastidio a
 nessuno: legge e scrive su Sheets, l'app sui suoi file.
 
-Sul repository, la scelta è già fatta: questo. CamperLife e Cicala non condividono
+Sul repository, la scelta è già fatta: questo. MyaCamperLife e Cicala non condividono
 dominio né ciclo di rilascio, quindi non condividono codice; condividono conoscenze — lo
 schema `AlarmManager` + `BootReceiver` + watchdog, l'onboarding HyperOS, il setup Gradle
 e la CI — che si ricopiano in poche centinaia di righe. Accoppiare due app in un unico
@@ -665,34 +700,35 @@ repository per riusarle costerebbe più di quanto rende.
 | **Google Sheets e Drive** | Contraddicono l'offline-first e aggiungono OAuth. I file locali sono già CSV: se serve un foglio, si apre quello. La cartella si sincronizza con gli strumenti che lo fanno di mestiere |
 | **Modello linguistico sul dispositivo** | Non disponibile o non paragonabile. Il modello si chiama via rete quando serve: sez. 6.2 |
 | **Backend proprio per nascondere la chiave API** | Sarebbe l'unico modo per distribuire l'app a estranei, e rimetterebbe in piedi il server che stiamo togliendo. Chiave inserita dall'utente: sez. 6.2 |
-| **Lettura dei sensori di bordo** | Dipende da hardware che non sappiamo esserci. Da riaprire con l'informazione in mano |
+| **Livelli di bordo e sensori** | Acqua, grigie, gas e batteria non si registrano, per decisione. Cade con essi ogni ragione di leggere sensori Bluetooth, che era l'unico pezzo dipendente da hardware ignoto |
+| **Scheda del mezzo** | Niente libretto, scadenze, tagliandi. Un solo parametro: i km con un pieno |
+| **Prezzi dei distributori** | Gli open data ci sarebbero e funzionerebbero offline, ma la funzione non serve |
+| **Import del passato** | Nessuna migrazione dallo storico su Sheets, e nessun import di estratti conto. Si parte dal viaggio in corso |
+| **Divisione delle spese fra le persone** | L'app registra chi paga come, non chi deve a chi |
 | **Multiutente** | Il sistema attuale autorizza un solo chat ID. L'app è personale per costruzione |
 
 ---
 
 ## 10. Da decidere
 
-- **Quale modello per il client AI**, e con quale chiave: Claude o Gemini (sez. 6.2). Su
-  Esplora la continuità del prompt esistente è un argomento per Gemini; sul diario in
-  prosa la qualità della scrittura è un argomento per Claude. Si può anche usarne uno per
-  funzione — il client è lo stesso, cambia l'endpoint.
-- **Il prompt di Esplora va trasportato o riscritto?** Trasportarlo è quasi gratis se si
-  resta su Gemini. Cambiando modello va comunque riprovato sul campo: è il pezzo del
-  sistema con più messa a punto accumulata.
-- **Migrazione dello storico**: quanti viaggi ci sono sul foglio Sheets, e vanno importati
-  tutti o si parte dal viaggio in corso?
-- **Foto anche in galleria?** Album `Pictures/CamperLife` visibile a Google Foto e quindi
-  salvato nel cloud, contro archivio autoconsistente in un'unica cartella. Si può fare
-  entrambe le cose a costo di spazio doppio.
+- **Il prompt di Esplora va trasportato o riscritto?** Su Gemini si trasporta quasi
+  gratis, essendo il modello che il sistema usa già. Su Grok va riprovato sul campo: è il
+  pezzo del sistema con più messa a punto accumulata, e due modelli diversi non rispondono
+  allo stesso prompt nello stesso modo. Va accettato che la riserva risponda un po'
+  peggio — è una riserva.
+- **Quale modello Gemini**, e quale Grok: la scelta della taglia si fa provando, non a
+  tavolino. Vale la pena partire dai più economici e salire solo se la qualità non basta.
+- **Foto anche in galleria?** Album `Pictures/MyaCamperLife` visibile a Google Foto e
+  quindi salvato nel cloud, contro archivio autoconsistente in un'unica cartella. Si può
+  fare entrambe le cose a costo di spazio doppio.
 - **Serve la registrazione della traccia GPS?** Non è nel sistema attuale. È l'unica
   funzione che porterebbe con sé servizio in primo piano, consumo di batteria e battaglia
   con HyperOS: se non serve, meglio non averla.
-- **Cosa è installato sul camper** (shunt batteria, pannello di controllo, sensori
-  Bluetooth): condiziona il verdetto di 4.6.
 - **Copertura del dataset POI**: solo Italia (pochi MB, allegabile all'APK) o Europa
   occidentale (decine di MB, meglio scaricabile per regione)?
-- **Nome e `applicationId`**: si tiene *CamperLife*, che è già il nome del sistema (e con
-  il bot spento non c'è più niente con cui confondersi). Il dominio `it.camperlife.app`
-  collide con l'esistente
-  `live.camperlife.app` sul Play Store — irrilevante se l'APK non ci va, da cambiare se
-  un giorno ci va.
+- **Come si tratta un giro fuori itinerario.** L'autonomia residua si stima dalle tappe di
+  cui si è fatto check-in: una gita di 80 km andata e ritorno dalla stessa tappa non la
+  vede. Si può accettare (l'avviso è un promemoria), oppure aggiungere un campo per
+  correggere i km a mano. Da decidere dopo averla usata, non prima.
+- **`applicationId`**: `it.myacamperlife.app` non collide con nulla. Rilevante solo se un
+  giorno l'APK va sul Play Store.
