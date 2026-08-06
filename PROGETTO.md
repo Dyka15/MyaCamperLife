@@ -2,7 +2,7 @@
 
 Cosa è l'app, cosa riceve, cosa produce, cosa fa.
 
-Versione 2, 6 agosto 2026.
+Versione 3, 6 agosto 2026.
 
 Per il *si può fare* — cosa regge offline, cosa no, e con quale tecnologia — vedi
 [ANALISI.md](ANALISI.md). Questo documento descrive il prodotto, non le sue fattibilità.
@@ -55,7 +55,7 @@ Cosa entra nell'app, da dove, e con quale gesto.
 | **Spesa** | Form: categoria, importo, **modalità di pagamento**, valuta, foto dello scontrino | Quando si paga |
 | **Km con un pieno** | Un solo numero, nelle impostazioni | Una volta |
 | **Cartella di archivio** | Scelta una volta con il selettore di sistema | Al primo avvio |
-| **Chiavi dei due modelli** | Incollate nelle impostazioni | Una volta, se si vogliono le funzioni AI |
+| **Chiave del modello** | Incollata nelle impostazioni. Una seconda, per la riserva, solo se la si vuole | Una volta, se si vogliono le funzioni AI |
 
 ### Dal dispositivo
 
@@ -72,9 +72,9 @@ Nessuno di questi input è necessario al funzionamento: sono scorta.
 |---|---|---|---|
 | **Previsioni meteo** | Open-Meteo, senza chiave | **Ogni sera alle 19:00**, se c'è connessione: da domani in avanti | Briefing serale, dossier di tappa |
 | **Distanze e tempi di guida** | OSRM | All'import dell'itinerario, e quando si aggiunge una tappa | "Prossima tappa: 34 km, 45 min", e i km previsti per domani |
-| **Punti di interesse** | Estratto OpenStreetMap, scaricato una volta per regione | Su richiesta, dalle impostazioni | Aree di sosta, carico/scarico, distributori, supermercati |
+| **Punti di interesse** | Estratto OpenStreetMap. L'Italia è dentro l'app; le altre regioni si scaricano | Italia sempre presente, estero su richiesta dalle impostazioni | Aree di sosta, carico/scarico, distributori, supermercati |
 | **Toponimi** | Dataset GeoNames, allegato o scaricato una volta | All'installazione | Dare un nome alla posizione senza rete |
-| **Risposte del modello** | API Gemini, con Grok di riserva | Su richiesta | Esplora, diario in prosa |
+| **Risposte del modello** | API Gemini sul piano gratuito, con Grok di riserva facoltativa | Su richiesta | Esplora, diario in prosa |
 
 Non c'è import di dati preesistenti: si parte dal viaggio in corso.
 
@@ -97,7 +97,7 @@ foglio di calcolo senza conversioni.
 | `viaggi/<viaggio>/foto.csv` | Nome file, didascalia, coordinate |
 | `viaggi/<viaggio>/foto/*.jpg` | Le foto, nominate `foto_AAAAMMGG_HHMMSS[_localita].jpg` come oggi |
 | `viaggi/<viaggio>/diario.md` | **Il diario del viaggio, un unico file** |
-| `impostazioni.json` | I km con un pieno, il flag del briefing, quale modello è principale |
+| `impostazioni.json` | I km con un pieno, il flag del briefing, il modello scelto |
 | `FORMATI.md` | Le colonne di ogni file, perché un CSV non si spiega da sé |
 
 Le chiavi API **non stanno qui**: vivono nell'archivio cifrato dell'app. La cartella di
@@ -129,7 +129,7 @@ Numeri che nel sistema attuale non esistono, perché un foglio non li calcola da
 | Output | Come nasce |
 |---|---|
 | **Consumo del mezzo** | km/l, l/100 km, €/100 km, calcolati solo fra due pieni consecutivi |
-| **Autonomia residua stimata** | I km con un pieno meno i km stimati dall'ultimo pieno. È una stima, e viene presentata come tale |
+| **Autonomia residua stimata** | I km con un pieno meno i km stimati dall'ultimo pieno, ricavati da tutti i punti registrati. È una stima, e viene presentata come tale |
 | **Costo del viaggio** | Totali per categoria, per modalità di pagamento e per giorno, spesa media giornaliera |
 | **Prossima tappa** | Distanza e tempo di guida, dal dato precalcolato o in linea d'aria se non c'è |
 | **Avanzamento** | Quante tappe fatte, saltate, da fare |
@@ -189,13 +189,18 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Essere avvisati nel briefing serale quando domani serve rifornire | 5 |
 
 **Come si stima l'autonomia.** L'app conosce i chilometri dell'ultimo pieno, perché li
-digiti. Per sapere quanti ne hai fatti da allora somma le distanze delle tappe di cui hai
-fatto check-in dopo quel pieno. L'autonomia residua è la differenza fra i km con un pieno
+digiti. Per sapere quanti ne hai fatti da allora mette in fila **tutto quello che hai
+registrato dopo quel pieno** — check-in, posizioni salvate, foto — in ordine di ora, e somma
+le distanze fra punti consecutivi. L'autonomia residua è la differenza fra i km con un pieno
 e quel totale.
 
-È una stima, e lo dice: i giri fuori itinerario non li vede, quindi tende a essere
-**ottimista**. L'avviso di rifornimento va letto come "probabilmente domani ti serve", non
-come una misura.
+Usare anche le foto e le posizioni, e non solo i check-in, cambia molto: una gita di 40 km
+andata e ritorno viene contata, purché lassù tu abbia scattato una foto o salvato la
+posizione. Che è quello che si fa comunque quando si va da qualche parte.
+
+Resta una stima, e lo dice: se guidi senza registrare niente quei chilometri sono
+invisibili, quindi il numero tende a essere **ottimista**. L'avviso di rifornimento va letto
+come "probabilmente domani ti serve", non come una misura.
 
 ### 4.4 Spese
 
@@ -242,11 +247,11 @@ rete.
 |---|---|
 | Impostare i km con un pieno | 3 |
 | Scegliere la cartella di archivio | 9 |
-| Inserire le chiavi dei due modelli e scegliere quale è il principale | 8 |
+| Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |
 | Compattare i file quando le correzioni si accumulano | 9 |
-| Scaricare i dati offline: toponimi, punti di interesse per regione | 7 |
+| Scaricare i punti di interesse di una regione estera, prima di partire | 7 |
 
 ---
 
@@ -260,9 +265,18 @@ Sono configurati **due modelli**, con ruoli diversi:
 | **Principale** | Gemini |
 | **Riserva** | Grok |
 
-La riserva **scatta da sola**, senza chiedere niente, quando il principale dà errore, va
-in timeout o ha esaurito la quota. La risposta dice sempre quale dei due ha risposto: se
-il tono di una pagina di diario cambia, si deve poter capire perché.
+Si parte sul **piano gratuito**: un Gemini di fascia Flash, che ha una quota giornaliera
+gratuita e include 5.000 richieste di ricerca al mese. Per un'app usata in vacanza quel
+tetto non si vede.
+
+xAI non ha un equivalente gratuito stabile, quindi all'inizio **la riserva è prevista ma
+spenta**: la si accende inserendo la chiave, quando ci sarà motivo di pagarla. Finché manca,
+l'app lo dice e lavora con un modello solo.
+
+Quando ci sono entrambe, la riserva **scatta da sola**, senza chiedere niente, quando il
+principale dà errore, va in timeout o ha esaurito la quota. La risposta dice sempre quale
+dei due ha risposto: se il tono di una pagina di diario cambia, si deve poter capire
+perché.
 
 Un solo client per entrambi: cambiano l'indirizzo, il formato della richiesta e la chiave.
 La ricerca web è compresa in entrambi come strumento eseguito lato server, quindi non c'è
@@ -373,6 +387,8 @@ sezione 9.
 | | |
 |---|---|
 | **Non naviga** | Non disegna mappe e non calcola percorsi: apre la tappa nell'app di mappe offline che quel lavoro lo fa di mestiere |
+| **Non registra la traccia del percorso** | La posizione si salva quando la salvi tu. Niente notifica permanente, niente batteria consumata in sottofondo |
+| **Non mette le foto in galleria** | Stanno in un posto solo, la cartella del viaggio. Per averne una copia altrove, scegli come cartella d'archivio una cartella già sincronizzata: **altrimenti le foto vivono solo sul telefono** |
 | **Non tiene i livelli di bordo** | Acqua, grigie, gas, batteria: non si registrano. L'unico consumo che l'app segue è il carburante |
 | **Non fa da scheda del mezzo** | Nessun libretto, nessuna scadenza, nessun tagliando. Un solo parametro: i km con un pieno |
 | **Non conosce i prezzi dei distributori** | Si guardano dove si guardano oggi |

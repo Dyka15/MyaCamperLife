@@ -298,9 +298,15 @@ sostituto offline utile.
 | Avvisi stradali: ZTL, limiti di altezza e peso | 🔶 | `maxheight` e `maxweight` esistono in OSM e si possono controllare lungo il percorso; le ZTL sono mappate a macchia di leopardo. La sintesi ragionata di Gemini non è riproducibile |
 
 **Il dataset POI si costruisce a monte, non sul telefono.** Una query Overpass per i tag
-che ci interessano, convertita in SQLite con indice spaziale, allegata all'app o
-scaricabile per regione. Solo le categorie elencate, non tutta OSM: si resta
-nell'ordine di pochi megabyte per l'Italia, qualche decina per l'Europa occidentale.
+che ci interessano, convertita in SQLite con indice spaziale. Solo le categorie elencate,
+non tutta OSM: si resta nell'ordine di pochi megabyte per l'Italia.
+
+**L'Italia viaggia dentro l'APK, il resto si scarica per regione.** Così la ricerca locale
+funziona sempre e senza preparativi sul territorio dove si viaggia di più, e per un viaggio
+all'estero si scarica la regione da casa, prima di partire — che è esattamente il momento
+in cui si carica anche l'itinerario. Un pacchetto per regione, non un unico file europeo da
+decine di megabyte.
+
 Va rigenerato periodicamente (un'azione GitHub mensile) e va citata la licenza ODbL.
 
 **La mappa disegnata è una questione separata dai POI**, e la risposta per la v1 è: non
@@ -334,9 +340,14 @@ cartella del viaggio con il nome giusto, e la cartella specchio (sez. 3) può es
 cartella già sincronizzata da Drive o Syncthing. Il caricamento diventa un problema del
 sistema di sincronizzazione, non dell'app.
 
-Opzione da valutare: registrare le foto anche in `MediaStore` sotto un album
-`Pictures/CamperLife`, così Google Foto le include nel suo backup. Costa poco, ma
-significa che la foto vive fuori dall'archivio autoconsistente. Da decidere (sez. 9).
+**Le foto non vanno in galleria.** Si potrebbero registrare anche in `MediaStore` sotto
+un album visibile a Google Foto, che le salverebbe nel cloud da sé; costa poco, ma
+raddoppia lo spazio occupato e sparpaglia l'archivio in due posti. Scelto un posto solo.
+
+Ne segue un avvertimento da mettere in interfaccia, non da dare per sottinteso: **così le
+foto vivono solo sul telefono.** Per avere una copia altrove, la cartella d'archivio va
+scelta dentro una cartella già sincronizzata da Drive o Syncthing. Chi non lo fa non ha
+backup, e deve saperlo prima di perdere il telefono, non dopo.
 
 Nota utile: se il GPS non ha ancora agganciato, l'EXIF della foto scattata poco prima
 può fornire le coordinate. Fonte di posizione a costo zero.
@@ -380,14 +391,26 @@ l/100 km, €/100 km e €/km.
 
 **Autonomia residua.** Un solo parametro impostato a mano — i **km con un pieno** — meno
 i chilometri stimati dall'ultimo pieno. Quei chilometri non vengono da un contachilometri
-letto in continuo, che l'app non ha: si sommano le distanze delle tappe di cui si è fatto
-check-in dopo l'ultimo pieno, prese dalle tratte precalcolate (sez. 5.2) o dalla linea
-d'aria se non ci sono.
+letto in continuo, che l'app non ha: si ricavano dai punti che l'app ha già.
 
-Ne segue una proprietà da dichiarare in interfaccia: la stima è **ottimista**, perché i
-giri fuori itinerario non li vede. L'avviso "domani serve rifornire" del briefing serale
-confronta i chilometri previsti per il giorno dopo con l'autonomia residua, e va letto
-come un promemoria, non come una misura.
+**Tutti i punti, non solo i check-in.** Ogni posizione registrata e ogni foto portano con
+sé delle coordinate. Mettendo in fila in ordine di ora tutto ciò che è stato registrato
+dopo l'ultimo pieno — check-in, posizioni salvate, foto — e sommando le distanze fra punti
+consecutivi, si cattura anche il movimento fuori itinerario: una gita di 40 km andata e
+ritorno viene vista, purché al punto lontano si sia scattata una foto o salvata la
+posizione. Che è quello che si fa naturalmente quando si va da qualche parte.
+
+Due accortezze necessarie:
+
+- **Soglia minima fra punti.** Sotto qualche centinaio di metri lo spostamento si ignora,
+  altrimenti il rumore del GPS accumula chilometri stando fermi in piazzola.
+- **Distanze in linea d'aria fra punti liberi.** Solo le tratte fra tappe hanno il dato
+  stradale (sez. 5.2); fra una foto e la successiva si usa l'emisenoverso.
+
+Ne segue una proprietà da dichiarare in interfaccia: la stima resta **ottimista**, perché
+se si guida senza registrare nulla quei chilometri sono invisibili. L'avviso "domani serve
+rifornire" confronta i chilometri previsti per il giorno dopo con l'autonomia residua, e va
+letto come un promemoria, non come una misura.
 
 **Niente livelli di bordo.** Acqua, grigie, gas e batteria non si registrano: fuori scope
 per decisione, non per difficoltà tecnica. Cade con essi ogni ragione di leggere sensori
@@ -516,14 +539,25 @@ brutta giornata.
 | **Gemini** (principale) | *Grounding* con Google Search: sui modelli Gemini 3, 5.000 richieste al mese gratuite, poi 14 $ ogni 1.000 ricerche | secondo il modello scelto |
 | **Grok** (riserva) | Live Search: 5 $ ogni 1.000 chiamate | Grok 4.5 a 2 $/6 $ per milione di token |
 
+**Si parte sul piano gratuito.** Un modello Gemini di fascia Flash, che ha una quota
+giornaliera gratuita, e le 5.000 richieste al mese di ricerca incluse. Per un'app personale
+usata durante le vacanze quel tetto non lo si vede. La versione esatta si fissa al momento
+di scrivere il client — fase 8 — perché le sigle dei modelli cambiano ogni pochi mesi e
+fissarne una oggi significa scrivere una cosa vecchia.
+
+Conseguenza sul secondo modello: **xAI non ha un equivalente gratuito stabile**, quindi la
+riserva Grok resta configurabile ma non configurata. Finché la sua chiave manca, l'app dice
+che non c'è riserva e lavora con un modello solo — comportamento già previsto, non un caso
+speciale. Si accende quando ci sarà un motivo per pagarla.
+
 **Quando scatta la riserva.** Da sola, senza chiedere: errore HTTP, timeout, quota
 esaurita. Non su una risposta che semplicemente non piace — quello sarebbe un giudizio, e
 l'app non è in grado di darlo. La risposta porta scritto quale dei due l'ha prodotta: se
 il tono di una pagina di diario cambia da un giorno all'altro, si deve poter capire
 perché.
 
-Il vantaggio pratico di questa coppia va oltre la resilienza: la riserva costa **meno del
-principale** sulla ricerca, quindi non c'è la tentazione di scegliere il ripiego scomodo.
+Nota su chi paga cosa: fra i due, la riserva costa **meno del principale** sulla ricerca.
+Quando si passerà a pagare, il ripiego non sarà quello scomodo da evitare.
 
 **Un solo client per entrambi.** Cambiano indirizzo, forma della richiesta e chiave; la
 logica — costruisci il prompt, manda, leggi la risposta, salva su file — è la stessa. Il
@@ -636,21 +670,22 @@ POST_NOTIFICATIONS
 INTERNET / ACCESS_NETWORK_STATE
 RECEIVE_BOOT_COMPLETED
 RECORD_AUDIO                        solo se si fa il dettato vocale
-FOREGROUND_SERVICE(_LOCATION)       solo se si registra la traccia GPS
 ```
 
-Niente `SCHEDULE_EXACT_ALARM`, niente `USE_EXACT_ALARM` (vedi 4.5), niente permessi di
-archiviazione (vedi 3). `ACCESS_BACKGROUND_LOCATION` si evita: la posizione si registra
-quando l'app è in primo piano, o con un servizio in primo piano visibile se si vuole la
-traccia.
+Sette permessi, e l'elenco è notevole per quello che **non** contiene. Niente
+`SCHEDULE_EXACT_ALARM` né `USE_EXACT_ALARM` (vedi 4.5), niente permessi di archiviazione
+(vedi 3), niente `ACCESS_BACKGROUND_LOCATION` e **nessun servizio in primo piano**: la
+posizione si registra solo mentre l'app è aperta, perché la traccia GPS continua è fuori
+scope per decisione. È la scelta che tiene l'app fuori dalla categoria di software con cui
+HyperOS se la prende.
 
 ### HyperOS
 
 Valgono le stesse tre impostazioni documentate per Cicala — avvio automatico, nessuna
 restrizione batteria, blocco nelle recenti — con lo stesso onboarding a pulsanti. Qui
 sono meno critiche: se salta la notifica delle 19:00 si perde un riepilogo, non una
-sveglia. Diventano critiche se si aggiunge la registrazione della traccia GPS, che
-HyperOS ucciderebbe volentieri.
+sveglia. E restano tali, perché senza traccia GPS non c'è niente che debba stare vivo in
+background: l'unico appuntamento con il sistema è un allarme serale.
 
 ---
 
@@ -700,6 +735,8 @@ repository per riusarle costerebbe più di quanto rende.
 | **Google Sheets e Drive** | Contraddicono l'offline-first e aggiungono OAuth. I file locali sono già CSV: se serve un foglio, si apre quello. La cartella si sincronizza con gli strumenti che lo fanno di mestiere |
 | **Modello linguistico sul dispositivo** | Non disponibile o non paragonabile. Il modello si chiama via rete quando serve: sez. 6.2 |
 | **Backend proprio per nascondere la chiave API** | Sarebbe l'unico modo per distribuire l'app a estranei, e rimetterebbe in piedi il server che stiamo togliendo. Chiave inserita dall'utente: sez. 6.2 |
+| **Traccia GPS continua** | Sarebbe l'unica funzione a richiedere un servizio in primo piano, notifica permanente, batteria e guerra con HyperOS. La posizione si registra quando la si registra |
+| **Foto in galleria** | Un posto solo. Il backup si ottiene scegliendo come cartella d'archivio una cartella già sincronizzata |
 | **Livelli di bordo e sensori** | Acqua, grigie, gas e batteria non si registrano, per decisione. Cade con essi ogni ragione di leggere sensori Bluetooth, che era l'unico pezzo dipendente da hardware ignoto |
 | **Scheda del mezzo** | Niente libretto, scadenze, tagliandi. Un solo parametro: i km con un pieno |
 | **Prezzi dei distributori** | Gli open data ci sarebbero e funzionerebbero offline, ma la funzione non serve |
@@ -709,26 +746,29 @@ repository per riusarle costerebbe più di quanto rende.
 
 ---
 
-## 10. Da decidere
+## 10. Decisioni prese, e cosa resta
 
-- **Il prompt di Esplora va trasportato o riscritto?** Su Gemini si trasporta quasi
-  gratis, essendo il modello che il sistema usa già. Su Grok va riprovato sul campo: è il
-  pezzo del sistema con più messa a punto accumulata, e due modelli diversi non rispondono
-  allo stesso prompt nello stesso modo. Va accettato che la riserva risponda un po'
-  peggio — è una riserva.
-- **Quale modello Gemini**, e quale Grok: la scelta della taglia si fa provando, non a
-  tavolino. Vale la pena partire dai più economici e salire solo se la qualità non basta.
-- **Foto anche in galleria?** Album `Pictures/MyaCamperLife` visibile a Google Foto e
-  quindi salvato nel cloud, contro archivio autoconsistente in un'unica cartella. Si può
-  fare entrambe le cose a costo di spazio doppio.
-- **Serve la registrazione della traccia GPS?** Non è nel sistema attuale. È l'unica
-  funzione che porterebbe con sé servizio in primo piano, consumo di batteria e battaglia
-  con HyperOS: se non serve, meglio non averla.
-- **Copertura del dataset POI**: solo Italia (pochi MB, allegabile all'APK) o Europa
-  occidentale (decine di MB, meglio scaricabile per regione)?
-- **Come si tratta un giro fuori itinerario.** L'autonomia residua si stima dalle tappe di
-  cui si è fatto check-in: una gita di 80 km andata e ritorno dalla stessa tappa non la
-  vede. Si può accettare (l'avviso è un promemoria), oppure aggiungere un campo per
-  correggere i km a mano. Da decidere dopo averla usata, non prima.
-- **`applicationId`**: `it.myacamperlife.app` non collide con nulla. Rilevante solo se un
-  giorno l'APK va sul Play Store.
+I punti aperti della versione precedente sono stati chiusi uno per uno. Restano qui per
+memoria: fra sei mesi la domanda "perché non fa X" avrà una risposta scritta.
+
+| Punto | Deciso |
+|---|---|
+| **Traccia GPS** | **No.** Con essa cadono il servizio in primo piano, la notifica permanente, il permesso di posizione in background e la parte più fastidiosa del problema HyperOS |
+| **Copertura POI** | **Italia dentro l'APK, altre regioni scaricabili.** La ricerca locale funziona sempre dove si viaggia di più; l'estero si prepara da casa, nello stesso momento in cui si carica l'itinerario |
+| **Foto in galleria** | **No, un posto solo.** In cambio va detto in interfaccia che senza una cartella sincronizzata non c'è backup |
+| **Km fuori itinerario** | **Si usano tutti i punti registrati**, non solo i check-in: posizioni salvate e coordinate delle foto entrano nella somma. Vedi 4.6 |
+| **Prompt di Esplora** | **Si trasporta da n8n.** Il testo del nodo Gemini arriverà prima della fase 8: è materiale atteso, non da riscrivere |
+| **Taglia dei modelli** | **Piano gratuito, Gemini di fascia Flash.** Versione esatta da fissare alla fase 8; riserva Grok configurabile ma spenta finché non serve. Vedi 6.2 |
+| **`applicationId`** | `it.myacamperlife.app` — non collide con nulla. Rilevante solo se un giorno l'APK va sul Play Store |
+
+### Quello che si decide usando, non progettando
+
+Due cose non si possono sapere a tavolino, e forzarle adesso sarebbe indovinare:
+
+- **Se la stima dell'autonomia basta.** Dipende da quanto spesso si registra qualcosa
+  guidando. Se si rivela troppo ottimista, il rimedio è pronto e piccolo: il briefing
+  serale chiede il contachilometri quando l'autonomia si avvicina al limite. Da fare
+  dopo un viaggio vero, non prima.
+- **Se la ricerca locale dei POI regge senza mappa disegnata.** Un elenco ordinato per
+  distanza potrebbe bastare, o potrebbe risultare cieco. La mappa con MapLibre resta il
+  pezzo di lavoro più grande del progetto e non si affronta per un sospetto.
