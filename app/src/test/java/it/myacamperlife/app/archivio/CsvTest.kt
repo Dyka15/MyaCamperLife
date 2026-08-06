@@ -81,6 +81,8 @@ class CsvTest {
     fun `i ritorni a capo non entrano in un campo`() {
         assertEquals("una nota su due righe", Csv.testo("una nota su\ndue righe"))
         assertEquals("con ritorno windows", Csv.testo("con ritorno\r\nwindows"))
+        // Piu' ritorni consecutivi restano un solo spazio, non tre.
+        assertEquals("righe vuote in mezzo", Csv.testo("righe\n\n\nvuote in mezzo"))
         assertEquals("", Csv.testo(null))
         assertEquals("senza spazi ai bordi", Csv.testo("  senza spazi ai bordi  "))
     }

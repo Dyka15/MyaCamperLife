@@ -70,10 +70,16 @@ object Csv {
      * spazi ai bordi. Le note lunghe vanno in un `.md` a parte, non qui.
      */
     fun testo(valore: String?): String = valore
-        ?.replace('\r', ' ')
-        ?.replace('\n', ' ')
+        ?.replace(RITORNI_A_CAPO, " ")
         ?.trim()
         ?: ""
+
+    /**
+     * Una sequenza di ritorni a capo, non un carattere alla volta: un file
+     * salvato su Windows ha `\r\n`, e sostituendo i due caratteri
+     * separatamente si otterrebbero due spazi al posto di uno.
+     */
+    private val RITORNI_A_CAPO = "[\\r\\n]+".toRegex()
 
     fun numero(valore: Double, decimali: Int = 2): String =
         String.format(Locale.ROOT, "%.${decimali}f", valore).replace('.', ',')
