@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Nessun permesso.
+         L'itinerario si legge da un Uri che l'utente sceglie col selettore di
+         sistema, e questo non richiede permessi. Posizione, fotocamera e
+         notifiche arrivano con le fasi che ne hanno bisogno: chiederli prima
+         significherebbe chiedere qualcosa per cui non c'e' ancora una
+         funzione da mostrare. -->
+
+    <application
+        android:name=".MyaApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyaCamperLife">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MyaCamperLife"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Un itinerario condiviso da un'altra app. Solo text/*: un
+                 filtro su */* farebbe comparire l'app nella condivisione di
+                 qualunque cosa, e non e' un buon vicino di casa. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>

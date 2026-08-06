@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyaCamperLife</string>
+
+    <!-- Azioni -->
+    <string name="azione_importa">Importa itinerario</string>
+    <string name="azione_indietro">Torna all\'elenco</string>
+    <string name="azione_elimina">Elimina</string>
+    <string name="azione_annulla">Annulla</string>
+
+    <!-- Elenco vuoto -->
+    <string name="vuoto_titolo">Nessun viaggio</string>
+    <string name="vuoto_spiegazione">Importa un itinerario: un file .md con dentro il blocco waypoints, quello che usi già.</string>
+
+    <!-- Eliminazione -->
+    <string name="elimina_titolo">Eliminare il viaggio?</string>
+    <string name="elimina_spiegazione">Vengono cancellati la cartella di %1$s e tutti i suoi file. Non si torna indietro.</string>
+
+    <!-- Esito dell'importazione -->
+    <string name="import_riuscito">Importate %1$d tappe</string>
+    <string name="import_riuscito_con_scarti">Importate %1$d tappe, %2$d saltate perché senza coordinate</string>
+    <string name="import_senza_json">Nel file non c\'è nessun blocco JSON</string>
+    <string name="import_senza_waypoints">Il file non contiene waypoints</string>
+    <string name="import_senza_coordinate">Nessuna tappa ha coordinate valide</string>
+    <string name="import_illeggibile">Non riesco a leggere il file</string>
+
+    <!-- Tappe -->
+    <string name="riepilogo_tappe">%1$d tappe</string>
+    <string name="riepilogo_stati">%1$d fatte · %2$d saltate</string>
+    <string name="coordinate">%1$s, %2$s</string>
+    <string name="viaggio_senza_tappe">Questo viaggio non ha tappe.</string>
+</resources>

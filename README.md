@@ -16,23 +16,42 @@ dove la connessione non c'è.
 - **Registrare non richiede rete, mai.** Foto, nota, rifornimento, spesa, check-in sono
   righe accodate a un file locale. Nessuna di queste azioni può fallire perché il
   telefono è offline.
-- **Quello che serve dalla rete si prende in anticipo.** L'itinerario si carica a casa, e
-  in quel momento arrivano meteo, distanze fra le tappe e punti di interesse. In viaggio
-  si consulta una scorta, non un servizio.
+- **Quello che serve dalla rete si prende in anticipo.** Le distanze fra le tappe
+  arrivano quando si carica l'itinerario, il meteo ogni sera alle 19:00. In viaggio si
+  consulta una scorta, non un servizio.
 - **I file sono il prodotto.** L'app scrive CSV e Markdown in una cartella del telefono:
-  si aprono in un foglio di calcolo, si leggono fra dieci anni, si danno in pasto a un
-  modello linguistico. Non c'è un dentro da cui esportare.
+  si aprono in un foglio di calcolo, si leggono fra dieci anni. Non c'è un dentro da cui
+  esportare.
 
 ## Stato
 
-**Progettazione.** Nessuna riga di codice ancora scritta. Ci sono due documenti:
+**Fase 1 di 9 realizzata.** L'app apre un itinerario che hai già e ne mostra le tappe.
+
+- importa un file `.md` con dentro il blocco `waypoints`, quello che usi oggi
+- scrive `tappe.csv` nella cartella del viaggio, e `FORMATI.md` che spiega le colonne
+- tiene più viaggi e li elenca dal più recente
+- si riceve un itinerario anche condividendolo da un'altra app
+
+Non fa ancora niente altro: check-in, diario, consumi, spese e briefing serale sono le
+fasi successive. Nessun permesso richiesto, nessuna rete usata.
+
+## Documenti
 
 | | |
 |---|---|
 | [PROGETTO.md](PROGETTO.md) | Cos'è e cosa fa: input, output, funzionalità, schermate, confini |
 | [ANALISI.md](ANALISI.md) | Si può fare: cosa regge offline e cosa no, workflow per workflow, con le scelte tecniche e la tabella di marcia |
 
-## Tecnologie previste
+## Provarla
 
-Kotlin, Jetpack Compose, file CSV e Markdown su archiviazione locale (nessun database).
-`minSdk` 33. Dispositivo di riferimento: Poco F7 (HyperOS, Android 16).
+L'APK viene compilato da GitHub Actions a ogni push e pubblicato come artifact
+scaricabile nella tab **Actions** del repository, anche dal browser del telefono.
+
+In `esempi/` c'è un itinerario con cui provare l'importazione.
+
+## Tecnologie
+
+Kotlin, Jetpack Compose (Material 3), file CSV e Markdown su archiviazione locale.
+**Nessun database:** i volumi sono migliaia di righe e un archivio opaco contraddirebbe
+il terzo principio. `minSdk` 33 (Android 13). Dispositivo di riferimento: Poco F7
+(HyperOS, Android 16).

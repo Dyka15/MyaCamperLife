@@ -1,0 +1,58 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: APK di debug
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Componenti SDK
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      # Senza gradle-version: usa quella dichiarata dal wrapper del progetto,
+      # cosi' locale e CI compilano con lo stesso identico Gradle.
+      # L'azione si occupa anche della cache delle dipendenze.
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Permessi di esecuzione
+        run: chmod +x gradlew
+
+      - name: Test unitari
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Compila APK di debug
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Pubblica referto dei test se falliscono
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: referto-test
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Pubblica APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: myacamperlife-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+          if-no-files-found: error

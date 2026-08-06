@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- L'archivio sta in files/: e' quello che vale la pena salvare. -->
+    <include domain="file" path="." />
+    <include domain="sharedpref" path="." />
+</full-backup-content>
