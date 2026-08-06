@@ -25,15 +25,28 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fase 1 di 9 realizzata.** L'app apre un itinerario che hai già e ne mostra le tappe.
+**Fasi 1 e 2 di 9 realizzate.** L'app registra una giornata di viaggio, tutta senza rete.
+
+Itinerario:
 
 - importa un file `.md` con dentro il blocco `waypoints`, quello che usi oggi
-- scrive `tappe.csv` nella cartella del viaggio, e `FORMATI.md` che spiega le colonne
+- check-in su una tappa, con l'ora e la posizione
+- salta una tappa e ripristinala: lo stesso comando fa le due cose
+- aggiungi una tappa scegliendo dove inserirla, con le coordinate dal GPS o digitate
 - tiene più viaggi e li elenca dal più recente
-- si riceve un itinerario anche condividendolo da un'altra app
 
-Non fa ancora niente altro: check-in, diario, consumi, spese e briefing serale sono le
-fasi successive. Nessun permesso richiesto, nessuna rete usata.
+Diario:
+
+- registra posizione, note e foto con tre tocchi dalla schermata d'apertura
+- le foto si chiamano `foto_AAAAMMGG_HHMMSS_Localita.jpg`, come già oggi
+- scrive `diario.md`: un file per viaggio, una sezione per giorno, aggiornata a ogni evento
+- le giornate si sfogliano nella scheda **Diario**
+
+Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv` e `FORMATI.md` che spiega le
+colonne. Nessuna rete usata; l'unico permesso è la posizione, chiesto quando serve.
+
+Restano le fasi 3–9: consumi, spese, briefing serale, meteo, punti di interesse offline,
+client AI.
 
 ## Documenti
 

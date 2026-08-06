@@ -2,11 +2,26 @@
 <resources>
     <string name="app_name">MyaCamperLife</string>
 
+    <!-- Schede -->
+    <string name="scheda_viaggio">Viaggio</string>
+    <string name="scheda_diario">Diario</string>
+
     <!-- Azioni -->
     <string name="azione_importa">Importa itinerario</string>
     <string name="azione_indietro">Torna all\'elenco</string>
     <string name="azione_elimina">Elimina</string>
     <string name="azione_annulla">Annulla</string>
+    <string name="azione_chiudi">Chiudi</string>
+    <string name="azione_salva">Salva</string>
+    <string name="azione_scarta">Scarta</string>
+    <string name="azione_checkin">Sono arrivato</string>
+    <string name="azione_salta">Salta</string>
+    <string name="azione_ripristina">Ripristina</string>
+    <string name="azione_aggiungi">Aggiungi</string>
+    <string name="azione_aggiungi_tappa">Tappa</string>
+    <string name="azione_posizione">Posizione</string>
+    <string name="azione_foto">Foto</string>
+    <string name="azione_nota">Nota</string>
 
     <!-- Elenco vuoto -->
     <string name="vuoto_titolo">Nessun viaggio</string>
@@ -24,9 +39,54 @@
     <string name="import_senza_coordinate">Nessuna tappa ha coordinate valide</string>
     <string name="import_illeggibile">Non riesco a leggere il file</string>
 
+    <!-- Testata del viaggio -->
+    <string name="sei_a">Sei a %1$s</string>
+    <string name="sei_a_dalle">Sei a %1$s — arrivato alle %2$s</string>
+    <string name="non_ancora_partito">Viaggio non ancora cominciato</string>
+    <string name="prossima">Prossima: %1$s</string>
+    <string name="itinerario_finito">Nessuna tappa da fare</string>
+
     <!-- Tappe -->
-    <string name="riepilogo_tappe">%1$d tappe</string>
-    <string name="riepilogo_stati">%1$d fatte · %2$d saltate</string>
     <string name="coordinate">%1$s, %2$s</string>
     <string name="viaggio_senza_tappe">Questo viaggio non ha tappe.</string>
+    <string name="tappa_da_fare">Tappa ancora da fare.</string>
+    <string name="tappa_fatta">Ci sei già stato. Una tappa fatta non si salta.</string>
+    <string name="tappa_saltata">Tappa saltata.</string>
+    <string name="tappa_aggiunta">Aggiunta la tappa %1$s</string>
+
+    <!-- Nota -->
+    <string name="nota_titolo">Nota di viaggio</string>
+    <string name="nota_campo">Cosa vuoi ricordare</string>
+    <string name="nota_registrata">Nota registrata</string>
+
+    <!-- Foto -->
+    <string name="foto_titolo">Foto scattata</string>
+    <string name="foto_didascalia">Didascalia</string>
+    <string name="foto_didascalia_facoltativa">Puoi lasciarla vuota: la foto viene salvata comunque.</string>
+    <string name="foto_registrata">Foto registrata</string>
+
+    <!-- Posizione -->
+    <string name="posizione_registrata">Posizione registrata</string>
+    <string name="posizione_assente">Il telefono non sa ancora dove sei. Riprova fra un minuto, all\'aperto.</string>
+    <string name="posizione_negata">Senza il permesso di posizione non posso registrare dove sei.</string>
+
+    <!-- Aggiungi tappa -->
+    <string name="aggiungi_titolo">Aggiungi una tappa</string>
+    <string name="aggiungi_nome">Nome</string>
+    <string name="aggiungi_giorno">Giorno (facoltativo)</string>
+    <string name="aggiungi_lat">Latitudine</string>
+    <string name="aggiungi_lon">Longitudine</string>
+    <string name="aggiungi_da_gps">Usa la posizione attuale</string>
+    <string name="aggiungi_posizione">Dove inserirla</string>
+    <string name="aggiungi_in_fondo">In fondo all\'itinerario</string>
+    <string name="aggiungi_prima_di">Prima di %1$s</string>
+
+    <!-- Diario -->
+    <string name="diario_vuoto">Il diario è vuoto</string>
+    <string name="diario_vuoto_spiegazione">Registra una posizione, una nota o una foto: compaiono qui e finiscono in diario.md.</string>
+    <string name="genere_arrivo">Arrivo</string>
+    <string name="genere_posizione">Posizione</string>
+    <string name="genere_nota">Nota</string>
+    <string name="genere_foto">Foto</string>
+    <string name="voce_senza_testo">senza descrizione</string>
 </resources>

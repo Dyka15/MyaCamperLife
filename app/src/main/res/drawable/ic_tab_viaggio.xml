@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Un camper visto di lato: la scheda del viaggio. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M3,9h6v7H3a1,1 0 0,1 -1,-1v-5a1,1 0 0,1 1,-1z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M9,6h11a1,1 0 0,1 1,1v8a1,1 0 0,1 -1,1H9z" />
+    <path
+        android:fillColor="@android:color/black"
+        android:pathData="M4,10.5h4v3H4z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M6.5,16a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M15.5,16a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0z" />
+</vector>

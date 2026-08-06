@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Serve solo a passare alla fotocamera il file dove scrivere lo scatto.
+         Copre l'archivio e nient'altro: nessun'altra area privata dell'app
+         diventa raggiungibile. -->
+    <files-path name="archivio" path="MyaCamperLife/" />
+</paths>

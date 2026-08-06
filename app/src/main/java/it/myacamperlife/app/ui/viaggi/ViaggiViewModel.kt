@@ -5,9 +5,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import it.myacamperlife.app.archivio.Archivio
 import it.myacamperlife.app.archivio.Documenti
+import it.myacamperlife.app.archivio.Posizione
+import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.NomeFoto
 import it.myacamperlife.app.dominio.Tappa
+import it.myacamperlife.app.dominio.Tappe
+import it.myacamperlife.app.dominio.Voce
+import java.io.File
+import java.time.LocalDate
+import java.time.OffsetDateTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,14 +25,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Lo stato dell'elenco dei viaggi e del viaggio aperto.
+ * Lo stato dell'elenco dei viaggi, del viaggio aperto e del suo diario.
  *
- * Un solo ViewModel per le due schermate: lavorano sugli stessi dati e
+ * Un solo ViewModel per tutte le schermate: lavorano sugli stessi dati e
  * passare dall'una all'altra non deve ricaricare niente.
+ *
+ * Ogni registrazione e' una scrittura locale che riesce sempre. La posizione
+ * si prova a prendere, ma **non e' mai un requisito**: una nota senza
+ * coordinate e' meglio di una nota non registrata.
  */
 class ViaggiViewModel(
     private val archivio: Archivio,
     private val documenti: Documenti,
+    private val posizioni: Posizioni,
 ) : ViewModel() {
 
     data class Stato(
@@ -32,13 +45,27 @@ class ViaggiViewModel(
         val viaggi: List<Viaggio> = emptyList(),
         val aperto: Viaggio? = null,
         val tappe: List<Tappa> = emptyList(),
-        val esitoImport: EsitoImport? = null,
-    )
+        val voci: List<Voce> = emptyList(),
+        val diario: String = "",
+        val inCorso: Boolean = false,
+        val avviso: Avviso? = null,
+    ) {
+        val corrente: Tappa? get() = Tappe.corrente(tappe)
+        val prossima: Tappa? get() = Tappe.prossima(tappe)
+        val giorni: List<LocalDate>
+            get() = voci.map { it.istante.toLocalDate() }.distinct().sortedDescending()
+    }
 
-    /** Da mostrare una volta e poi scartare. */
-    sealed interface EsitoImport {
-        data class Riuscito(val tappe: Int, val scartate: Int) : EsitoImport
-        data class Fallito(val motivo: Itinerario.Motivo?) : EsitoImport
+    /** Un messaggio da mostrare una volta e poi scartare. */
+    sealed interface Avviso {
+        data class ImportRiuscito(val tappe: Int, val scartate: Int) : Avviso
+        data class ImportFallito(val motivo: Itinerario.Motivo?) : Avviso
+        data object PosizioneAssente : Avviso
+        data object PosizioneRegistrata : Avviso
+        data object PermessoPosizioneNegato : Avviso
+        data class TappaAggiunta(val nome: String) : Avviso
+        data object NotaRegistrata : Avviso
+        data object FotoRegistrata : Avviso
     }
 
     private val _stato = MutableStateFlow(Stato())
@@ -48,72 +75,146 @@ class ViaggiViewModel(
         ricarica()
     }
 
+    // --- viaggi -------------------------------------------------------------
+
     private fun ricarica(apri: Viaggio? = null) = viewModelScope.launch {
         val elenco = withContext(Dispatchers.IO) {
             archivio.prepara()
             archivio.viaggi()
         }
-        val daAprire = apri ?: _stato.value.aperto?.let { aperto -> elenco.find { it.slug == aperto.slug } }
-        val tappe = daAprire?.let { withContext(Dispatchers.IO) { archivio.tappe(it.slug) } }.orEmpty()
+        val daAprire = apri
+            ?: _stato.value.aperto?.let { aperto -> elenco.find { it.slug == aperto.slug } }
+        _stato.update { it.copy(caricamento = false, viaggi = elenco, aperto = daAprire) }
+        daAprire?.let { aggiornaViaggio(it) }
+    }
+
+    private suspend fun aggiornaViaggio(viaggio: Viaggio) {
+        val dati = withContext(Dispatchers.IO) {
+            Triple(
+                archivio.tappe(viaggio.slug),
+                archivio.voci(viaggio.slug),
+                archivio.diario(viaggio.slug).testo(),
+            )
+        }
         _stato.update {
-            it.copy(caricamento = false, viaggi = elenco, aperto = daAprire, tappe = tappe)
+            it.copy(aperto = viaggio, tappe = dati.first, voci = dati.second, diario = dati.third)
         }
     }
 
-    fun apri(viaggio: Viaggio) = viewModelScope.launch {
-        val tappe = withContext(Dispatchers.IO) { archivio.tappe(viaggio.slug) }
-        _stato.update { it.copy(aperto = viaggio, tappe = tappe) }
-    }
+    fun apri(viaggio: Viaggio) = viewModelScope.launch { aggiornaViaggio(viaggio) }
 
-    fun chiudi() = _stato.update { it.copy(aperto = null, tappe = emptyList()) }
+    fun chiudi() = _stato.update {
+        it.copy(aperto = null, tappe = emptyList(), voci = emptyList(), diario = "")
+    }
 
     fun elimina(viaggio: Viaggio) = viewModelScope.launch {
         withContext(Dispatchers.IO) { archivio.elimina(viaggio.slug) }
-        _stato.update { it.copy(aperto = null, tappe = emptyList()) }
+        _stato.update { it.copy(aperto = null, tappe = emptyList(), voci = emptyList(), diario = "") }
         ricarica()
     }
 
-    /**
-     * Importa un itinerario e apre il viaggio appena creato.
-     *
-     * Il nome del viaggio viene dal primo titolo del Markdown; se non c'e', dal
-     * nome del file senza estensione. Un file senza ne' l'uno ne' l'altro
-     * resta comunque importabile.
-     */
     fun importa(uri: Uri) = viewModelScope.launch {
-        _stato.update { it.copy(caricamento = true, esitoImport = null) }
+        _stato.update { it.copy(caricamento = true, avviso = null) }
 
-        val creato = withContext(Dispatchers.IO) {
+        val esito = withContext(Dispatchers.IO) {
             val documento = documenti.leggi(uri)
-                ?: return@withContext Risultato(esito = EsitoImport.Fallito(null))
+                ?: return@withContext Esito(avviso = Avviso.ImportFallito(null))
 
             when (val letto = Itinerario.leggi(documento.testo)) {
-                is Itinerario.Esito.Fallito ->
-                    Risultato(esito = EsitoImport.Fallito(letto.motivo))
-
+                is Itinerario.Esito.Fallito -> Esito(avviso = Avviso.ImportFallito(letto.motivo))
                 is Itinerario.Esito.Riuscito -> {
                     val nome = letto.nome
                         ?: documento.nome?.substringBeforeLast('.')?.trim()?.takeUnless { it.isEmpty() }
                         ?: "Viaggio senza nome"
                     archivio.prepara()
-                    val viaggio = archivio.creaViaggio(
-                        nome = nome,
-                        punti = letto.tappe,
-                        importatoDa = documento.nome,
-                    )
-                    Risultato(
-                        viaggio = viaggio,
-                        esito = EsitoImport.Riuscito(letto.tappe.size, letto.scartati),
-                    )
+                    val viaggio = archivio.creaViaggio(nome, letto.tappe, documento.nome)
+                    Esito(viaggio, Avviso.ImportRiuscito(letto.tappe.size, letto.scartati))
                 }
             }
         }
 
-        _stato.update { it.copy(esitoImport = creato.esito) }
-        ricarica(apri = creato.viaggio)
+        _stato.update { it.copy(avviso = esito.avviso) }
+        ricarica(apri = esito.viaggio)
     }
 
-    fun esitoVisto() = _stato.update { it.copy(esitoImport = null) }
+    // --- la giornata --------------------------------------------------------
 
-    private data class Risultato(val viaggio: Viaggio? = null, val esito: EsitoImport)
+    fun checkin(tappa: Tappa) = operazione { slug ->
+        archivio.checkin(slug, tappa, posizione = posizioni.attuale())
+        null
+    }
+
+    fun alternaSalto(tappa: Tappa) = operazione { slug ->
+        archivio.alternaSalto(slug, tappa)
+        null
+    }
+
+    fun registraPosizione() = operazione { slug ->
+        if (!posizioni.permessoConcesso()) return@operazione Avviso.PermessoPosizioneNegato
+        val posizione = posizioni.attuale() ?: return@operazione Avviso.PosizioneAssente
+        archivio.registraPosizione(slug, posizione)
+        Avviso.PosizioneRegistrata
+    }
+
+    fun registraNota(testo: String) = operazione { slug ->
+        // La posizione si prende senza attendere: una nota non deve stare
+        // ferma venti secondi ad aspettare un fix satellitare.
+        archivio.registraNota(slug, testo, posizioni.ultimaNota())
+        Avviso.NotaRegistrata
+    }
+
+    fun aggiungiTappa(nome: String, lat: Double, lon: Double, giorno: String?, primaDi: String?) =
+        operazione { slug ->
+            val tappa = archivio.aggiungiTappa(slug, nome, lat, lon, giorno, primaDi)
+            Avviso.TappaAggiunta(tappa.nome)
+        }
+
+    /**
+     * Prepara il file dove la fotocamera di sistema scrivera' lo scatto.
+     *
+     * Il nome si decide adesso, non dopo: porta l'ora e il nome della tappa
+     * dove sei, e sono entrambi noti prima di scattare.
+     */
+    suspend fun preparaFoto(): File? {
+        val slug = _stato.value.aperto?.slug ?: return null
+        return withContext(Dispatchers.IO) {
+            val nome = NomeFoto.per(OffsetDateTime.now(), archivio.luogo(slug))
+            File(archivio.cartellaFoto(slug), nome)
+        }
+    }
+
+    fun registraFoto(file: File, didascalia: String?) = operazione { slug ->
+        archivio.registraFoto(slug, file.name, didascalia, posizioni.ultimaNota())
+        Avviso.FotoRegistrata
+    }
+
+    /** Uno scatto annullato non lascia un file vuoto nella cartella. */
+    fun scartaFoto(file: File) = viewModelScope.launch {
+        withContext(Dispatchers.IO) { file.delete() }
+    }
+
+    fun permessoPosizioneNegato() = _stato.update { it.copy(avviso = Avviso.PermessoPosizioneNegato) }
+
+    fun avvisoVisto() = _stato.update { it.copy(avviso = null) }
+
+    /**
+     * Il giro comune a ogni registrazione: segna il lavoro in corso, scrive su
+     * un thread di I/O, ricarica il viaggio, mostra l'avviso.
+     */
+    private fun operazione(corpo: suspend (String) -> Avviso?) = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+        // Su un thread di I/O: sono scritture su file, e il thread principale
+        // non deve aspettare un fsync.
+        val avviso = withContext(Dispatchers.IO) {
+            runCatching { corpo(viaggio.slug) }.getOrNull()
+        }
+        aggiornaViaggio(viaggio)
+        _stato.update { it.copy(inCorso = false, avviso = avviso) }
+    }
+
+    private data class Esito(val viaggio: Viaggio? = null, val avviso: Avviso)
+
+    /** La posizione, quando serve mostrarla senza registrarla. */
+    suspend fun posizioneAttuale(): Posizione? = posizioni.attuale()
 }

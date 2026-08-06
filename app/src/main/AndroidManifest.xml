@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Nessun permesso.
-         L'itinerario si legge da un Uri che l'utente sceglie col selettore di
-         sistema, e questo non richiede permessi. Posizione, fotocamera e
-         notifiche arrivano con le fasi che ne hanno bisogno: chiederli prima
-         significherebbe chiedere qualcosa per cui non c'e' ancora una
-         funzione da mostrare. -->
+    <!-- Posizione. Il GPS non richiede rete: e' il senso dell'app.
+         Nessun permesso di posizione in background e nessun servizio in primo
+         piano: la posizione si registra solo mentre l'app e' aperta, perche'
+         la traccia continua e' fuori scope per scelta. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Niente CAMERA: le foto si scattano con l'app fotocamera di sistema,
+         a cui si passa il file da scrivere. Chiedere il permesso servirebbe
+         solo per usare la fotocamera da dentro l'app, che non ci serve. -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
 
     <application
         android:name=".MyaApplication"
@@ -40,6 +48,18 @@
             </intent-filter>
 
         </activity>
+
+        <!-- Passa alla fotocamera di sistema il file dove scrivere lo scatto.
+             Non esportato: i permessi si concedono un Uri per volta. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.file"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

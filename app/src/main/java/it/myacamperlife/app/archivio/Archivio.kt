@@ -1,6 +1,10 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Genere
+import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
+import it.myacamperlife.app.dominio.Tappe
+import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.Waypoint
 import java.io.File
 import java.text.Normalizer
@@ -45,6 +49,20 @@ class Archivio(private val radice: File) {
 
     fun tabellaTappe(slug: String): Tabella =
         Tabella(File(cartellaViaggio(slug), TappeTabella.NOME_FILE), TappeTabella.COLONNE)
+
+    fun tabellaSpostamenti(slug: String): Tabella =
+        Tabella(File(cartellaViaggio(slug), SpostamentiTabella.NOME_FILE), SpostamentiTabella.COLONNE)
+
+    fun tabellaNote(slug: String): Tabella =
+        Tabella(File(cartellaViaggio(slug), NoteTabella.NOME_FILE), NoteTabella.COLONNE)
+
+    fun tabellaFoto(slug: String): Tabella =
+        Tabella(File(cartellaViaggio(slug), FotoTabella.NOME_FILE), FotoTabella.COLONNE)
+
+    fun cartellaFoto(slug: String): File =
+        File(cartellaViaggio(slug), FotoTabella.CARTELLA).apply { mkdirs() }
+
+    fun diario(slug: String): Diario = Diario(File(cartellaViaggio(slug), "diario.md"))
 
     // --- viaggi -------------------------------------------------------------
 
@@ -116,6 +134,180 @@ class Archivio(private val radice: File) {
         .mapNotNull { TappeTabella.tappa(it) }
         .sortedBy { it.ordine }
 
+
+    // --- la giornata di viaggio ---------------------------------------------
+
+    /**
+     * Check-in sulla tappa: la marca fatta, registra l'arrivo fra gli
+     * spostamenti e aggiorna il diario del giorno.
+     *
+     * Tre scritture in fila, tutte locali e tutte in aggiunta: nessuna puo'
+     * fallire perche' manca la rete.
+     */
+    fun checkin(slug: String, tappa: Tappa, posizione: Posizione? = null, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        val ts = ts(adesso)
+        val fatta = Tappe.checkin(tappa, adesso)
+        tabellaTappe(slug).accoda(TappeTabella.riga(fatta, ts))
+        tabellaSpostamenti(slug).accoda(
+            mapOf(
+                Csv.ID to nuovoId(),
+                Csv.TS to ts,
+                SpostamentiTabella.GENERE to SpostamentiTabella.ARRIVO,
+                SpostamentiTabella.TAPPA to Csv.testo(tappa.nome),
+                SpostamentiTabella.LAT to coordinata(posizione?.lat ?: tappa.lat),
+                SpostamentiTabella.LON to coordinata(posizione?.lon ?: tappa.lon),
+            ),
+        )
+        aggiornaDiario(slug, adesso.toLocalDate())
+    }
+
+    /** Salta la tappa, o la ripristina se era gia' saltata. */
+    fun alternaSalto(slug: String, tappa: Tappa, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        val cambiata = Tappe.alterna(tappa)
+        if (cambiata == tappa) return
+        tabellaTappe(slug).accoda(TappeTabella.riga(cambiata, ts(adesso)))
+    }
+
+    /**
+     * Aggiunge una tappa all'itinerario, prima di [primaDi] o in fondo.
+     *
+     * Si riscrivono **solo le tappe il cui numero d'ordine e' cambiato**:
+     * inserire in mezzo ne sposta parecchie, ma quelle prima del punto di
+     * inserimento restano dove sono e non serve toccarle.
+     */
+    fun aggiungiTappa(
+        slug: String,
+        nome: String,
+        lat: Double,
+        lon: Double,
+        giorno: String? = null,
+        primaDi: String? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Tappa {
+        val prima = tappe(slug)
+        val nuova = Tappa(
+            id = nuovoId(),
+            ordine = 0,
+            nome = nome.trim(),
+            lat = lat,
+            lon = lon,
+            giorno = giorno?.trim()?.takeUnless { it.isEmpty() },
+        )
+        val dopo = Tappe.inserisci(prima, nuova, primaDi)
+        val ts = ts(adesso)
+        tabellaTappe(slug).accodaTutte(Tappe.cambiate(prima, dopo).map { TappeTabella.riga(it, ts) })
+        return dopo.first { it.id == nuova.id }
+    }
+
+    fun registraPosizione(
+        slug: String,
+        posizione: Posizione,
+        nota: String? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ) {
+        tabellaSpostamenti(slug).accoda(
+            mapOf(
+                Csv.ID to nuovoId(),
+                Csv.TS to ts(adesso),
+                SpostamentiTabella.GENERE to SpostamentiTabella.POSIZIONE,
+                SpostamentiTabella.TAPPA to Csv.testo(luogo(slug)),
+                SpostamentiTabella.LAT to coordinata(posizione.lat),
+                SpostamentiTabella.LON to coordinata(posizione.lon),
+                SpostamentiTabella.NOTA to Csv.testo(nota),
+            ),
+        )
+        aggiornaDiario(slug, adesso.toLocalDate())
+    }
+
+    fun registraNota(
+        slug: String,
+        testo: String,
+        posizione: Posizione? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ) {
+        val pulito = Csv.testo(testo)
+        if (pulito.isEmpty()) return
+        tabellaNote(slug).accoda(
+            mapOf(
+                Csv.ID to nuovoId(),
+                Csv.TS to ts(adesso),
+                NoteTabella.TESTO to pulito,
+                NoteTabella.TAPPA to Csv.testo(luogo(slug)),
+                NoteTabella.LAT to coordinata(posizione?.lat),
+                NoteTabella.LON to coordinata(posizione?.lon),
+            ),
+        )
+        aggiornaDiario(slug, adesso.toLocalDate())
+    }
+
+    fun registraFoto(
+        slug: String,
+        nomeFile: String,
+        didascalia: String? = null,
+        posizione: Posizione? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ) {
+        tabellaFoto(slug).accoda(
+            mapOf(
+                Csv.ID to nuovoId(),
+                Csv.TS to ts(adesso),
+                FotoTabella.FILE to Csv.testo(nomeFile),
+                FotoTabella.DIDASCALIA to Csv.testo(didascalia),
+                FotoTabella.TAPPA to Csv.testo(luogo(slug)),
+                FotoTabella.LAT to coordinata(posizione?.lat),
+                FotoTabella.LON to coordinata(posizione?.lon),
+            ),
+        )
+        aggiornaDiario(slug, adesso.toLocalDate())
+    }
+
+    // --- diario --------------------------------------------------------------
+
+    /** Tutte le voci del viaggio, in ordine di ora. */
+    fun voci(slug: String): List<Voce> = VociDelGiorno.tutte(
+        spostamenti = tabellaSpostamenti(slug).vive(),
+        note = tabellaNote(slug).vive(),
+        foto = tabellaFoto(slug).vive(),
+    )
+
+    fun aggiornaDiario(slug: String, giorno: LocalDate) {
+        val tutte = voci(slug)
+        diario(slug).aggiorna(
+            giorno = giorno,
+            voci = VociDelGiorno.delGiorno(tutte, giorno),
+            luogo = luogoDelGiorno(tutte, giorno) ?: luogo(slug),
+            titolo = leggiViaggio(slug)?.nome,
+        )
+    }
+
+    /** Rigenera tutte le giornate: serve se il file viene perso o modificato. */
+    fun rigeneraDiario(slug: String) {
+        val tutte = voci(slug)
+        VociDelGiorno.giorni(tutte).forEach { giorno -> aggiornaDiario(slug, giorno) }
+    }
+
+    /**
+     * Il luogo da mettere nell'intestazione della giornata: l'ultimo arrivo di
+     * quel giorno. Se in quel giorno non si e' arrivati da nessuna parte, chi
+     * chiama usa la tappa corrente.
+     */
+    private fun luogoDelGiorno(voci: List<Voce>, giorno: LocalDate): String? =
+        VociDelGiorno.delGiorno(voci, giorno)
+            .lastOrNull { it.genere == Genere.ARRIVO && it.testo.isNotBlank() }
+            ?.testo
+
+    /** Dove sei ora, secondo l'itinerario: serve a nominare foto e note. */
+    fun luogo(slug: String): String? = Tappe.corrente(tappe(slug))?.nome
+
+    // --- utilita' -----------------------------------------------------------
+
+    private fun nuovoId(): String = UUID.randomUUID().toString().take(8)
+
+    private fun ts(adesso: OffsetDateTime): String = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+
+    private fun coordinata(valore: Double?): String =
+        valore?.let { Csv.numero(it, 6) } ?: ""
+
     fun elimina(slug: String) {
         cartellaViaggio(slug).deleteRecursively()
     }
@@ -165,6 +357,39 @@ class Archivio(private val radice: File) {
             appendLine("| `descrizione` | Testo libero, su una riga sola |")
             appendLine("| `stato` | `da_fare`, `fatta` oppure `saltata` |")
             appendLine("| `checkin` | Istante del check-in, quando c'e' stato |")
+            appendLine()
+            appendLine("## spostamenti.csv")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `genere` | `arrivo` per un check-in su una tappa, `posizione` per una posizione registrata |")
+            appendLine("| `tappa` | Dove eri, secondo l'itinerario |")
+            appendLine("| `lat`, `lon` | Coordinate del punto |")
+            appendLine("| `nota` | Testo facoltativo |")
+            appendLine()
+            appendLine("## note.csv")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `testo` | La nota, su una riga sola |")
+            appendLine("| `tappa` | Dove eri quando l'hai scritta |")
+            appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")
+            appendLine()
+            appendLine("## foto.csv")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `file` | Nome del file nella sottocartella `foto/` |")
+            appendLine("| `didascalia` | Testo facoltativo |")
+            appendLine("| `tappa` | Dove eri quando l'hai scattata |")
+            appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")
+            appendLine()
+            appendLine("## diario.md")
+            appendLine()
+            appendLine("Non e' una tabella: e' il diario del viaggio, una sezione per giorno.")
+            appendLine("L'intestazione porta la data in forma ISO, cosi' la sezione di un giorno")
+            appendLine("si ritrova per riscriverla. E' una vista degli eventi delle tabelle: se")
+            appendLine("si perde, l'app la rigenera.")
         }
         File(radice, "FORMATI.md").writeText(testo, Charsets.UTF_8)
     }

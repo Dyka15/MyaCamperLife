@@ -1,5 +1,7 @@
 package it.myacamperlife.app.ui.viaggi
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,12 +11,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
@@ -22,26 +29,39 @@ import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /**
- * L'elenco delle tappe del viaggio aperto.
+ * La schermata d'apertura del viaggio: dove sei, dove vai, l'itinerario, e le
+ * azioni rapide.
  *
- * Fase 1: si guarda. Check-in, salta e aggiungi arrivano alla fase 2, e con
- * loro gli stati diventeranno modificabili da qui.
+ * Il metro di paragone e' il bot: mandargli una foto non richiedeva comandi.
+ * Se qui registrare qualcosa costasse sei tocchi, l'app sarebbe peggiore di
+ * quello che sostituisce. Da qui le azioni in cima, sempre a portata.
  */
 @Composable
-fun TappeContent(tappe: List<Tappa>) {
+fun TappeContent(
+    tappe: List<Tappa>,
+    corrente: Tappa?,
+    prossima: Tappa?,
+    onPosizione: () -> Unit,
+    onFoto: () -> Unit,
+    onNota: () -> Unit,
+    onTappa: (Tappa) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
     ) {
         item {
-            Riepilogo(tappe)
+            Testata(corrente, prossima)
+            AzioniRapide(onPosizione, onFoto, onNota)
             HorizontalDivider()
         }
 
         items(tappe, key = { it.id }) { tappa ->
-            RigaTappa(tappa)
+            RigaTappa(tappa, onTocco = { onTappa(tappa) })
         }
 
         if (tappe.isEmpty()) {
@@ -57,27 +77,67 @@ fun TappeContent(tappe: List<Tappa>) {
 }
 
 @Composable
-private fun Riepilogo(tappe: List<Tappa>) {
-    val fatte = tappe.count { it.stato == StatoTappa.FATTA }
-    val saltate = tappe.count { it.stato == StatoTappa.SALTATA }
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(
-            stringResource(R.string.riepilogo_tappe, tappe.size),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            stringResource(R.string.riepilogo_stati, fatte, saltate),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+private fun Testata(corrente: Tappa?, prossima: Tappa?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = corrente?.let { tappa ->
+                    val ora = oraDiArrivo(tappa.checkinIl)
+                    if (ora != null) {
+                        stringResource(R.string.sei_a_dalle, tappa.nome, ora)
+                    } else {
+                        stringResource(R.string.sei_a, tappa.nome)
+                    }
+                } ?: stringResource(R.string.non_ancora_partito),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = prossima?.let { stringResource(R.string.prossima, it.nome) }
+                    ?: stringResource(R.string.itinerario_finito),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 
 @Composable
-private fun RigaTappa(tappa: Tappa) {
+private fun AzioniRapide(onPosizione: () -> Unit, onFoto: () -> Unit, onNota: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        AzioneRapida(R.drawable.ic_posizione, R.string.azione_posizione, onPosizione)
+        AzioneRapida(R.drawable.ic_foto, R.string.azione_foto, onFoto)
+        AzioneRapida(R.drawable.ic_nota, R.string.azione_nota, onNota)
+    }
+}
+
+@Composable
+private fun AzioneRapida(icona: Int, etichetta: Int, onTocco: () -> Unit) {
+    TextButton(onClick = onTocco) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(painter = painterResource(icona), contentDescription = null)
+            Text(stringResource(etichetta), style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun RigaTappa(tappa: Tappa, onTocco: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTocco)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -143,3 +203,10 @@ private fun segno(stato: StatoTappa): String = when (stato) {
     StatoTappa.DA_FARE -> "○"
     StatoTappa.SALTATA -> "⤫"
 }
+
+/** L'ora del check-in, o `null` se il campo e' assente o illeggibile. */
+private fun oraDiArrivo(iso: String?): String? = iso?.let {
+    runCatching { OffsetDateTime.parse(it).format(ORA) }.getOrNull()
+}
+
+private val ORA: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
