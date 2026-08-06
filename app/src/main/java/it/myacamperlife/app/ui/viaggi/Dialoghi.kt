@@ -305,8 +305,14 @@ fun RifornimentoDialog(
                     value = km,
                     onValueChange = { km = it },
                     label = { Text(stringResource(R.string.rifornimento_km)) },
-                    supportingText = ultimoKm?.let {
-                        { Text(stringResource(R.string.rifornimento_ultimo_km, it)) }
+                    // Con `ultimoKm?.let { { Text(...) } }` la lambda esce da
+                    // `let` come una funzione normale e non come @Composable,
+                    // e non e' assegnabile qui. Con un `if` in posizione di
+                    // argomento il tipo atteso si propaga nei rami.
+                    supportingText = if (ultimoKm == null) {
+                        null
+                    } else {
+                        { Text(stringResource(R.string.rifornimento_ultimo_km, ultimoKm)) }
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

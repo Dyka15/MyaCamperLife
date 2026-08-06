@@ -35,11 +35,14 @@ jobs:
       - name: Permessi di esecuzione
         run: chmod +x gradlew
 
+      # Senza --stacktrace: su un errore di compilazione stampava duecento
+      # righe di interni Gradle, e le righe "e: file://..." che dicono
+      # davvero cosa non va finivano fuori dalla coda leggibile del log.
       - name: Test unitari
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: ./gradlew testDebugUnitTest
 
       - name: Compila APK di debug
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug
 
       - name: Pubblica referto dei test se falliscono
         if: failure()

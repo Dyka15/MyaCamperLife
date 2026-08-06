@@ -143,11 +143,11 @@ private fun ConsumoCard(consumo: Consumo) {
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Voce(stringResource(R.string.consumo_litri_100), decimale(consumo.litriPer100!!, 1))
+            RigaValore(stringResource(R.string.consumo_litri_100), decimale(consumo.litriPer100!!, 1))
             consumo.euroPer100?.let {
-                Voce(stringResource(R.string.consumo_euro_100), decimale(it, 2))
+                RigaValore(stringResource(R.string.consumo_euro_100), decimale(it, 2))
             }
-            Voce(
+            RigaValore(
                 stringResource(R.string.consumo_misurato_su),
                 stringResource(R.string.consumo_km_e_litri, consumo.kmTotali, decimale(consumo.litriTotali, 1)),
             )
@@ -182,7 +182,7 @@ private fun RigaTratto(tratto: Segmento) {
 }
 
 @Composable
-private fun Voce(etichetta: String, valore: String) {
+private fun RigaValore(etichetta: String, valore: String) {
     Row(modifier = Modifier.padding(top = 4.dp)) {
         Text(
             etichetta,
