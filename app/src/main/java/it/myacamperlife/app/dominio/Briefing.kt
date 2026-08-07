@@ -183,6 +183,3 @@ object Briefings {
     /** Sulle tratte vere ne resta una sola, e il margine si stringe. */
     const val MARGINE_STRADA = 1.15
 }
-
-/** Una coppia di coordinate, senza l'ora: qui l'ora non serve. */
-data class Coordinate(val lat: Double, val lon: Double)

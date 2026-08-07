@@ -25,7 +25,7 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1–7 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
+**Fasi 1–7 e 9 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
 del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — meteo e
 chilometri compresi. **Nessuna schermata aspetta la rete:** quello che serve si prende in
 anticipo.
@@ -118,7 +118,26 @@ Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv
 `scorta/meteo.json`, `impostazioni.json` e `FORMATI.md` che spiega le colonne. I permessi
 sono la posizione, le notifiche e la rete, e nessuna lettura dipende dall'ultimo.
 
-Restano le fasi 8–9: client AI, rifiniture.
+**La cartella dei file** — il pezzo che rende vero il terzo principio:
+
+- dalle impostazioni scegli una cartella con il selettore di sistema: `Documenti/Mya`, o
+  una cartella già sincronizzata su un cloud, e da lì il backup lo ottieni gratis
+- ogni scrittura ne innesca una **copia differita**: la registrazione resta un append
+  locale che riesce sempre, la copia fuori può fallire senza conseguenze e si rifà da sola
+- «Copia tutto adesso» per l'archivio che hai già, e per essere certo che fuori ci sia
+  tutto prima di cambiare telefono
+- **niente permessi di archiviazione**: l'app può scrivere solo nella cartella che le
+  indichi
+
+Aggiungere una tappa:
+
+- **cerca un indirizzo**: prima fra i paesi già scaricati (senza rete), poi su
+  OpenStreetMap. Un tocco sul risultato riempie le coordinate
+- le **coordinate stanno in un campo solo**, `42.7185, 12.1112`: si incollano da una mappa
+  e si incollano insieme. Virgola o punto decimale, separate da virgola, spazio o punto e
+  virgola, con le lettere del quadrante se ci sono. Sotto compare quello che l'app ha capito
+
+Resta la fase 8: il client AI.
 
 ## Documenti
 

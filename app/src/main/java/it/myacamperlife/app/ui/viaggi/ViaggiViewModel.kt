@@ -15,6 +15,7 @@ import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dintorni
+import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
@@ -31,6 +32,8 @@ import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
 import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
+import it.myacamperlife.app.rete.Geocodifica
+import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.rete.Scorte
 import java.io.File
 import java.time.LocalDate
@@ -69,6 +72,21 @@ class ViaggiViewModel(
      * potrebbe costruire in un test.
      */
     private val scorte: Scorte? = null,
+    /** Cerca le coordinate di un indirizzo: scorta prima, rete poi. */
+    private val geocodifica: Geocodifica? = null,
+    /**
+     * Mette in coda una passata di specchio verso la cartella scelta.
+     *
+     * Si chiama **dopo** ogni scrittura, non prima e non durante: la
+     * registrazione e' un append locale che riesce sempre, la copia fuori e'
+     * differita e puo' fallire senza conseguenze.
+     */
+    private val rispecchia: () -> Unit = {},
+    /**
+     * Copia tutto l'archivio nella cartella scelta, adesso, e dice quanti file
+     * ha toccato — `null` se non ha potuto.
+     */
+    private val esportaTutto: (suspend () -> Int?)? = null,
 ) : ViewModel() {
 
     data class Stato(
@@ -146,6 +164,10 @@ class ViaggiViewModel(
         data object ScortaAggiornata : Avviso
         data object ScortaNonAggiornata : Avviso
         data object DintorniAggiornati : Avviso
+        data class SpecchioScelto(val cartella: String) : Avviso
+        data class SpecchioFatto(val file: Int) : Avviso
+        data object SpecchioFallito : Avviso
+        data object SpecchioSpento : Avviso
     }
 
     private val _stato = MutableStateFlow(Stato())
@@ -463,6 +485,65 @@ class ViaggiViewModel(
         }
     }
 
+    // --- la cartella d'archivio ----------------------------------------------
+
+    /**
+     * Registra la cartella scelta e ci copia subito tutto l'archivio.
+     *
+     * La prima passata e' immediata e non differita: l'utente ha appena scelto
+     * una cartella e si aspetta di trovarci i file, non di scoprirli fra dieci
+     * minuti.
+     */
+    fun scegliCartella(uri: String, nome: String?) = viewModelScope.launch {
+        val nuove = _stato.value.impostazioni.copy(cartellaSpecchio = uri)
+        withContext(Dispatchers.IO) { archivio.salvaImpostazioni(nuove) }
+        _stato.update {
+            it.copy(
+                impostazioni = nuove,
+                avviso = Avviso.SpecchioScelto(nome ?: uri),
+            )
+        }
+        esporta()
+    }
+
+    /** Smette di rispecchiare. I file gia' copiati restano dove sono. */
+    fun spegniCartella() = viewModelScope.launch {
+        val nuove = _stato.value.impostazioni.copy(cartellaSpecchio = null)
+        withContext(Dispatchers.IO) { archivio.salvaImpostazioni(nuove) }
+        _stato.update { it.copy(impostazioni = nuove, avviso = Avviso.SpecchioSpento) }
+    }
+
+    /**
+     * Copia adesso tutto l'archivio nella cartella scelta.
+     *
+     * Serve alla prima volta — l'archivio esiste da prima della cartella — e
+     * quando si vuole essere certi che fuori ci sia tutto prima di disinstallare
+     * o di cambiare telefono.
+     */
+    fun esporta() = viewModelScope.launch {
+        val esporta = esportaTutto ?: return@launch
+        _stato.update { it.copy(inCorso = true) }
+        val copiati = withContext(Dispatchers.IO) { esporta() }
+        _stato.update {
+            it.copy(
+                inCorso = false,
+                avviso = if (copiati == null) Avviso.SpecchioFallito else Avviso.SpecchioFatto(copiati),
+            )
+        }
+    }
+
+
+    // --- cercare un indirizzo -------------------------------------------------
+
+    /**
+     * Le coordinate di un posto dal suo nome.
+     *
+     * Non passa da [operazione] e non tocca lo stato: e' una domanda, non una
+     * registrazione, e la risposta la usa il dialogo che l'ha chiesta.
+     */
+    suspend fun cercaIndirizzo(testo: String): RicercaIndirizzo? =
+        geocodifica?.cerca(testo, _stato.value.aperto?.slug)
+
     /**
      * Il riepilogo che arriverebbe stasera, calcolato adesso.
      *
@@ -503,6 +584,7 @@ class ViaggiViewModel(
         }
         aggiornaViaggio(viaggio)
         _stato.update { it.copy(inCorso = false, avviso = avviso) }
+        rispecchia()
     }
 
     private data class Esito(val viaggio: Viaggio? = null, val avviso: Avviso)

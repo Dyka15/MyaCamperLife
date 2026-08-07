@@ -67,6 +67,11 @@ dependencies {
     // pota le sveglie.
     implementation(libs.androidx.work.runtime.ktx)
 
+    // Lo specchio nella cartella scelta dall'utente: attraversare un albero
+    // SAF a mano e' cento righe di DocumentsContract, questa libreria pesa
+    // trenta kilobyte.
+    implementation(libs.androidx.documentfile)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)

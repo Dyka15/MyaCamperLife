@@ -47,7 +47,7 @@ Cosa entra nell'app, da dove, e con quale gesto.
 | Input | Come entra | Quando |
 |---|---|---|
 | **Itinerario** | File `.md` con blocco JSON `waypoints` (`name`, `lat`, `lng`, `type`, `giorno`, `description`), condiviso dal gestore file, da Drive o da una chat | A ogni viaggio nuovo |
-| **Tappa singola** | Form: nome, giorno, posizione (GPS o `lat,lng`), punto di inserimento nell'itinerario | Quando il viaggio cambia in corsa |
+| **Tappa singola** | Form: nome, giorno, posizione — indirizzo cercato, GPS, o coordinate incollate in un campo solo — punto di inserimento nell'itinerario | Quando il viaggio cambia in corsa |
 | **Check-in** | Un tocco sulla tappa corrente | Arrivando |
 | **Foto** | Fotocamera dentro l'app, o condivisione dalla galleria | Sempre |
 | **Nota** | Campo di testo, con dettatura vocale offline come alternativa | Sempre |
@@ -245,7 +245,7 @@ rete.
 | | Fase |
 |---|---|
 | Impostare i km con un pieno | 3 |
-| Scegliere la cartella di archivio | 9 |
+| Scegliere la cartella di archivio, e copiarci tutto | 9 |
 | Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |

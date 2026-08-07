@@ -78,8 +78,6 @@
     <string name="aggiungi_titolo">Aggiungi una tappa</string>
     <string name="aggiungi_nome">Nome</string>
     <string name="aggiungi_giorno">Giorno (facoltativo)</string>
-    <string name="aggiungi_lat">Latitudine</string>
-    <string name="aggiungi_lon">Longitudine</string>
     <string name="aggiungi_da_gps">Usa la posizione attuale</string>
     <string name="aggiungi_posizione">Dove inserirla</string>
     <string name="aggiungi_in_fondo">In fondo all\'itinerario</string>
@@ -217,4 +215,31 @@
     <string name="quando_letta">%1$s</string>
     <string name="quando_illeggibile">Non ho capito la data.</string>
     <string name="quando_nel_futuro">Quella data è nel futuro.</string>
+
+    <!-- Coordinate in un campo, e ricerca di un indirizzo -->
+    <string name="aggiungi_coordinate">Coordinate</string>
+    <string name="aggiungi_coordinate_esempio">42.7185, 12.1112</string>
+    <string name="aggiungi_coordinate_spiegazione">Incollale come le trovi: virgola o punto, separate da virgola o spazio.</string>
+    <string name="aggiungi_coordinate_illeggibili">Non ho capito le coordinate.</string>
+    <string name="aggiungi_coordinate_lette">%1$s, %2$s</string>
+    <string name="aggiungi_cerca">Cerca un indirizzo</string>
+    <string name="aggiungi_cerca_azione">Cerca</string>
+    <string name="aggiungi_cerca_in_corso">Sto cercando…</string>
+    <string name="aggiungi_cerca_niente">Non ho trovato niente. Senza rete si cerca solo fra i paesi già scaricati.</string>
+    <string name="aggiungi_cerca_dalla_scorta">Dai paesi dell\'itinerario, senza rete</string>
+    <string name="aggiungi_cerca_dalla_rete">Da OpenStreetMap</string>
+
+    <!-- La cartella d\'archivio -->
+    <string name="impostazioni_cartella">La cartella dei file</string>
+    <string name="impostazioni_cartella_nessuna">Nessuna cartella scelta: i file stanno solo dentro l\'app, dove nessun gestore file arriva. Se disinstalli l\'app spariscono con lei.</string>
+    <string name="impostazioni_cartella_scelta">I file vengono copiati in %1$s</string>
+    <string name="impostazioni_cartella_persa">La cartella scelta non è più accessibile: risceglila. Succede dopo una reinstallazione.</string>
+    <string name="impostazioni_scegli_cartella">Scegli la cartella</string>
+    <string name="impostazioni_cambia_cartella">Cambia cartella</string>
+    <string name="impostazioni_esporta">Copia tutto adesso</string>
+    <string name="impostazioni_spegni_cartella">Smetti di copiare</string>
+    <string name="specchio_scelto">I file verranno copiati in %1$s</string>
+    <string name="specchio_fatto">%1$d file nella cartella</string>
+    <string name="specchio_fallito">Non ho potuto scrivere nella cartella. Risceglila dalle impostazioni.</string>
+    <string name="specchio_spento">Non copio più fuori dall\'app</string>
 </resources>

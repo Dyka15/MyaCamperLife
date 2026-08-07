@@ -29,6 +29,19 @@ data class Impostazioni(
     val briefingAttivo: Boolean = true,
     /** L'ora del riepilogo, 0-23. Le 19:00 come nel sistema di prima. */
     val oraBriefing: Int = 19,
+    /**
+     * L'Uri della cartella in cui rispecchiare l'archivio, scelta dall'utente.
+     *
+     * Nullo finche' non se ne sceglie una: allora i file vivono solo nell'area
+     * privata dell'app, dove funzionano ma dove nessun gestore file arriva.
+     *
+     * E' un Uri SAF, illeggibile a occhio, e sta qui e non nelle preferenze per
+     * la stessa ragione di tutto il resto: l'archivio deve bastare a se stesso.
+     * Il **permesso** su quella cartella pero' non e' nel file — vive
+     * nell'installazione dell'app — quindi dopo una reinstallazione la cartella
+     * va riscelta.
+     */
+    val cartellaSpecchio: String? = null,
 ) {
     /** L'ora riportata dentro il quadrante, comunque sia scritta nel file. */
     val ora: Int get() = oraBriefing.coerceIn(0, 23)

@@ -72,7 +72,50 @@ class Luoghi(val tutti: List<Luogo> = emptyList()) {
     fun nome(lat: Double, lon: Double, entro: Double = RAGGIO_KM): String? =
         piuVicino(lat, lon, entro)?.nome
 
+    /**
+     * Cerca un posto per nome fra i toponimi scaricati.
+     *
+     * E' il primo strato della ricerca di un indirizzo, e **risponde senza
+     * rete**: se i dintorni del viaggio sono stati scaricati, "Bolsena" si
+     * trova qui e la richiesta a un servizio non parte nemmeno. Il secondo
+     * strato — un indirizzo civico, un campeggio per nome — ha bisogno di
+     * rete, ma quello arriva solo quando questo non basta.
+     *
+     * Chi comincia col testo cercato viene prima di chi lo contiene in mezzo, e
+     * a pari merito vince il paese piu' grande: cercando "san" si vuole vedere
+     * San Casciano prima di Borgo San Lorenzo.
+     */
+    fun cerca(testo: String?, quanti: Int = QUANTI): List<Luogo> {
+        val cercato = normalizza(testo ?: return emptyList())
+        if (cercato.length < 2) return emptyList()
+
+        return tutti
+            .mapNotNull { luogo ->
+                val nome = normalizza(luogo.nome)
+                when {
+                    nome.startsWith(cercato) -> 0 to luogo
+                    nome.contains(cercato) -> 1 to luogo
+                    else -> null
+                }
+            }
+            .sortedWith(compareBy({ it.first }, { -(it.second.abitanti ?: 0) }))
+            .map { it.second }
+            .take(quanti)
+    }
+
     companion object {
+        /**
+         * Senza accenti e senza maiuscole: "Città di Castello" si deve trovare
+         * scrivendo "citta", perche' nessuno mette l'accento su una tastiera
+         * mentre guida.
+         */
+        private fun normalizza(testo: String): String = java.text.Normalizer
+            .normalize(testo.trim().lowercase(), java.text.Normalizer.Form.NFD)
+            .replace("\\p{Mn}+".toRegex(), "")
+
+        /** Cinque risultati: una tendina piu' lunga non si legge. */
+        const val QUANTI = 5
+
         /** Entro due chilometri dal centro si dice di essere nel paese. */
         const val DENTRO_KM = 2.0
 

@@ -11,7 +11,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import it.myacamperlife.app.archivio.Documenti
 import it.myacamperlife.app.archivio.Posizioni
+import it.myacamperlife.app.archivio.Specchio
+import it.myacamperlife.app.archivio.SpecchioLavoro
 import it.myacamperlife.app.avvisi.SvegliaBriefing
+import it.myacamperlife.app.rete.Geocodifica
 import it.myacamperlife.app.rete.Scorte
 import it.myacamperlife.app.ui.MyaApp
 import it.myacamperlife.app.ui.theme.MyaTheme
@@ -37,6 +40,12 @@ class MainActivity : ComponentActivity() {
                         context = applicationContext,
                         archivio = (application as MyaApplication).archivio,
                     ),
+                    geocodifica = Geocodifica(
+                        context = applicationContext,
+                        archivio = (application as MyaApplication).archivio,
+                    ),
+                    rispecchia = { SpecchioLavoro.programma(applicationContext) },
+                    esportaTutto = { esportaArchivio() },
                 )
             }
         }
@@ -58,6 +67,24 @@ class MainActivity : ComponentActivity() {
                 MyaApp(vista)
             }
         }
+    }
+
+    /**
+     * Copia tutto l'archivio nella cartella scelta, subito.
+     *
+     * Sta qui e non nel ViewModel perche' e' l'unico pezzo che ha bisogno di un
+     * `Context` e del content resolver. Restituisce quanti file ha toccato, o
+     * `null` se la cartella non c'e' piu': dopo una reinstallazione il permesso
+     * e' perso e va riscelta.
+     */
+    private suspend fun esportaArchivio(): Int? {
+        val archivio = (application as MyaApplication).archivio
+        val salvata = archivio.impostazioni().cartellaSpecchio ?: return null
+        val uri = runCatching { Uri.parse(salvata) }.getOrNull() ?: return null
+        if (!Specchio.accessibile(applicationContext, uri)) return null
+
+        val esito = Specchio(applicationContext, uri).rispecchia(archivio.radiceArchivio())
+        return if (esito.riuscito) esito.toccati else null
     }
 
     /**

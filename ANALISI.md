@@ -765,7 +765,19 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **6** | Rete: scarico meteo alle 19:00, precalcolo tratte OSRM | il briefing porta il meteo, e i km di domani sono quelli veri |
 | **7** | Esplora offline: POI e toponimi da Overpass, scaricati per viaggio | "cosa c'è vicino" in mezzo al nulla |
 | **8** | Client AI: Gemini con Grok di riserva, Esplora a due strati, giornate in prosa | l'ultima cosa che restava su Telegram |
-| **9** | Rifiniture: specchio SAF, dettato vocale, parser deterministico | |
+| **9** | Specchio nella cartella scelta (SAF), coordinate in un campo, ricerca di un indirizzo | apri `spese.csv` in un foglio di calcolo |
+
+**La fase 9 è stata anticipata prima della 8.** Finché i file stanno solo nell'area privata
+dell'app, il terzo principio — *i file sono il prodotto* — è vero nel codice e falso in
+pratica: si scrivono CSV curati che nessuno può aprire, e disinstallando l'app spariscono.
+Il client AI è un'aggiunta; questo era un difetto.
+
+**Lo specchio è una copia, non l'originale.** Su un albero SAF non esiste `append`: ogni
+scrittura riapre, rilegge e riscrive il documento intero, senza `fsync` garantito e senza
+atomicità. Scrivere direttamente nella cartella scelta farebbe perdere tutte le proprietà
+del formato — a prova di crash, correggere non distrugge, fondibile. La copia di lavoro
+locale resta l'autorità, e la copia esce differita con `WorkManager`: è esattamente il
+secondo invariante dell'architettura, *la scrittura non aspetta niente*.
 
 Le fasi 1–5 non toccano la rete: **si può arrivare a un'app utile senza scrivere una riga
 di codice di networking.** È un buon ordine anche per questo — e mette il client AI in

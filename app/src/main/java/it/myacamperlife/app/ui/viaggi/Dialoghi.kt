@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,16 +45,21 @@ import it.myacamperlife.app.archivio.Csv
 import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Carburante
+import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Categoria
+import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Momento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.TestoBriefing
+import it.myacamperlife.app.rete.Provenienza
+import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.dominio.Tappa
 import java.io.File
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 /** Le azioni possibili su una tappa, decise dal suo stato. */
 @Composable
@@ -168,39 +174,43 @@ fun DidascaliaDialog(onSalva: (String?) -> Unit, onScarta: () -> Unit) {
 /**
  * Aggiungi una tappa.
  *
- * Era un wizard di quattro messaggi sul bot; qui e' una form con quattro
- * campi, compilabili in qualsiasi ordine e correggibili senza ricominciare.
- * La posizione arriva dal GPS con un tocco, oppure si digita.
+ * Tre modi di dire dove, in ordine di comodita': **cercare un indirizzo**,
+ * prendere il GPS, incollare le coordinate. Il primo e' quello che si usa
+ * pianificando a casa, gli altri due in viaggio.
+ *
+ * **Le coordinate stanno in un campo solo.** Si incollano da una mappa, da un
+ * messaggio, da un annuncio, e si incollano insieme: spezzarle a mano per
+ * infilarle in due caselle era lavoro inutile. Sotto il campo compare quello
+ * che l'app ha capito, che e' l'unico modo di accorgersi di un malinteso.
  */
 @Composable
 fun AggiungiTappaDialog(
     tappe: List<Tappa>,
     onPrendiPosizione: () -> Unit,
-    coordinatePronte: Pair<Double, Double>?,
+    coordinatePronte: Coordinate?,
+    onCerca: suspend (String) -> RicercaIndirizzo?,
     onSalva: (nome: String, lat: Double, lon: Double, giorno: String?, primaDi: String?) -> Unit,
     onChiudi: () -> Unit,
 ) {
     var nome by remember { mutableStateOf("") }
     var giorno by remember { mutableStateOf("") }
-    var lat by remember { mutableStateOf("") }
-    var lon by remember { mutableStateOf("") }
+    var coordinate by remember { mutableStateOf("") }
     var primaDi by remember { mutableStateOf<Tappa?>(null) }
     var menuAperto by remember { mutableStateOf(false) }
 
-    // Quando il GPS risponde riempie le coordinate senza toccare il resto:
-    // il nome che l'utente stava scrivendo non deve sparire.
+    var cercato by remember { mutableStateOf("") }
+    var trovati by remember { mutableStateOf<RicercaIndirizzo?>(null) }
+    var ricercaInCorso by remember { mutableStateOf(false) }
+    val ambito = rememberCoroutineScope()
+
+    // Quando il GPS risponde riempie le coordinate senza toccare il resto: il
+    // nome che l'utente stava scrivendo non deve sparire.
     LaunchedEffect(coordinatePronte) {
-        coordinatePronte?.let {
-            lat = Csv.numero(it.first, 6)
-            lon = Csv.numero(it.second, 6)
-        }
+        coordinatePronte?.let { coordinate = it.toString() }
     }
 
-    val latitudine = Csv.leggiNumero(lat)
-    val longitudine = Csv.leggiNumero(lon)
-    val valida = nome.isNotBlank() &&
-        latitudine != null && latitudine in -90.0..90.0 &&
-        longitudine != null && longitudine in -180.0..180.0
+    val punto = Coordinate.leggi(coordinate)
+    val valida = nome.isNotBlank() && punto != null
 
     val etichettaPosizione = primaDi
         ?.let { stringResource(R.string.aggiungi_prima_di, it.nome) }
@@ -228,27 +238,104 @@ fun AggiungiTappaDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // --- cercare un indirizzo
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     OutlinedTextField(
-                        value = lat,
-                        onValueChange = { lat = it },
-                        label = { Text(stringResource(R.string.aggiungi_lat)) },
+                        value = cercato,
+                        onValueChange = { cercato = it; trovati = null },
+                        label = { Text(stringResource(R.string.aggiungi_cerca)) },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                     )
-                    OutlinedTextField(
-                        value = lon,
-                        onValueChange = { lon = it },
-                        label = { Text(stringResource(R.string.aggiungi_lon)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f),
+                    TextButton(
+                        enabled = cercato.trim().length >= 2 && !ricercaInCorso,
+                        onClick = {
+                            ambito.launch {
+                                ricercaInCorso = true
+                                trovati = onCerca(cercato)
+                                ricercaInCorso = false
+                            }
+                        },
+                    ) { Text(stringResource(R.string.aggiungi_cerca_azione)) }
+                }
+
+                if (ricercaInCorso) {
+                    Text(
+                        stringResource(R.string.aggiungi_cerca_in_corso),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
+                trovati?.let { ricerca ->
+                    if (ricerca.risultati.isEmpty()) {
+                        Text(
+                            stringResource(R.string.aggiungi_cerca_niente),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            stringResource(
+                                if (ricerca.provenienza == Provenienza.SCORTA) {
+                                    R.string.aggiungi_cerca_dalla_scorta
+                                } else {
+                                    R.string.aggiungi_cerca_dalla_rete
+                                },
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        ricerca.risultati.forEach { indirizzo ->
+                            RigaIndirizzo(indirizzo) {
+                                coordinate = indirizzo.coordinate.toString()
+                                // Il nome si riempie solo se e' vuoto: chi l'ha
+                                // gia' scritto ha deciso come chiamare la tappa.
+                                if (nome.isBlank()) nome = indirizzo.nome
+                                trovati = null
+                            }
+                        }
+                    }
+                }
+
+                // --- le coordinate
+                OutlinedTextField(
+                    value = coordinate,
+                    onValueChange = { coordinate = it },
+                    label = { Text(stringResource(R.string.aggiungi_coordinate)) },
+                    placeholder = { Text(stringResource(R.string.aggiungi_coordinate_esempio)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = when {
+                        coordinate.isBlank() -> stringResource(R.string.aggiungi_coordinate_spiegazione)
+                        punto == null -> stringResource(R.string.aggiungi_coordinate_illeggibili)
+                        else -> stringResource(
+                            R.string.aggiungi_coordinate_lette,
+                            Csv.numero(punto.lat, 5),
+                            Csv.numero(punto.lon, 5),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (coordinate.isNotBlank() && punto == null) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
                 TextButton(onClick = onPrendiPosizione) {
                     Text(stringResource(R.string.aggiungi_da_gps))
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                 Text(
                     stringResource(R.string.aggiungi_posizione),
@@ -279,8 +366,8 @@ fun AggiungiTappaDialog(
                     onChiudi()
                     onSalva(
                         nome.trim(),
-                        latitudine ?: 0.0,
-                        longitudine ?: 0.0,
+                        punto?.lat ?: 0.0,
+                        punto?.lon ?: 0.0,
                         giorno.trim().takeIf { it.isNotBlank() },
                         primaDi?.id,
                     )
@@ -291,6 +378,27 @@ fun AggiungiTappaDialog(
             TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
         },
     )
+}
+
+/** Un risultato della ricerca: nome sopra, dove sta sotto. */
+@Composable
+private fun RigaIndirizzo(indirizzo: Indirizzo, onTocco: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTocco)
+            .padding(vertical = 6.dp),
+    ) {
+        Text(indirizzo.nome, style = MaterialTheme.typography.bodyMedium)
+        indirizzo.descrizione?.let { dove ->
+            Text(
+                text = dove,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
+        }
+    }
 }
 
 /**
@@ -504,6 +612,11 @@ fun ImpostazioniDialog(
     batteriaSenzaLimiti: Boolean,
     avvioAutomaticoDisponibile: Boolean,
     scortaDisponibile: Boolean,
+    cartella: String?,
+    cartellaAccessibile: Boolean,
+    onScegliCartella: () -> Unit,
+    onEsporta: () -> Unit,
+    onSpegniCartella: () -> Unit,
     onSalva: (Impostazioni) -> Unit,
     onProvaBriefing: () -> Unit,
     onAggiornaScorta: () -> Unit,
@@ -571,6 +684,45 @@ fun ImpostazioniDialog(
                     )
                     TextButton(onClick = onProvaBriefing) {
                         Text(stringResource(R.string.impostazioni_prova_briefing))
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    stringResource(R.string.impostazioni_cartella),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    text = when {
+                        cartella == null -> stringResource(R.string.impostazioni_cartella_nessuna)
+                        !cartellaAccessibile -> stringResource(R.string.impostazioni_cartella_persa)
+                        else -> stringResource(R.string.impostazioni_cartella_scelta, cartella)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (cartella != null && !cartellaAccessibile) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+                TextButton(onClick = { onChiudi(); onScegliCartella() }) {
+                    Text(
+                        stringResource(
+                            if (cartella == null) R.string.impostazioni_scegli_cartella
+                            else R.string.impostazioni_cambia_cartella,
+                        ),
+                    )
+                }
+                if (cartella != null) {
+                    Row {
+                        TextButton(
+                            enabled = cartellaAccessibile,
+                            onClick = { onChiudi(); onEsporta() },
+                        ) { Text(stringResource(R.string.impostazioni_esporta)) }
+                        TextButton(onClick = { onChiudi(); onSpegniCartella() }) {
+                            Text(stringResource(R.string.impostazioni_spegni_cartella))
+                        }
                     }
                 }
 

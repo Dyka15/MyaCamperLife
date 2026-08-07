@@ -55,9 +55,14 @@ data class Viaggio(
 /**
  * La cartella dei file, e le operazioni che la riguardano.
  *
- * Per ora l'archivio vive nell'area privata dell'app: funziona sempre e non
- * chiede permessi. Lo specchio nella cartella scelta dall'utente arriva alla
- * fase 9; quando arrivera', questa classe resta la copia di lavoro.
+ * L'archivio vive nell'area privata dell'app: funziona sempre, non chiede
+ * permessi, e su di esso valgono le proprieta' del formato — `append` piu'
+ * `fsync`, rinomina atomica, correggere senza distruggere.
+ *
+ * **Questa e' la copia di lavoro, e resta l'autorita'.** La copia leggibile da
+ * fuori la fa [Specchio], ricopiando in una cartella scelta dall'utente: su un
+ * albero SAF non esiste `append`, quindi scrivere direttamente la' farebbe
+ * perdere tutte quelle proprieta'.
  */
 class Archivio(private val radice: File) {
 
@@ -67,6 +72,14 @@ class Archivio(private val radice: File) {
         cartellaViaggi().mkdirs()
         scriviFormati()
     }
+
+    /**
+     * La radice dell'archivio: quello che lo specchio ricopia fuori.
+     *
+     * Sta nell'area privata dell'app, dove funziona sempre. La copia leggibile
+     * dall'esterno la fa [Specchio], e resta una copia.
+     */
+    fun radiceArchivio(): File = radice
 
     fun cartellaViaggi(): File = File(radice, "viaggi")
 
@@ -957,6 +970,14 @@ class Archivio(private val radice: File) {
             appendLine("L'intestazione porta la data in forma ISO, cosi' la sezione di un giorno")
             appendLine("si ritrova per riscriverla. E' una vista degli eventi delle tabelle: se")
             appendLine("si perde, l'app la rigenera.")
+            appendLine()
+            appendLine("## Dove sono questi file")
+            appendLine()
+            appendLine("La copia di lavoro sta nell'area privata dell'app, dove funziona sempre e")
+            appendLine("nessun gestore file arriva. Se dalle impostazioni scegli una cartella,")
+            appendLine("l'app ci **ricopia** tutto: quella e' la copia che puoi aprire, spostare")
+            appendLine("e sincronizzare su un cloud. Modificarla non cambia niente dentro l'app —")
+            appendLine("la copia va nell'altro senso.")
         }
         File(radice, "FORMATI.md").writeText(testo, Charsets.UTF_8)
     }

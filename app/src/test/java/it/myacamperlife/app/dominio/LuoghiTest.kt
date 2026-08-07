@@ -74,4 +74,66 @@ class LuoghiTest {
         )
         assertTrue(senzaDati.piuVicino(42.7190, 12.1115) != null)
     }
+
+    // --- cercare per nome -----------------------------------------------------
+
+    @Test
+    fun `un paese si trova scrivendone il nome`() {
+        assertEquals(listOf("Bolsena"), scorta.cerca("bolsena").map { it.nome })
+    }
+
+    @Test
+    fun `basta l'inizio del nome`() {
+        assertEquals(listOf("Bolsena"), scorta.cerca("bols").map { it.nome })
+    }
+
+    @Test
+    fun `le maiuscole e gli accenti non contano`() {
+        val conAccento = Luoghi(listOf(Luogo("Città di Castello", 43.45, 12.24, abitanti = 40_000)))
+        assertEquals(1, conAccento.cerca("citta").size)
+        assertEquals(1, conAccento.cerca("CITTÀ").size)
+    }
+
+    @Test
+    fun `chi comincia col testo viene prima di chi lo contiene`() {
+        val elenco = Luoghi(
+            listOf(
+                Luogo("Borgo San Lorenzo", 43.95, 11.38, abitanti = 18_000),
+                Luogo("San Casciano", 43.66, 11.19, abitanti = 17_000),
+            ),
+        )
+        assertEquals(
+            listOf("San Casciano", "Borgo San Lorenzo"),
+            elenco.cerca("san").map { it.nome },
+        )
+    }
+
+    @Test
+    fun `a pari merito vince il paese piu grande`() {
+        val elenco = Luoghi(
+            listOf(
+                Luogo("Castelnuovo Berardenga", 43.35, 11.50, abitanti = 9_000),
+                Luogo("Castelnuovo di Garfagnana", 44.10, 10.41, abitanti = 5_500),
+            ),
+        )
+        assertEquals("Castelnuovo Berardenga", elenco.cerca("castelnuovo").first().nome)
+    }
+
+    @Test
+    fun `una lettera sola non e' una ricerca`() {
+        assertTrue(scorta.cerca("b").isEmpty())
+        assertTrue(scorta.cerca("").isEmpty())
+        assertTrue(scorta.cerca(null).isEmpty())
+    }
+
+    @Test
+    fun `un nome che non c'e' non da risultati`() {
+        assertTrue(scorta.cerca("Reykjavik").isEmpty())
+    }
+
+    @Test
+    fun `l'elenco si ferma a cinque`() {
+        val molti = Luoghi((1..20).map { Luogo("Villa $it", 42.0 + it / 100.0, 12.0) })
+        assertEquals(Luoghi.QUANTI, molti.cerca("villa").size)
+    }
 }

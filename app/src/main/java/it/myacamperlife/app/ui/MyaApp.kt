@@ -40,9 +40,11 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Posizioni
+import it.myacamperlife.app.archivio.Specchio
 import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.Sistema
 import it.myacamperlife.app.dominio.Briefing
+import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Spesa
@@ -95,7 +97,7 @@ fun MyaApp(vista: ViaggiViewModel) {
     var tappaScelta by remember { mutableStateOf<Tappa?>(null) }
     var notaAperta by remember { mutableStateOf(false) }
     var aggiungiAperto by remember { mutableStateOf(false) }
-    var coordinateGps by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var coordinateGps by remember { mutableStateOf<Coordinate?>(null) }
     var fotoScattata by remember { mutableStateOf<File?>(null) }
     var fotoInAttesa by remember { mutableStateOf<File?>(null) }
     var rifornimentoAperto by remember { mutableStateOf(false) }
@@ -131,6 +133,16 @@ fun MyaApp(vista: ViaggiViewModel) {
             // Una foto gia' presa viene sostituita: non restano scarti.
             scontrino?.takeIf { it != file }?.let(vista::scartaScontrino)
             scontrino = file
+        }
+    }
+
+    // La cartella d'archivio: il selettore di sistema restituisce un albero su
+    // cui l'app puo' scrivere, e nient'altro. Nessun permesso di archiviazione.
+    val scegliCartella = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null && Specchio.ricorda(contesto, uri)) {
+            vista.scegliCartella(uri.toString(), Specchio.nome(contesto, uri))
         }
     }
 
@@ -179,6 +191,13 @@ fun MyaApp(vista: ViaggiViewModel) {
 
     val aperto = stato.aperto
     BackHandler(enabled = aperto != null) { vista.chiudi() }
+
+    // L'Uri della cartella scelta, letto dalle impostazioni. Puo' essere
+    // scritto nel file e non piu' accessibile: dopo una reinstallazione il
+    // permesso e' perso, e le impostazioni lo dicono invece di tacere.
+    val cartellaScelta = stato.impostazioni.cartellaSpecchio?.let { salvata ->
+        runCatching { Uri.parse(salvata) }.getOrNull()
+    }
 
     Scaffold(
         topBar = {
@@ -416,6 +435,14 @@ fun MyaApp(vista: ViaggiViewModel) {
             },
             onAggiornaScorta = vista::aggiornaScorta,
             scortaDisponibile = stato.aperto != null,
+            cartella = cartellaScelta?.let { Specchio.nome(contesto, it) },
+            cartellaAccessibile = cartellaScelta?.let { Specchio.accessibile(contesto, it) } ?: false,
+            onScegliCartella = { scegliCartella.launch(null) },
+            onEsporta = vista::esporta,
+            onSpegniCartella = {
+                cartellaScelta?.let { Specchio.dimentica(contesto, it) }
+                vista.spegniCartella()
+            },
             onBatteria = { Sistema.apriBatteria(contesto) },
             onAvvioAutomatico = { Sistema.apriAvvioAutomatico(contesto) },
             onChiudi = { impostazioniAperte = false },
@@ -437,10 +464,11 @@ fun MyaApp(vista: ViaggiViewModel) {
                 conPosizione {
                     ambito.launch {
                         val posizione = vista.posizioneAttuale()
-                        coordinateGps = posizione?.let { it.lat to it.lon }
+                        coordinateGps = posizione?.let { Coordinate(it.lat, it.lon) }
                     }
                 }
             },
+            onCerca = vista::cercaIndirizzo,
             onSalva = { nome, lat, lon, giorno, primaDi ->
                 coordinateGps = null
                 vista.aggiungiTappa(nome, lat, lon, giorno, primaDi)
@@ -511,4 +539,10 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.ScortaAggiornata -> stringResource(R.string.scorta_aggiornata)
     ViaggiViewModel.Avviso.ScortaNonAggiornata -> stringResource(R.string.scorta_non_aggiornata)
     ViaggiViewModel.Avviso.DintorniAggiornati -> stringResource(R.string.dintorni_aggiornati)
+    is ViaggiViewModel.Avviso.SpecchioScelto ->
+        stringResource(R.string.specchio_scelto, avviso.cartella)
+    is ViaggiViewModel.Avviso.SpecchioFatto ->
+        stringResource(R.string.specchio_fatto, avviso.file)
+    ViaggiViewModel.Avviso.SpecchioFallito -> stringResource(R.string.specchio_fallito)
+    ViaggiViewModel.Avviso.SpecchioSpento -> stringResource(R.string.specchio_spento)
 }
