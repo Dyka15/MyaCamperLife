@@ -47,6 +47,8 @@ Diario:
 
 Numeri:
 
+- il rifornimento si registra come lo si legge alla colonnina: **importo e prezzo al
+  litro**, e i litri li calcola l'app
 - consumo **pieno-a-pieno**: km/l, litri e euro per 100 km, tratto per tratto e in media
   pesata sui chilometri
 - **autonomia residua stimata** dai km con un pieno, meno i chilometri dedotti da tutti i
@@ -59,6 +61,8 @@ Spese:
 
 - categoria, importo e **modalità di pagamento** — contanti, POS, carta — in una form
   che si compila con tre tocchi e una cifra
+- **la data la scegli tu**, su spese e rifornimenti: uno scontrino si ritrova in tasca due
+  giorni dopo, e la voce va nel giorno in cui hai speso, non in quello in cui la scrivi
 - **valuta estera**: si salva quello che c'era sullo scontrino più il cambio del momento,
   modificabile; il totale in euro si ricalcola sempre da quei due
 - **foto dello scontrino**, allegata alla spesa, con un nome che porta data, ora e luogo

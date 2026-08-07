@@ -2,6 +2,7 @@ package it.myacamperlife.app.archivio
 
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Briefings
+import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dintorno
@@ -455,33 +456,49 @@ class Archivio(private val radice: File) {
     /**
      * Registra un rifornimento.
      *
-     * `pieno` decide se il tratto e' misurabile: solo fra due pieni si sa
-     * quanto carburante e' entrato per quei chilometri. Vale la pena chiederlo
-     * ogni volta, anche se sembra un dettaglio.
+     * **Si scrivono importo e prezzo al litro, e i litri si calcolano**: alla
+     * colonnina si legge quanto si e' speso e il prezzo sul cartello, mai il
+     * volume. La colonna `litri` viene scritta comunque, perche' e' quella che
+     * un foglio di calcolo somma, ma in lettura si rifa' il conto: correggere il
+     * prezzo aggiorna il consumo.
+     *
+     * `pieno` decide se il tratto e' misurabile: solo fra due pieni si sa quanto
+     * carburante e' entrato per quei chilometri. Vale la pena chiederlo ogni
+     * volta, anche se sembra un dettaglio.
+     *
+     * [istante] e' quando hai fatto il rifornimento; [adesso] quando lo stai
+     * registrando. Coincidono quasi sempre, ma non quando ritrovi lo scontrino
+     * di ieri in tasca.
      */
     fun registraRifornimento(
         slug: String,
         km: Int,
-        litri: Double,
-        euro: Double? = null,
+        euro: Double,
+        prezzoLitro: Double,
         pieno: Boolean = true,
         posizione: Posizione? = null,
         adesso: OffsetDateTime = OffsetDateTime.now(),
+        istante: OffsetDateTime = adesso,
     ) {
+        val litri = Carburante.litri(euro, prezzoLitro) ?: return
         tabellaRifornimenti(slug).accoda(
             mapOf(
                 Csv.ID to nuovoId(),
                 Csv.TS to ts(adesso),
+                RifornimentiTabella.ISTANTE to ts(istante),
                 RifornimentiTabella.KM to km.toString(),
+                RifornimentiTabella.EURO to Csv.numero(euro),
+                // Tre decimali: il gasolio costa 1,719 euro al litro, e
+                // arrotondare a due sposterebbe i litri di mezzo per cento.
+                RifornimentiTabella.PREZZO_LITRO to Csv.numero(prezzoLitro, 3),
                 RifornimentiTabella.LITRI to Csv.numero(litri, 2),
-                RifornimentiTabella.EURO to (euro?.let { Csv.numero(it) } ?: ""),
                 RifornimentiTabella.PIENO to Csv.booleano(pieno),
                 RifornimentiTabella.LUOGO to Csv.testo(dove(slug, posizione)),
                 RifornimentiTabella.LAT to coordinata(posizione?.lat),
                 RifornimentiTabella.LON to coordinata(posizione?.lon),
             ),
         )
-        aggiornaDiario(slug, adesso.toLocalDate())
+        aggiornaDiario(slug, istante.toLocalDate())
     }
 
     /**
@@ -503,10 +520,11 @@ class Archivio(private val radice: File) {
         scontrino: String? = null,
         posizione: Posizione? = null,
         adesso: OffsetDateTime = OffsetDateTime.now(),
+        istante: OffsetDateTime = adesso,
     ): Spesa {
         val spesa = Spesa(
             id = nuovoId(),
-            istante = adesso,
+            istante = istante,
             categoria = categoria,
             importo = importo,
             modalita = modalita,
@@ -520,6 +538,7 @@ class Archivio(private val radice: File) {
             mapOf(
                 Csv.ID to spesa.id,
                 Csv.TS to ts(adesso),
+                SpeseTabella.ISTANTE to ts(istante),
                 SpeseTabella.CATEGORIA to spesa.categoria.codice,
                 SpeseTabella.DESCRIZIONE to Csv.testo(spesa.descrizione),
                 SpeseTabella.IMPORTO to Csv.numero(spesa.importo),
@@ -535,26 +554,39 @@ class Archivio(private val radice: File) {
                 SpeseTabella.SCONTRINO to Csv.testo(spesa.scontrino),
             ),
         )
-        aggiornaDiario(slug, adesso.toLocalDate())
+        aggiornaDiario(slug, istante.toLocalDate())
         return spesa
     }
 
     // --- consumi e autonomia -------------------------------------------------
 
+    /**
+     * I rifornimenti registrati.
+     *
+     * **I litri si ricalcolano** da importo e prezzo al litro, come gli euro di
+     * una spesa in valuta estera: correggere il prezzo in un foglio di calcolo
+     * aggiorna il consumo, e la cifra dello scontrino — l'unica verificabile —
+     * resta intatta. La colonna `litri` vale da ripiego per le righe scritte
+     * prima che il prezzo esistesse.
+     */
     fun rifornimenti(slug: String): List<Rifornimento> = tabellaRifornimenti(slug)
         .vive()
         .mapNotNull { riga ->
             val id = riga.id ?: return@mapNotNull null
-            val istante = runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull()
-                ?: return@mapNotNull null
+            val istante = riga.quando ?: return@mapNotNull null
             val km = riga.intero(RifornimentiTabella.KM) ?: return@mapNotNull null
-            val litri = riga.numero(RifornimentiTabella.LITRI) ?: return@mapNotNull null
+            val euro = riga.numero(RifornimentiTabella.EURO)
+            val prezzo = riga.numero(RifornimentiTabella.PREZZO_LITRO)
+            val litri = Carburante.litri(euro, prezzo)
+                ?: riga.numero(RifornimentiTabella.LITRI)
+                ?: return@mapNotNull null
             Rifornimento(
                 id = id,
                 istante = istante,
                 km = km,
                 litri = litri,
-                euro = riga.numero(RifornimentiTabella.EURO),
+                euro = euro,
+                prezzoLitro = prezzo ?: Carburante.prezzo(euro, litri),
                 pieno = riga.booleano(RifornimentiTabella.PIENO),
                 luogo = riga.testo(RifornimentiTabella.LUOGO),
                 lat = riga.numero(RifornimentiTabella.LAT),
@@ -579,8 +611,7 @@ class Archivio(private val radice: File) {
         .vive()
         .mapNotNull { riga ->
             val id = riga.id ?: return@mapNotNull null
-            val istante = runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull()
-                ?: return@mapNotNull null
+            val istante = riga.quando ?: return@mapNotNull null
             val importo = riga.numero(SpeseTabella.IMPORTO) ?: return@mapNotNull null
             Spesa(
                 id = id,
@@ -793,6 +824,7 @@ class Archivio(private val radice: File) {
             appendLine("| `id` | Identifica il record. Una riga nuova con lo stesso `id` corregge quella di prima |")
             appendLine("| `ts` | Quando la riga e' stata scritta, ISO-8601 con fuso. A pari `id` vince il `ts` piu' recente |")
             appendLine("| `cancellato` | `si` marca il record come cancellato senza toglierlo dal file |")
+            appendLine("| `istante` | Quando e' **accaduto** il fatto, dove non coincide con `ts`: spese e rifornimenti si possono registrare col giorno che scegli tu. Se la colonna manca vale `ts` |")
             appendLine()
             appendLine("## tappe.csv")
             appendLine()
@@ -838,8 +870,9 @@ class Archivio(private val radice: File) {
             appendLine("| Colonna | Significato |")
             appendLine("|---|---|")
             appendLine("| `km` | Il contachilometri al rifornimento |")
-            appendLine("| `litri` | Litri messi |")
-            appendLine("| `euro` | Importo speso, se registrato |")
+            appendLine("| `euro` | Importo speso: e' il dato primario, quello dello scontrino |")
+            appendLine("| `prezzo_litro` | Il prezzo al litro del cartello, tre decimali |")
+            appendLine("| `litri` | `euro` diviso `prezzo_litro`. E' una comodita' per il foglio di calcolo: **la verita' sono `euro` e `prezzo_litro`**, e l'app rifa' il conto ogni volta che legge |")
             appendLine("| `pieno` | `si` se il serbatoio e' stato riempito. Solo fra due pieni il consumo e' calcolabile |")
             appendLine("| `luogo` | Dove eri, secondo l'itinerario |")
             appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")

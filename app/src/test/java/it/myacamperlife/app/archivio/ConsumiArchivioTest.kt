@@ -48,31 +48,39 @@ class ConsumiArchivioTest {
     @Test
     fun `un rifornimento si rilegge con tutti i suoi campi`() {
         archivio.registraRifornimento(
-            slug, km = 48210, litri = 62.3, euro = 107.16, pieno = true,
+            slug, km = 48210, euro = 107.16, prezzoLitro = 1.719, pieno = true,
             posizione = Posizione(42.7185, 12.1112), adesso = ora(6, 18, 5),
         )
 
         val letto = archivio.rifornimenti(slug).single()
         assertEquals(48210, letto.km)
-        assertEquals(62.3, letto.litri, 1e-6)
+        // I litri sono il quoziente: 107,16 / 1,719.
+        assertEquals(62.34, letto.litri, 0.01)
         assertEquals(107.16, letto.euro!!, 1e-6)
+        assertEquals(1.719, letto.prezzoLitro!!, 1e-6)
         assertTrue(letto.pieno)
         assertEquals(42.7185, letto.lat!!, 1e-6)
     }
 
     @Test
     fun `un rifornimento senza importo resta valido`() {
-        archivio.registraRifornimento(slug, km = 1000, litri = 40.0, euro = null, adesso = ora(6, 9))
+        archivio.registraRifornimento(
+            slug, km = 1000, euro = 68.0, prezzoLitro = 1.7, adesso = ora(6, 9),
+        )
 
         val letto = archivio.rifornimenti(slug).single()
-        assertNull(letto.euro)
+        assertEquals(68.0, letto.euro!!, 1e-6)
         assertEquals(40.0, letto.litri, 1e-6)
     }
 
     @Test
     fun `il parziale si distingue dal pieno`() {
-        archivio.registraRifornimento(slug, km = 1000, litri = 60.0, pieno = true, adesso = ora(6, 9))
-        archivio.registraRifornimento(slug, km = 1300, litri = 20.0, pieno = false, adesso = ora(7, 9))
+        archivio.registraRifornimento(
+            slug, km = 1000, euro = 102.0, prezzoLitro = 1.7, pieno = true, adesso = ora(6, 9),
+        )
+        archivio.registraRifornimento(
+            slug, km = 1300, euro = 34.0, prezzoLitro = 1.7, pieno = false, adesso = ora(7, 9),
+        )
 
         val letti = archivio.rifornimenti(slug)
         assertEquals(listOf(true, false), letti.map { it.pieno })
@@ -80,8 +88,13 @@ class ConsumiArchivioTest {
 
     @Test
     fun `il consumo si calcola sui dati riletti da file`() {
-        archivio.registraRifornimento(slug, km = 48000, litri = 60.0, euro = 100.0, adesso = ora(5, 9))
-        archivio.registraRifornimento(slug, km = 48600, litri = 50.0, euro = 86.0, adesso = ora(7, 9))
+        // 100 euro a 1,6667 fanno 60 litri; 86 a 1,72 ne fanno 50.
+        archivio.registraRifornimento(
+            slug, km = 48000, euro = 100.0, prezzoLitro = 1.6667, adesso = ora(5, 9),
+        )
+        archivio.registraRifornimento(
+            slug, km = 48600, euro = 86.0, prezzoLitro = 1.72, adesso = ora(7, 9),
+        )
 
         val consumo = archivio.consumo(slug)
         assertEquals(600, consumo.kmTotali)
@@ -96,30 +109,40 @@ class ConsumiArchivioTest {
     fun `la virgola decimale sopravvive al giro su file`() {
         // Il punto per cui il separatore e' il punto e virgola: 62,3 litri e
         // 107,16 euro devono restare due numeri, non quattro campi.
-        archivio.registraRifornimento(slug, km = 1000, litri = 62.3, euro = 107.16, adesso = ora(6, 9))
+        archivio.registraRifornimento(
+            slug, km = 1000, euro = 107.16, prezzoLitro = 1.72, adesso = ora(6, 9),
+        )
 
         val file = File(archivio.cartellaViaggio(slug), RifornimentiTabella.NOME_FILE)
         val riga = file.readLines()[1]
         assertTrue("la riga deve contenere 62,30", riga.contains("62,30"))
         assertTrue("la riga deve contenere 107,16", riga.contains("107,16"))
+        assertTrue("la riga deve contenere 1,720", riga.contains("1,720"))
 
         val letto = archivio.rifornimenti(slug).single()
-        assertEquals(62.3, letto.litri, 1e-6)
+        // I due numeri scritti tornano esatti; i litri no, e non devono: sono
+        // il quoziente 107,16 / 1,72, non una cifra che qualcuno ha digitato.
         assertEquals(107.16, letto.euro!!, 1e-6)
+        assertEquals(1.72, letto.prezzoLitro!!, 1e-6)
+        assertEquals(62.3, letto.litri, 0.01)
     }
 
     @Test
     fun `un rifornimento finisce nel diario con litri e importo`() {
         archivio.checkin(slug, archivio.tappe(slug).first { it.nome == "Orvieto" }, adesso = ora(6, 14))
-        archivio.registraRifornimento(slug, km = 1000, litri = 62.3, euro = 107.16, adesso = ora(6, 18, 5))
+        archivio.registraRifornimento(
+            slug, km = 1000, euro = 107.16, prezzoLitro = 1.72, adesso = ora(6, 18, 5),
+        )
 
         val diario = archivio.diario(slug).testo()
-        assertTrue(diario, diario.contains("- 18:05 · pieno a Orvieto: 62,3 litri, 107,16"))
+        assertTrue(diario, diario.contains("- 18:05 · pieno a Orvieto: 107,16 €, 1,720 €/l, 62,3 litri"))
     }
 
     @Test
     fun `un parziale nel diario non si chiama pieno`() {
-        archivio.registraRifornimento(slug, km = 1000, litri = 20.0, pieno = false, adesso = ora(6, 9))
+        archivio.registraRifornimento(
+            slug, km = 1000, euro = 34.0, prezzoLitro = 1.7, pieno = false, adesso = ora(6, 9),
+        )
 
         val voce = archivio.voci(slug).single { it.genere == Genere.RIFORNIMENTO }
         assertTrue(voce.testo, voce.testo.startsWith("rifornimento"))
@@ -133,7 +156,8 @@ class ConsumiArchivioTest {
         archivio.registraNota(slug, "una nota", Posizione(42.71, 12.11), adesso = ora(6, 16))
         archivio.registraFoto(slug, "x.jpg", null, Posizione(42.72, 12.12), adesso = ora(6, 17))
         archivio.registraRifornimento(
-            slug, km = 1000, litri = 60.0, posizione = Posizione(42.73, 12.13), adesso = ora(6, 18),
+            slug, km = 1000, euro = 102.0, prezzoLitro = 1.7,
+            posizione = Posizione(42.73, 12.13), adesso = ora(6, 18),
         )
 
         val punti = archivio.punti(slug)
@@ -152,7 +176,7 @@ class ConsumiArchivioTest {
     fun `l'autonomia si stima dai dati dell'archivio`() {
         archivio.salvaImpostazioni(Impostazioni(kmConUnPieno = 900))
         archivio.registraRifornimento(
-            slug, km = 1000, litri = 60.0, pieno = true,
+            slug, km = 1000, euro = 102.0, prezzoLitro = 1.7, pieno = true,
             posizione = Posizione(43.0, 11.0), adesso = ora(6, 9),
         )
         archivio.registraPosizione(slug, Posizione(44.0, 11.0), adesso = ora(6, 15))
@@ -186,7 +210,9 @@ class ConsumiArchivioTest {
 
     @Test
     fun `una correzione a un rifornimento vince sulla riga di prima`() {
-        archivio.registraRifornimento(slug, km = 1000, litri = 60.0, adesso = ora(6, 9))
+        archivio.registraRifornimento(
+            slug, km = 1000, euro = 102.0, prezzoLitro = 1.7, adesso = ora(6, 9),
+        )
         val sbagliato = archivio.rifornimenti(slug).single()
 
         // Correggere e' accodare una riga con lo stesso id.

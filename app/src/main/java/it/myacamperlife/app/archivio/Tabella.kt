@@ -23,6 +23,19 @@ class Riga(private val valori: Map<String, String>) {
     val cancellata: Boolean get() = booleano(Csv.CANCELLATO)
 
     /**
+     * Quando e' accaduto il fatto: la colonna `istante` se c'e', altrimenti
+     * `ts`. E' quello che il diario e i conti devono guardare, mentre la regola
+     * "vince l'ultima" continua a guardare [istante] di scrittura.
+     */
+    val quando: OffsetDateTime?
+        get() {
+            testo(Csv.ISTANTE)?.let { scritto ->
+                runCatching { OffsetDateTime.parse(scritto) }.getOrNull()?.let { return it }
+            }
+            return runCatching { OffsetDateTime.parse(ts) }.getOrNull()
+        }
+
+    /**
      * L'istante assoluto della riga, quando `ts` e' leggibile.
      *
      * Confrontare i `ts` come testo sarebbe sbagliato appena si cambia fuso:

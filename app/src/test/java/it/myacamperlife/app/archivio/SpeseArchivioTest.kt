@@ -165,7 +165,7 @@ class SpeseArchivioTest {
             adesso = quando("2026-08-06", "20:00:00"),
         )
         archivio.registraRifornimento(
-            slug = slug, km = 48000, litri = 62.3, euro = 107.09,
+            slug = slug, km = 48000, euro = 107.09, prezzoLitro = 1.719,
             adesso = quando("2026-08-07", "08:40:00"),
         )
 
@@ -178,11 +178,14 @@ class SpeseArchivioTest {
     }
 
     @Test
-    fun `un rifornimento senza importo non falsa il conto`() {
+    fun `un prezzo al litro a zero non produce un rifornimento`() {
+        // Senza prezzo i litri non si possono calcolare, e un rifornimento
+        // senza litri non serve a niente: la riga non si scrive affatto.
         archivio.registraRifornimento(
-            slug = slug, km = 48000, litri = 40.0, euro = null,
+            slug = slug, km = 48000, euro = 40.0, prezzoLitro = 0.0,
             adesso = quando("2026-08-06"),
         )
+        assertTrue(archivio.rifornimenti(slug).isEmpty())
         assertEquals(0.0, archivio.conto(slug).carburante, 1e-9)
     }
 
@@ -273,5 +276,103 @@ class SpeseArchivioTest {
     @Test
     fun `la sigla della valuta di default e EUR`() {
         assertEquals("EUR", Spesa.EURO)
+    }
+
+    // --- la data che scegli tu ------------------------------------------------
+
+    @Test
+    fun `una spesa di ieri finisce nella giornata di ieri`() {
+        // Lo scontrino si ritrova in tasca il giorno dopo.
+        archivio.registraSpesa(
+            slug = slug,
+            categoria = Categoria.RISTORANTE,
+            importo = 32.0,
+            modalita = Modalita.CARTA,
+            adesso = quando("2026-08-07", "09:00:00"),
+            istante = quando("2026-08-06", "20:30:00"),
+        )
+
+        val spesa = archivio.spese(slug).single()
+        assertEquals("2026-08-06", spesa.istante.toLocalDate().toString())
+        // E la voce sta nel diario di ieri, non in quello di oggi.
+        assertTrue(archivio.diario(slug).testo().contains("## 2026-08-06"))
+    }
+
+    @Test
+    fun `la riga distingue quando hai speso da quando l'hai scritta`() {
+        archivio.registraSpesa(
+            slug = slug,
+            categoria = Categoria.SOSTA,
+            importo = 18.0,
+            modalita = Modalita.CONTANTI,
+            adesso = quando("2026-08-07", "09:00:00"),
+            istante = quando("2026-08-06", "20:30:00"),
+        )
+
+        val riga = archivio.tabellaSpese(slug).vive().single()
+        // `ts` e' quando la riga e' stata scritta: serve alla regola "vince
+        // l'ultima", e non deve seguire la data del fatto.
+        assertTrue(riga.ts.startsWith("2026-08-07"))
+        assertTrue(riga.testo(SpeseTabella.ISTANTE)!!.startsWith("2026-08-06"))
+    }
+
+    @Test
+    fun `un rifornimento di ieri finisce nella giornata di ieri`() {
+        archivio.registraRifornimento(
+            slug = slug,
+            km = 48000,
+            euro = 107.16,
+            prezzoLitro = 1.72,
+            adesso = quando("2026-08-07", "09:00:00"),
+            istante = quando("2026-08-06", "18:05:00"),
+        )
+
+        assertEquals(
+            "2026-08-06",
+            archivio.rifornimenti(slug).single().istante.toLocalDate().toString(),
+        )
+        assertTrue(archivio.diario(slug).testo().contains("## 2026-08-06"))
+    }
+
+    @Test
+    fun `una riga senza la colonna istante usa ts, come faceva prima`() {
+        File(archivio.cartellaViaggio(slug), SpeseTabella.NOME_FILE).writeText(
+            "id;ts;cancellato;categoria;importo;modalita\n" +
+                "a1;2026-08-06T12:00:00+02:00;;pedaggi;9,80;carta\n",
+        )
+        assertEquals(
+            "2026-08-06",
+            archivio.spese(slug).single().istante.toLocalDate().toString(),
+        )
+    }
+
+    @Test
+    fun `correggere una spesa di ieri non la sposta a oggi`() {
+        archivio.registraSpesa(
+            slug = slug,
+            categoria = Categoria.SOSTA,
+            importo = 18.0,
+            modalita = Modalita.CONTANTI,
+            adesso = quando("2026-08-06", "20:30:00"),
+            istante = quando("2026-08-06", "20:30:00"),
+        )
+        val prima = archivio.spese(slug).single()
+
+        // La correzione e' una riga nuova con lo stesso id, scritta oggi ma con
+        // l'istante del fatto invariato.
+        archivio.tabellaSpese(slug).accoda(
+            mapOf(
+                Csv.ID to prima.id,
+                Csv.TS to "2026-08-08T10:00:00+02:00",
+                SpeseTabella.ISTANTE to "2026-08-06T20:30:00+02:00",
+                SpeseTabella.CATEGORIA to "sosta",
+                SpeseTabella.IMPORTO to "20,00",
+                SpeseTabella.MODALITA to "contanti",
+            ),
+        )
+
+        val dopo = archivio.spese(slug).single()
+        assertEquals(20.0, dopo.importo, 1e-9)
+        assertEquals("2026-08-06", dopo.istante.toLocalDate().toString())
     }
 }

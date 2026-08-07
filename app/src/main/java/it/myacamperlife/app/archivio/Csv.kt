@@ -24,6 +24,16 @@ object Csv {
     const val TS = "ts"
     const val CANCELLATO = "cancellato"
 
+    /**
+     * Quando e' accaduto il fatto, dove non coincide con [TS].
+     *
+     * `ts` dice quando la riga e' stata **scritta**, ed e' quello che decide
+     * chi vince fra due versioni della stessa riga. Nelle tabelle dove si puo'
+     * registrare un fatto di ieri i due istanti divergono, e serve una colonna
+     * per ciascuno. Chi legge usa `istante` se c'e' e ripiega su `ts`.
+     */
+    const val ISTANTE = "istante"
+
     fun componi(campi: List<String>): String =
         campi.joinToString(SEPARATORE.toString()) { recinta(it) }
 

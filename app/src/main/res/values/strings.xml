@@ -100,8 +100,10 @@
     <string name="rifornimento_titolo">Rifornimento</string>
     <string name="rifornimento_km">Chilometri</string>
     <string name="rifornimento_ultimo_km">Ultimo registrato: %1$d</string>
-    <string name="rifornimento_litri">Litri</string>
-    <string name="rifornimento_euro">Euro</string>
+    <string name="rifornimento_euro">Importo €</string>
+    <string name="rifornimento_prezzo">€ al litro</string>
+    <string name="rifornimento_litri_calcolati">Fanno %1$s litri</string>
+    <string name="rifornimento_litri_spiegazione">Scrivi l\'importo e il prezzo al litro: i litri li calcola l\'app.</string>
     <string name="rifornimento_pieno">Pieno</string>
     <string name="rifornimento_pieno_spiegazione">Solo fra due pieni si può calcolare il consumo.</string>
     <string name="rifornimento_registrato">Rifornimento registrato</string>
@@ -207,4 +209,12 @@
     <string name="esplora_riscarica">Riscarica i dintorni</string>
     <string name="esplora_niente_qui">Niente di questo genere nel raggio di venti chilometri.</string>
     <string name="dintorni_aggiornati">Dintorni scaricati</string>
+
+    <!-- Quando e' accaduto -->
+    <string name="quando_data">Data</string>
+    <string name="quando_ora">Ora</string>
+    <string name="quando_oggi">Oggi</string>
+    <string name="quando_letta">%1$s</string>
+    <string name="quando_illeggibile">Non ho capito la data.</string>
+    <string name="quando_nel_futuro">Quella data è nel futuro.</string>
 </resources>

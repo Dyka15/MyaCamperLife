@@ -336,18 +336,24 @@ class ViaggiViewModel(
         }
     }
 
-    fun registraRifornimento(km: Int, litri: Double, euro: Double?, pieno: Boolean) =
-        operazione { slug ->
-            archivio.registraRifornimento(
-                slug = slug,
-                km = km,
-                litri = litri,
-                euro = euro,
-                pieno = pieno,
-                posizione = posizioni.ultimaNota(),
-            )
-            Avviso.RifornimentoRegistrato
-        }
+    fun registraRifornimento(
+        km: Int,
+        euro: Double,
+        prezzoLitro: Double,
+        pieno: Boolean,
+        istante: OffsetDateTime,
+    ) = operazione { slug ->
+        archivio.registraRifornimento(
+            slug = slug,
+            km = km,
+            euro = euro,
+            prezzoLitro = prezzoLitro,
+            pieno = pieno,
+            posizione = posizioni.ultimaNota(),
+            istante = istante,
+        )
+        Avviso.RifornimentoRegistrato
+    }
 
     // --- spese ---------------------------------------------------------------
 
@@ -359,6 +365,7 @@ class ViaggiViewModel(
         valuta: String,
         cambio: Double?,
         scontrino: File?,
+        istante: OffsetDateTime,
     ) = operazione { slug ->
         archivio.registraSpesa(
             slug = slug,
@@ -370,6 +377,7 @@ class ViaggiViewModel(
             cambio = cambio,
             scontrino = scontrino?.name,
             posizione = posizioni.ultimaNota(),
+            istante = istante,
         )
         Avviso.SpesaRegistrata
     }

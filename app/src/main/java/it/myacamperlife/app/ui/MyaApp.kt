@@ -63,6 +63,7 @@ import it.myacamperlife.app.ui.viaggi.SpesaDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
 import it.myacamperlife.app.ui.viaggi.ViaggiViewModel
 import java.io.File
+import java.time.OffsetDateTime
 import kotlinx.coroutines.launch
 
 private enum class Scheda(val etichetta: Int, val icona: Int) {
@@ -346,6 +347,10 @@ fun MyaApp(vista: ViaggiViewModel) {
     if (rifornimentoAperto) {
         RifornimentoDialog(
             ultimoKm = stato.ultimoKm,
+            // L'adesso si prende all'apertura del dialogo e non a ogni
+            // ricomposizione: se cambiasse sotto le dita, i campi precompilati
+            // salterebbero mentre li stai correggendo.
+            adesso = remember { OffsetDateTime.now() },
             onSalva = vista::registraRifornimento,
             onChiudi = { rifornimentoAperto = false },
         )
@@ -359,6 +364,7 @@ fun MyaApp(vista: ViaggiViewModel) {
             valutaSuggerita = valutaSuggerita,
             cambioSuggerito = Spese.ultimoCambio(stato.spese, valutaSuggerita),
             scontrino = scontrino,
+            adesso = remember { OffsetDateTime.now() },
             onScontrino = {
                 ambito.launch {
                     val file = vista.preparaScontrino() ?: return@launch
@@ -366,7 +372,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     scattaScontrino.launch(uriDi(contesto, file))
                 }
             },
-            onSalva = { categoria, importo, modalita, descrizione, valuta, cambio ->
+            onSalva = { categoria, importo, modalita, descrizione, valuta, cambio, istante ->
                 vista.registraSpesa(
                     categoria = categoria,
                     importo = importo,
@@ -375,6 +381,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     valuta = valuta,
                     cambio = cambio,
                     scontrino = scontrino,
+                    istante = istante,
                 )
                 spesaAperta = false
                 // Salvata: il file resta, e' l'allegato della spesa.

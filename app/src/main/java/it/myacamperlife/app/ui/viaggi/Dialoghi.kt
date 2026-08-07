@@ -43,13 +43,17 @@ import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Csv
 import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.dominio.Briefing
+import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Modalita
+import it.myacamperlife.app.dominio.Momento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.dominio.Tappa
 import java.io.File
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /** Le azioni possibili su una tappa, decise dal suo stato. */
 @Composable
@@ -290,36 +294,57 @@ fun AggiungiTappaDialog(
 }
 
 /**
- * Un rifornimento: contachilometri, litri, importo, pieno sì/no.
+ * Un rifornimento: contachilometri, importo, prezzo al litro, pieno si'/no.
+ *
+ * **I litri non si digitano, si calcolano.** Alla colonnina si legge quanto si
+ * e' speso e il prezzo sul cartello; il volume non c'e' scritto da nessuna
+ * parte, e chiederlo vorrebbe dire far fare una divisione a mano a chi ha la
+ * pompa in una mano e il telefono nell'altra. I litri compaiono sotto i campi
+ * mentre si scrive, cosi' una cifra sbagliata si vede subito.
  *
  * Il chilometraggio arriva precompilato con l'ultimo registrato, che di solito
- * va solo corretto nelle ultime cifre. L'importo e' facoltativo: registrare un
- * rifornimento senza ricordare la spesa e' meglio che non registrarlo.
+ * va solo corretto nelle ultime cifre. La data e' quella di oggi e si puo'
+ * cambiare: uno scontrino si ritrova in tasca due giorni dopo.
  */
 @Composable
 fun RifornimentoDialog(
     ultimoKm: Int?,
-    onSalva: (km: Int, litri: Double, euro: Double?, pieno: Boolean) -> Unit,
+    adesso: OffsetDateTime,
+    onSalva: (
+        km: Int,
+        euro: Double,
+        prezzoLitro: Double,
+        pieno: Boolean,
+        istante: OffsetDateTime,
+    ) -> Unit,
     onChiudi: () -> Unit,
 ) {
     var km by remember { mutableStateOf(ultimoKm?.toString().orEmpty()) }
-    var litri by remember { mutableStateOf("") }
     var euro by remember { mutableStateOf("") }
+    var prezzo by remember { mutableStateOf("") }
     var pieno by remember { mutableStateOf(true) }
+    var data by remember { mutableStateOf(Momento.scriviData(adesso)) }
+    var ora by remember { mutableStateOf(Momento.scriviOra(adesso)) }
 
     val chilometri = Csv.leggiIntero(km)
-    val quantita = Csv.leggiNumero(litri)
     val importo = Csv.leggiNumero(euro)
+    val alLitro = Csv.leggiNumero(prezzo)
+    val litri = Carburante.litri(importo, alLitro)
+    val istante = Momento.leggi(data, ora, adesso)
 
     val valida = chilometri != null && chilometri > 0 &&
-        quantita != null && quantita > 0 &&
-        (euro.isBlank() || importo != null)
+        litri != null &&
+        alLitro != null && alLitro <= Carburante.PREZZO_MASSIMO &&
+        istante != null && !Momento.oltreOggi(istante, adesso)
 
     AlertDialog(
         onDismissRequest = onChiudi,
         title = { Text(stringResource(R.string.rifornimento_titolo)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 OutlinedTextField(
                     value = km,
                     onValueChange = { km = it },
@@ -339,14 +364,6 @@ fun RifornimentoDialog(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
-                        value = litri,
-                        onValueChange = { litri = it },
-                        label = { Text(stringResource(R.string.rifornimento_litri)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
                         value = euro,
                         onValueChange = { euro = it },
                         label = { Text(stringResource(R.string.rifornimento_euro)) },
@@ -354,7 +371,31 @@ fun RifornimentoDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                     )
+                    OutlinedTextField(
+                        value = prezzo,
+                        onValueChange = { prezzo = it },
+                        label = { Text(stringResource(R.string.rifornimento_prezzo)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                    )
                 }
+                Text(
+                    text = if (litri == null) {
+                        stringResource(R.string.rifornimento_litri_spiegazione)
+                    } else {
+                        stringResource(R.string.rifornimento_litri_calcolati, Csv.numero(litri, 2))
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (litri == null) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+
+                CampiQuando(data, ora, istante, adesso, { data = it }, { ora = it })
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(checked = pieno, onCheckedChange = { pieno = it })
                     Column(modifier = Modifier.padding(start = 12.dp)) {
@@ -376,7 +417,13 @@ fun RifornimentoDialog(
                 enabled = valida,
                 onClick = {
                     onChiudi()
-                    onSalva(chilometri ?: 0, quantita ?: 0.0, importo, pieno)
+                    onSalva(
+                        chilometri ?: 0,
+                        importo ?: 0.0,
+                        alLitro ?: 0.0,
+                        pieno,
+                        istante ?: adesso,
+                    )
                 },
             ) { Text(stringResource(R.string.azione_salva)) }
         },
@@ -385,6 +432,61 @@ fun RifornimentoDialog(
         },
     )
 }
+
+/**
+ * Data e ora di un fatto, precompilate con adesso.
+ *
+ * Sono due campi e non un selettore di calendario: si tocca la data, si cambia
+ * un numero, si va avanti. Un `DatePicker` per correggere "6" in "5" sarebbe
+ * tre tocchi in piu' per lo stesso risultato.
+ *
+ * Sotto compare **la data come l'app l'ha capita**, che e' l'unico modo di
+ * accorgersi che "5/8" e' stato letto come si voleva.
+ */
+@Composable
+private fun CampiQuando(
+    data: String,
+    ora: String,
+    istante: OffsetDateTime?,
+    adesso: OffsetDateTime,
+    onData: (String) -> Unit,
+    onOra: (String) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = data,
+            onValueChange = onData,
+            label = { Text(stringResource(R.string.quando_data)) },
+            singleLine = true,
+            modifier = Modifier.weight(2f),
+        )
+        OutlinedTextField(
+            value = ora,
+            onValueChange = onOra,
+            label = { Text(stringResource(R.string.quando_ora)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+        )
+    }
+    Text(
+        text = when {
+            istante == null -> stringResource(R.string.quando_illeggibile)
+            Momento.oltreOggi(istante, adesso) -> stringResource(R.string.quando_nel_futuro)
+            istante.toLocalDate() == adesso.toLocalDate() -> stringResource(R.string.quando_oggi)
+            else -> stringResource(R.string.quando_letta, istante.format(LETTA))
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = if (istante == null || Momento.oltreOggi(istante, adesso)) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+    )
+}
+
+private val LETTA: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEEE d MMMM", java.util.Locale.ITALIAN)
 
 /**
  * Le impostazioni: il mezzo, il riepilogo della sera, e i pulsanti per quando
@@ -636,6 +738,7 @@ fun SpesaDialog(
     valutaSuggerita: String,
     cambioSuggerito: Double?,
     scontrino: File?,
+    adesso: OffsetDateTime,
     onScontrino: () -> Unit,
     onSalva: (
         categoria: Categoria,
@@ -644,6 +747,7 @@ fun SpesaDialog(
         descrizione: String?,
         valuta: String,
         cambio: Double?,
+        istante: OffsetDateTime,
     ) -> Unit,
     onChiudi: () -> Unit,
 ) {
@@ -656,14 +760,19 @@ fun SpesaDialog(
         mutableStateOf(cambioSuggerito?.let { Csv.numero(it, 4) }.orEmpty())
     }
     var estera by remember { mutableStateOf(!valutaSuggerita.equals(Spesa.EURO, true)) }
+    var data by remember { mutableStateOf(Momento.scriviData(adesso)) }
+    var ora by remember { mutableStateOf(Momento.scriviOra(adesso)) }
 
     val quanto = Csv.leggiNumero(importo)
     val tasso = Csv.leggiNumero(cambio)
     val sigla = valuta.trim().uppercase().ifEmpty { Spesa.EURO }
     val esteraDavvero = estera && sigla != Spesa.EURO
 
+    val istante = Momento.leggi(data, ora, adesso)
+
     val valida = quanto != null && quanto > 0 &&
-        (!esteraDavvero || (tasso != null && tasso > 0))
+        (!esteraDavvero || (tasso != null && tasso > 0)) &&
+        istante != null && !Momento.oltreOggi(istante, adesso)
 
     val inEuro = if (esteraDavvero && quanto != null && tasso != null) quanto * tasso else null
 
@@ -695,6 +804,8 @@ fun SpesaDialog(
                 )
 
                 SceltaModalita(modalita) { modalita = it }
+
+                CampiQuando(data, ora, istante, adesso, { data = it }, { ora = it })
 
                 OutlinedTextField(
                     value = descrizione,
@@ -777,6 +888,7 @@ fun SpesaDialog(
                         descrizione.trim().takeIf { it.isNotBlank() },
                         if (esteraDavvero) sigla else Spesa.EURO,
                         if (esteraDavvero) tasso else null,
+                        istante ?: adesso,
                     )
                 },
             ) { Text(stringResource(R.string.azione_salva)) }

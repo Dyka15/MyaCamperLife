@@ -109,7 +109,10 @@ class BriefingArchivioTest {
     @Test
     fun `senza i km con un pieno non c'e' avviso di rifornimento`() {
         val slug = creaToscana()
-        archivio.registraRifornimento(slug, km = 48000, litri = 60.0, adesso = quando("2026-08-05"))
+        archivio.registraRifornimento(
+            slug, km = 48000, euro = 100.0, prezzoLitro = 1.667,
+            adesso = quando("2026-08-05"),
+        )
 
         val briefing = archivio.briefing(slug, oggi)
         assertNull(briefing.autonomia)
@@ -123,7 +126,8 @@ class BriefingArchivioTest {
         archivio.registraRifornimento(
             slug = slug,
             km = 48000,
-            litri = 60.0,
+            euro = 100.0,
+            prezzoLitro = 1.667,
             posizione = Posizione(43.7696, 11.2558), // Firenze
             adesso = quando("2026-08-05", "09:00:00"),
         )
@@ -147,7 +151,8 @@ class BriefingArchivioTest {
         archivio.registraRifornimento(
             slug = slug,
             km = 48000,
-            litri = 60.0,
+            euro = 100.0,
+            prezzoLitro = 1.667,
             posizione = Posizione(42.7185, 12.1112),
             adesso = quando("2026-08-06", "09:00:00"),
         )

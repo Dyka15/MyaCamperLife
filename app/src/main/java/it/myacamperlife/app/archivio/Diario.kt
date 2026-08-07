@@ -1,5 +1,6 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Cronaca
 import it.myacamperlife.app.dominio.DiarioMd
 import it.myacamperlife.app.dominio.Genere
@@ -117,14 +118,18 @@ object VociDelGiorno {
     private fun descrizioneRifornimento(riga: Riga): String {
         val pieno = riga.booleano(RifornimentiTabella.PIENO)
         val luogo = riga.testo(RifornimentiTabella.LUOGO)
-        val litri = riga.numero(RifornimentiTabella.LITRI)
         val euro = riga.numero(RifornimentiTabella.EURO)
+        val prezzo = riga.numero(RifornimentiTabella.PREZZO_LITRO)
+        // Come nell'archivio: i litri si rifanno da importo e prezzo, e la
+        // colonna vale da ripiego per le righe scritte prima del prezzo.
+        val litri = Carburante.litri(euro, prezzo) ?: riga.numero(RifornimentiTabella.LITRI)
 
         val testa = if (pieno) "pieno" else "rifornimento"
         val dove = luogo?.let { " a $it" }.orEmpty()
         val quanto = listOfNotNull(
-            litri?.let { "${Csv.numero(it, 1)} litri" },
             euro?.let { "${Csv.numero(it)} \u20AC" },
+            prezzo?.let { "${Csv.numero(it, 3)} \u20AC/l" },
+            litri?.let { "${Csv.numero(it, 1)} litri" },
         ).joinToString(", ")
 
         return if (quanto.isEmpty()) "$testa$dove" else "$testa$dove: $quanto"
@@ -165,6 +170,11 @@ object VociDelGiorno {
     fun delGiorno(voci: List<Voce>, giorno: LocalDate): List<Voce> =
         voci.filter { it.istante.toLocalDate() == giorno }
 
-    private fun istante(riga: Riga): OffsetDateTime? =
-        runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull()
+    /**
+     * Quando e' accaduto il fatto, non quando la riga e' stata scritta.
+     *
+     * E' la differenza che permette di registrare stasera lo scontrino di ieri
+     * e vederlo comparire nella giornata di ieri.
+     */
+    private fun istante(riga: Riga): OffsetDateTime? = riga.quando
 }

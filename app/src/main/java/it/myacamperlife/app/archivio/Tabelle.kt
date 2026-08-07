@@ -81,8 +81,11 @@ object SpeseTabella {
     const val LON = "lon"
     const val SCONTRINO = "scontrino"
 
+    /** Quando hai speso, che non e' `ts`. Vedi [RifornimentiTabella.ISTANTE]. */
+    const val ISTANTE = Csv.ISTANTE
+
     val COLONNE = listOf(
-        Csv.ID, Csv.TS, Csv.CANCELLATO,
+        Csv.ID, Csv.TS, Csv.CANCELLATO, ISTANTE,
         CATEGORIA, DESCRIZIONE, IMPORTO, VALUTA, CAMBIO, EURO, MODALITA,
         TAPPA, LAT, LON, SCONTRINO,
     )
@@ -91,13 +94,35 @@ object SpeseTabella {
 object RifornimentiTabella {
     const val NOME_FILE = "rifornimenti.csv"
 
+    /**
+     * Quando hai fatto il rifornimento, che **non e' `ts`**: quello dice quando
+     * la riga e' stata scritta, e serve alla regola "vince l'ultima". Sono due
+     * cose diverse dal momento in cui si puo' registrare uno scontrino di ieri,
+     * e confonderle vorrebbe dire che correggere una riga vecchia la sposta nel
+     * diario di oggi.
+     *
+     * Un file scritto prima che questa colonna esistesse non ce l'ha, e in quel
+     * caso vale `ts`: allora le due cose coincidevano davvero.
+     */
+    const val ISTANTE = Csv.ISTANTE
+
     const val KM = "km"
     const val LITRI = "litri"
     const val EURO = "euro"
+
+    /**
+     * Il prezzo al litro del cartello. Con [EURO] da' i [LITRI], che sono un
+     * valore derivato: alla colonnina si legge l'importo, non il volume.
+     */
+    const val PREZZO_LITRO = "prezzo_litro"
+
     const val PIENO = "pieno"
     const val LUOGO = "luogo"
     const val LAT = "lat"
     const val LON = "lon"
 
-    val COLONNE = listOf(Csv.ID, Csv.TS, Csv.CANCELLATO, KM, LITRI, EURO, PIENO, LUOGO, LAT, LON)
+    val COLONNE = listOf(
+        Csv.ID, Csv.TS, Csv.CANCELLATO, ISTANTE,
+        KM, EURO, PREZZO_LITRO, LITRI, PIENO, LUOGO, LAT, LON,
+    )
 }
