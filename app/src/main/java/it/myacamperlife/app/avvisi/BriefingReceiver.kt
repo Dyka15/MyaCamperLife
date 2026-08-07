@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import it.myacamperlife.app.MyaApplication
+import it.myacamperlife.app.rete.Scorte
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,11 @@ import kotlinx.coroutines.launch
  * perderebbe anche quello di domani, e quello di dopodomani, per sempre. Una
  * notifica saltata e' un guaio di una sera; una catena spezzata e' una funzione
  * che smette di esistere in silenzio.
+ *
+ * **Poi si prova a scaricare il meteo, e poi si compone.** In quest'ordine, e
+ * il primo non puo' far fallire il secondo: se non c'e' campo, o il servizio
+ * non risponde, il riepilogo esce comunque con le tappe — che e' gia' meta' del
+ * suo valore — usando le previsioni della sera prima, dichiarandone l'eta'.
  */
 class BriefingReceiver : BroadcastReceiver() {
 
@@ -41,6 +47,12 @@ class BriefingReceiver : BroadcastReceiver() {
                     adesso = LocalDateTime.now().plusMinutes(1),
                 )
                 if (!impostazioni.briefingAttivo) return@launch
+
+                // La scorta si rinfresca adesso, che e' l'unico momento
+                // prevedibile in cui l'app gira da sola.
+                archivio.slugCorrente()?.let { slug ->
+                    Scorte(applicazione, archivio).aggiornaMeteo(slug)
+                }
 
                 val briefing = archivio.briefingCorrente() ?: return@launch
                 // Un riepilogo che non ha niente da dire non si manda: una

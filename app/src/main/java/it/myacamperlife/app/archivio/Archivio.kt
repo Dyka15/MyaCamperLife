@@ -8,8 +8,13 @@ import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Genere
+import it.myacamperlife.app.dominio.GiornoTappa
+import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Punto
+import it.myacamperlife.app.dominio.PuntoMeteo
+import it.myacamperlife.app.dominio.PuntoTratta
+import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
@@ -17,6 +22,8 @@ import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.StimaAutonomia
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
+import it.myacamperlife.app.dominio.Tratta
+import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.Waypoint
 import java.io.File
@@ -85,6 +92,79 @@ class Archivio(private val radice: File) {
         File(cartellaViaggio(slug), SpeseTabella.CARTELLA).apply { mkdirs() }
 
     fun diario(slug: String): Diario = Diario(File(cartellaViaggio(slug), "diario.md"))
+
+    // --- la scorta: rete presa in anticipo ------------------------------------
+
+    /**
+     * La cartella della scorta: quello che arriva dalla rete e viene messo da
+     * parte per quando la rete non c'e'.
+     *
+     * Sta dentro il viaggio e non accanto all'archivio: le tratte e le
+     * previsioni riguardano quell'itinerario, e cancellando il viaggio se ne
+     * vanno con lui.
+     */
+    fun cartellaScorta(slug: String): File =
+        File(cartellaViaggio(slug), TratteTabella.CARTELLA).apply { mkdirs() }
+
+    fun tabellaTratte(slug: String): Tabella =
+        Tabella(File(cartellaScorta(slug), TratteTabella.NOME_FILE), TratteTabella.COLONNE)
+
+    fun tratte(slug: String): Tratte = TratteTabella.tratte(tabellaTratte(slug).vive())
+
+    /**
+     * Salva le tratte precalcolate.
+     *
+     * Righe accodate come tutto il resto: ricalcolarle dopo aver aggiunto una
+     * tappa corregge quelle vecchie invece di ammucchiarle, perche' l'`id`
+     * viene dalle coordinate.
+     */
+    fun salvaTratte(slug: String, tratte: List<Tratta>, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        if (tratte.isEmpty()) return
+        val ts = ts(adesso)
+        tabellaTratte(slug).accodaTutte(tratte.map { TratteTabella.riga(it, ts) })
+    }
+
+    private fun fileMeteo(slug: String): File =
+        File(cartellaScorta(slug), TratteTabella.NOME_METEO)
+
+    /**
+     * Le previsioni messe da parte, o `null` se non ce ne sono.
+     *
+     * Un file illeggibile vale come assente: il briefing esce lo stesso, senza
+     * meteo. Non c'e' niente che l'utente possa fare con un errore di parsing
+     * alle 19:00.
+     */
+    fun meteo(slug: String): Meteo? {
+        val file = fileMeteo(slug)
+        if (!file.exists()) return null
+        return runCatching { json.decodeFromString<Meteo>(file.readText(Charsets.UTF_8)) }.getOrNull()
+    }
+
+    fun salvaMeteo(slug: String, meteo: Meteo) {
+        cartellaScorta(slug)
+        fileMeteo(slug).writeText(json.encodeToString(meteo), Charsets.UTF_8)
+    }
+
+    /**
+     * I punti di cui chiedere il meteo: le tappe da fare nei prossimi giorni.
+     *
+     * Non tutte le tappe del viaggio: un itinerario di trenta tappe farebbe una
+     * richiesta enorme per previsioni che scadranno prima di servire.
+     */
+    fun puntiMeteo(slug: String, oggi: LocalDate = LocalDate.now(), giorni: Int = RispostaMeteo.GIORNI): List<PuntoMeteo> {
+        val daFare = tappe(slug).filter { it.stato == StatoTappa.DA_FARE }
+        val (perGiorno, senzaData) = GiornoTappa.perGiorno(daFare, oggi)
+        val finestra = perGiorno.filterKeys { it <= oggi.plusDays(giorni.toLong()) }.values.flatten()
+        // Le tappe senza data entrano lo stesso: non si sa quando ci arrivi, ma
+        // il meteo di dove stai andando serve comunque.
+        return (finestra + senzaData)
+            .distinctBy { it.id }
+            .map { PuntoMeteo(it.nome, it.lat, it.lon) }
+    }
+
+    /** I punti per cui chiedere le tratte: tutte le tappe, in ordine. */
+    fun puntiTratte(slug: String): List<PuntoTratta> =
+        tappe(slug).map { PuntoTratta(it.nome, it.lat, it.lon) }
 
     // --- viaggi -------------------------------------------------------------
 
@@ -482,11 +562,13 @@ class Archivio(private val radice: File) {
     fun briefing(
         slug: String,
         oggi: LocalDate = LocalDate.now(),
+        adesso: OffsetDateTime = OffsetDateTime.now(),
         kmConUnPieno: Int? = impostazioni().kmConUnPieno,
     ): Briefing {
         val punti = punti(slug)
+        val tappe = tappe(slug)
         return Briefings.componi(
-            tappe = tappe(slug),
+            tappe = tappe,
             oggi = oggi,
             autonomia = StimaAutonomia.calcola(
                 kmConUnPieno = kmConUnPieno,
@@ -494,7 +576,10 @@ class Archivio(private val radice: File) {
                 punti = punti,
             ),
             da = punti.lastOrNull()?.let { Coordinate(it.lat, it.lon) }
-                ?: Tappe.corrente(tappe(slug))?.let { Coordinate(it.lat, it.lon) },
+                ?: Tappe.corrente(tappe)?.let { Coordinate(it.lat, it.lon) },
+            tratte = tratte(slug).takeUnless { it.vuoto },
+            meteo = meteo(slug),
+            adesso = adesso,
         )
     }
 
@@ -504,10 +589,16 @@ class Archivio(private val radice: File) {
      * Il viaggio in corso e' l'ultimo creato: non c'e' un flag "attivo" da
      * tenere aggiornato, e non serve — chi apre un viaggio nuovo sta partendo.
      */
-    fun briefingCorrente(oggi: LocalDate = LocalDate.now()): Briefing? {
+    fun briefingCorrente(
+        oggi: LocalDate = LocalDate.now(),
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Briefing? {
         val viaggio = viaggi().firstOrNull() ?: return null
-        return briefing(viaggio.slug, oggi)
+        return briefing(viaggio.slug, oggi, adesso)
     }
+
+    /** Lo slug del viaggio in corso: l'ultimo creato. */
+    fun slugCorrente(): String? = viaggi().firstOrNull()?.slug
 
     // --- impostazioni --------------------------------------------------------
 
@@ -677,6 +768,26 @@ class Archivio(private val radice: File) {
             appendLine("Il carburante non sta qui: sta in `rifornimenti.csv`, che ne chiede gia'")
             appendLine("l'importo. Il conto di fine viaggio somma le due tabelle, e tenerle")
             appendLine("separate e' l'unico modo perche' non conti due volte lo stesso pieno.")
+            appendLine()
+            appendLine("## scorta/tratte.csv")
+            appendLine()
+            appendLine("Le distanze **su strada** fra tappe consecutive, prese da OSRM quando")
+            appendLine("c'era rete. Non e' un registro di quello che hai fatto: e' una scorta,")
+            appendLine("e si puo' cancellare senza perdere niente — l'app ripiega sulla linea")
+            appendLine("d'aria dichiarandolo.")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `da`, `a` | Nomi delle tappe, per chi legge il file |")
+            appendLine("| `da_lat`, `da_lon`, `a_lat`, `a_lon` | I due capi. Sono questi a identificare la tratta, non i nomi |")
+            appendLine("| `km` | Chilometri su strada |")
+            appendLine("| `minuti` | Tempo di guida stimato |")
+            appendLine()
+            appendLine("## scorta/meteo.json")
+            appendLine()
+            appendLine("Le previsioni scaricate da Open-Meteo, con `scaricatoIl` che ne dice")
+            appendLine("l'eta'. Oltre tre giorni non si mostrano piu': una previsione vecchia")
+            appendLine("non e' un dato vecchio, e' un dato sbagliato.")
             appendLine()
             appendLine("## impostazioni.json")
             appendLine()

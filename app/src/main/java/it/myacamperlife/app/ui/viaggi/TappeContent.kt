@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
 import java.time.OffsetDateTime
@@ -45,6 +46,7 @@ fun TappeContent(
     tappe: List<Tappa>,
     corrente: Tappa?,
     prossima: Tappa?,
+    versoProssima: Percorso?,
     onPosizione: () -> Unit,
     onFoto: () -> Unit,
     onNota: () -> Unit,
@@ -57,7 +59,7 @@ fun TappeContent(
         contentPadding = PaddingValues(bottom = 96.dp),
     ) {
         item {
-            Testata(corrente, prossima)
+            Testata(corrente, prossima, versoProssima)
             AzioniRapide(onPosizione, onFoto, onNota, onLitri, onSpesa)
             HorizontalDivider()
         }
@@ -79,7 +81,7 @@ fun TappeContent(
 }
 
 @Composable
-private fun Testata(corrente: Tappa?, prossima: Tappa?) {
+private fun Testata(corrente: Tappa?, prossima: Tappa?, versoProssima: Percorso?) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -106,6 +108,20 @@ private fun Testata(corrente: Tappa?, prossima: Tappa?) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            // Solo con le tratte precalcolate: la linea d'aria qui sembrerebbe
+            // una distanza di guida senza esserlo, e nessuno leggerebbe la
+            // nota che lo spiega.
+            if (prossima != null && versoProssima != null) {
+                Text(
+                    text = stringResource(
+                        R.string.prossima_distanza,
+                        Math.round(versoProssima.km).toInt(),
+                        versoProssima.durata,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
     }
 }

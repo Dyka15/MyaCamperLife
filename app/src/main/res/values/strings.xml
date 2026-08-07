@@ -189,4 +189,12 @@
     <string name="briefing_niente">Stasera non c\'è niente da dire</string>
     <string name="briefing_niente_spiegazione">Nessuna tappa nei prossimi giorni e nessun avviso di rifornimento. Un riepilogo vuoto non viene notificato.</string>
     <string name="briefing_anteprima">È il testo che arriverebbe come notifica.</string>
+
+    <!-- La scorta: rete presa in anticipo -->
+    <string name="prossima_distanza">%1$d km · %2$s di guida</string>
+    <string name="impostazioni_scorta">La scorta</string>
+    <string name="impostazioni_scorta_spiegazione">Meteo e distanze su strada si scaricano in anticipo e si usano offline. Aggiornali prima di entrare in una zona senza campo.</string>
+    <string name="impostazioni_aggiorna_scorta">Aggiorna adesso</string>
+    <string name="scorta_aggiornata">Scorta aggiornata</string>
+    <string name="scorta_non_aggiornata">Niente da aggiornare: senza rete si usa quella che c\'è.</string>
 </resources>

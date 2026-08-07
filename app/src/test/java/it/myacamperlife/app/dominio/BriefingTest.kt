@@ -186,7 +186,7 @@ class BriefingTest {
     }
 
     @Test
-    fun `il margine fa scattare l'avviso prima che i conti tornino appena`() {
+    fun `sulla linea d'aria il margine fa scattare l'avviso prima`() {
         // 100 km stimati, 120 di autonomia: i conti tornerebbero, ma le
         // distanze sono in linea d'aria e l'autonomia e' ottimista.
         val briefing = Briefings.componi(
@@ -332,5 +332,122 @@ class BriefingTest {
             LocalDateTime.parse("2026-08-06T23:00"),
             Briefings.prossimoScatto(99, LocalDateTime.parse("2026-08-06T21:15")),
         )
+    }
+
+    // --- le tratte su strada --------------------------------------------------
+
+    private val orvieto = Coordinate(42.7185, 12.1112)
+    private val viterbo = Coordinate(42.4207, 12.1077)
+
+    private fun scorta(km: Double, minuti: Int) = Tratte(
+        listOf(Tratta(orvieto.lat, orvieto.lon, viterbo.lat, viterbo.lon, km, minuti)),
+    )
+
+    // Duecento chilometri e non cinquanta: sotto la riserva degli 80 km
+    // l'avviso scatta comunque, e non si vedrebbe l'effetto del margine.
+    private fun conTratte(autonomia: Autonomia? = null, tratte: Tratte? = scorta(200.0, 150)) =
+        Briefings.componi(
+            tappe = listOf(tappa("Viterbo", "2026-08-07", lat = viterbo.lat, lon = viterbo.lon)),
+            oggi = oggi,
+            autonomia = autonomia,
+            da = orvieto,
+            tratte = tratte,
+        )
+
+    @Test
+    fun `con le tratte i chilometri sono quelli veri, e arriva il tempo di guida`() {
+        val briefing = conTratte()
+        assertTrue(briefing.suStrada)
+        assertEquals(200.0, briefing.kmDomani!!, 0.001)
+        assertEquals(150, briefing.minutiDomani)
+    }
+
+    @Test
+    fun `senza tratte si ripiega sulla linea d'aria, e si dichiara`() {
+        val briefing = conTratte(tratte = null)
+        assertFalse(briefing.suStrada)
+        assertNull(briefing.minutiDomani)
+        // La linea d'aria e' piu' corta della strada: e' il motivo per cui
+        // bisogna dire quale dei due numeri e'.
+        assertTrue(briefing.kmDomani!! < 200.0)
+    }
+
+    @Test
+    fun `una tratta che non copre tutta la catena non vale`() {
+        val altrove = Tratte(listOf(Tratta(45.0, 9.0, 45.5, 9.5, 60.0, 60)))
+        assertFalse(conTratte(tratte = altrove).suStrada)
+    }
+
+    @Test
+    fun `sulle tratte vere il margine si stringe`() {
+        // 200 km su strada: la soglia e' 230 con il margine della strada
+        // (1,15) e sarebbe 280 con quello dell'aria (1,4). Con 250 km di
+        // autonomia l'avviso non deve suonare, perche' una delle due
+        // incertezze non c'e' piu'.
+        assertFalse(conTratte(autonomia = autonomia(residui = 250.0, pieno = 900)).rifornire)
+        assertTrue(conTratte(autonomia = autonomia(residui = 220.0, pieno = 900)).rifornire)
+    }
+
+    @Test
+    fun `il testo dice i chilometri su strada e il tempo di guida`() {
+        val corpo = TestoBriefing.corpo(conTratte())
+        assertTrue(corpo, corpo.contains("200 km, 2 h 30 di guida"))
+        assertTrue(corpo, !corpo.contains("linea d'aria"))
+    }
+
+    // --- il meteo -------------------------------------------------------------
+
+    private val seraDiOggi: OffsetDateTime = OffsetDateTime.parse("2026-08-06T19:00:00+02:00")
+
+    private fun conMeteo(
+        previsione: Previsione,
+        scaricatoIl: OffsetDateTime = seraDiOggi,
+        adesso: OffsetDateTime = seraDiOggi,
+    ) = Briefings.componi(
+        tappe = listOf(tappa("Viterbo", "2026-08-07", lat = viterbo.lat, lon = viterbo.lon)),
+        oggi = oggi,
+        meteo = Meteo(
+            scaricatoIl = scaricatoIl.toString(),
+            luoghi = listOf(MeteoLuogo("Viterbo", viterbo.lat, viterbo.lon, listOf(previsione))),
+        ),
+        adesso = adesso,
+    )
+
+    @Test
+    fun `il meteo di domani entra nel briefing`() {
+        val briefing = conMeteo(Previsione("2026-08-07", codice = 0, minima = 18.0, massima = 31.0))
+        assertEquals(31.0, briefing.meteoDomani!!.massima!!, 0.001)
+        assertTrue(TestoBriefing.corpo(briefing).contains("Sereno, 18–31°"))
+    }
+
+    @Test
+    fun `un meteo vecchio si usa dicendo quanto e' vecchio`() {
+        val briefing = conMeteo(
+            previsione = Previsione("2026-08-07", codice = 0, massima = 31.0),
+            scaricatoIl = seraDiOggi.minusHours(30),
+        )
+        assertTrue(TestoBriefing.corpo(briefing).contains("meteo di ieri"))
+    }
+
+    @Test
+    fun `un meteo scaduto non si mostra affatto`() {
+        val briefing = conMeteo(
+            previsione = Previsione("2026-08-07", codice = 0, massima = 31.0),
+            scaricatoIl = seraDiOggi.minusDays(5),
+        )
+        assertNull(briefing.meteoDomani)
+    }
+
+    @Test
+    fun `il meteo di un altro giorno non e' quello di domani`() {
+        val briefing = conMeteo(Previsione("2026-08-20", codice = 0, massima = 31.0))
+        assertNull(briefing.meteoDomani)
+    }
+
+    @Test
+    fun `senza scorta di meteo il briefing esce lo stesso`() {
+        val briefing = Briefings.componi(listOf(tappa("Viterbo", "2026-08-07")), oggi)
+        assertNull(briefing.meteoDomani)
+        assertEquals("Domani, venerdì 7 agosto: Viterbo", TestoBriefing.titolo(briefing))
     }
 }

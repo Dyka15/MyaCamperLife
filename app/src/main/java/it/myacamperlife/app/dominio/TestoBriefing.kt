@@ -34,11 +34,8 @@ object TestoBriefing {
      * vuote e' peggio di una notifica con una riga sola.
      */
     fun corpo(briefing: Briefing): String = buildList {
-        briefing.kmDomani?.let { km ->
-            // "Circa" e "in linea d'aria" non sono cautele di stile: quel
-            // numero e' una sottostima, e chi guida deve saperlo.
-            add("Circa ${arrotonda(km)} km in linea d'aria, quindi qualcuno in piu' su strada.")
-        }
+        strada(briefing)?.let { add(it) }
+        meteo(briefing)?.let { add(it) }
 
         if (briefing.rifornire) add(avviso(briefing.autonomia))
 
@@ -50,6 +47,32 @@ object TestoBriefing {
             add("Ancora da fare: ${elenco(briefing.senzaData.map { it.nome })}")
         }
     }.joinToString("\n")
+
+    /**
+     * I chilometri di domani, e **da dove viene il numero**.
+     *
+     * Con le tratte precalcolate si dicono i chilometri veri e il tempo di
+     * guida; senza, si dice la linea d'aria dichiarandola per quello che e'.
+     * Non e' una cautela di stile: sul secondo numero non si decide se un
+     * serbatoio basta.
+     */
+    private fun strada(briefing: Briefing): String? {
+        val km = briefing.kmDomani ?: return null
+        if (!briefing.suStrada) {
+            return "Circa ${arrotonda(km)} km in linea d'aria, quindi qualcuno in piu' su strada."
+        }
+        val minuti = briefing.minutiDomani
+        return if (minuti == null) "${arrotonda(km)} km su strada."
+        else "${arrotonda(km)} km, ${Percorso(km, minuti).durata} di guida."
+    }
+
+    /** Il meteo di domani, con l'eta' del dato appiccicata dietro. */
+    private fun meteo(briefing: Briefing): String? {
+        val previsione = briefing.meteoDomani ?: return null
+        val riga = TestoMeteo.riga(previsione)
+        val eta = TestoMeteo.eta(briefing.meteoOreFa)
+        return if (eta == null) riga else "$riga · $eta"
+    }
 
     private fun avviso(autonomia: Autonomia?): String {
         val residui = autonomia?.residui ?: return "Conviene rifornire."

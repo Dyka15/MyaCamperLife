@@ -747,6 +747,18 @@ distanze fra le tappe, che in fase 5 sono ancora la linea d'aria. Funziona, ed �
 volutamente ottimista; con la fase 6 diventa preciso. Meglio così che aspettare la rete
 per avere l'avviso.
 
+**Come è andata a finire, in fase 6.** Il margine dell'avviso non è una costante sola ma
+due: 1,4 sulla linea d'aria, dove le incertezze sono due — distanza sottostimata e
+chilometri guidati senza registrare niente — e 1,15 sulle tratte precalcolate, dove ne
+resta una. Gonfiare comunque del 40% un numero già vero farebbe suonare l'avviso quando
+non serve, ed è così che un avviso smette di essere ascoltato.
+
+**Niente libreria HTTP.** Le due richieste dell'app — meteo una volta al giorno, tratte
+una volta per itinerario — non giustificano un paio di megabyte di dipendenza, e sarebbe
+in contraddizione con l'aver tolto il riconoscimento del testo per tenere l'APK leggero.
+`HttpURLConnection` con tre tetti — connessione, lettura, dimensione della risposta — fa
+esattamente quello che serve in ottanta righe.
+
 Nota di scoping: **n8n si può spegnere alla fine della fase 8**, non prima. Fino a quel
 momento il bot resta la via per Esplora e per la prosa del diario, e non dà fastidio a
 nessuno: legge e scrive su Sheets, l'app sui suoi file.

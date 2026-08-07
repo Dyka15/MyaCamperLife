@@ -1,5 +1,9 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Meteo
+import it.myacamperlife.app.dominio.MeteoLuogo
+import it.myacamperlife.app.dominio.Previsione
+import it.myacamperlife.app.dominio.Tratta
 import it.myacamperlife.app.dominio.Waypoint
 import java.io.File
 import java.time.LocalDate
@@ -181,5 +185,124 @@ class BriefingArchivioTest {
         assertEquals(550, rilette.kmConUnPieno)
         assertTrue(rilette.briefingAttivo)
         assertEquals(19, rilette.ora)
+    }
+
+    // --- la scorta ------------------------------------------------------------
+
+    private val orvieto = Waypoint("Orvieto", 42.7185, 12.1112)
+    private val viterbo = Waypoint("Viterbo", 42.4207, 12.1077)
+
+    @Test
+    fun `le tratte salvate si rileggono e valgono per il briefing`() {
+        val slug = creaToscana()
+        archivio.registraPosizione(
+            slug = slug,
+            posizione = Posizione(orvieto.lat, orvieto.lon),
+            adesso = quando("2026-08-06", "15:00:00"),
+        )
+        archivio.salvaTratte(
+            slug = slug,
+            tratte = listOf(
+                Tratta(orvieto.lat, orvieto.lon, viterbo.lat, viterbo.lon, 58.0, 62, "Orvieto", "Viterbo"),
+            ),
+            adesso = quando("2026-08-06", "10:00:00"),
+        )
+
+        val briefing = archivio.briefing(slug, oggi)
+        assertTrue(briefing.suStrada)
+        assertEquals(58.0, briefing.kmDomani!!, 0.001)
+        assertEquals(62, briefing.minutiDomani)
+    }
+
+    @Test
+    fun `ricalcolare una tratta la corregge invece di duplicarla`() {
+        val slug = creaToscana()
+        val prima = Tratta(orvieto.lat, orvieto.lon, viterbo.lat, viterbo.lon, 58.0, 62)
+        archivio.salvaTratte(slug, listOf(prima), quando("2026-08-06", "10:00:00"))
+        archivio.salvaTratte(slug, listOf(prima.copy(km = 61.0)), quando("2026-08-06", "18:00:00"))
+
+        val tratte = archivio.tratte(slug)
+        assertEquals(1, tratte.tutte.size)
+        assertEquals(61.0, tratte.tutte.single().km, 0.001)
+    }
+
+    @Test
+    fun `senza tratte la scorta stradale e vuota`() {
+        assertTrue(archivio.tratte(creaToscana()).vuoto)
+    }
+
+    @Test
+    fun `il meteo salvato si rilegge e finisce nel briefing`() {
+        val slug = creaToscana()
+        archivio.salvaMeteo(
+            slug = slug,
+            meteo = Meteo(
+                scaricatoIl = "2026-08-06T19:00:00+02:00",
+                luoghi = listOf(
+                    MeteoLuogo(
+                        nome = "Viterbo",
+                        lat = viterbo.lat,
+                        lon = viterbo.lon,
+                        previsioni = listOf(
+                            Previsione("2026-08-07", codice = 61, minima = 17.0, massima = 26.0),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val briefing = archivio.briefing(
+            slug = slug,
+            oggi = oggi,
+            adesso = OffsetDateTime.parse("2026-08-06T19:05:00+02:00"),
+        )
+        assertEquals(26.0, briefing.meteoDomani!!.massima!!, 0.001)
+    }
+
+    @Test
+    fun `un file di meteo rovinato vale come assente`() {
+        val slug = creaToscana()
+        File(archivio.cartellaScorta(slug), "meteo.json").writeText("{ meta' file")
+        assertNull(archivio.meteo(slug))
+        // E il briefing esce lo stesso.
+        assertEquals(listOf("Viterbo"), archivio.briefing(slug, oggi).domani!!.nomi)
+    }
+
+    @Test
+    fun `i punti per il meteo sono le tappe da fare nei prossimi giorni`() {
+        val slug = creaToscana()
+        val nomi = archivio.puntiMeteo(slug, oggi).map { it.nome }
+        assertEquals(listOf("Orvieto", "Viterbo", "Roma"), nomi)
+    }
+
+    @Test
+    fun `una tappa spuntata non entra fra i punti del meteo`() {
+        val slug = creaToscana()
+        val tappa = archivio.tappe(slug).first { it.nome == "Orvieto" }
+        archivio.checkin(slug, tappa, adesso = quando("2026-08-06", "14:00:00"))
+
+        assertEquals(listOf("Viterbo", "Roma"), archivio.puntiMeteo(slug, oggi).map { it.nome })
+    }
+
+    @Test
+    fun `i punti per le tratte sono tutte le tappe, in ordine`() {
+        val slug = creaToscana()
+        assertEquals(
+            listOf("Orvieto", "Viterbo", "Roma"),
+            archivio.puntiTratte(slug).map { it.nome },
+        )
+    }
+
+    @Test
+    fun `la scorta sta dentro il viaggio e se ne va con lui`() {
+        val slug = creaToscana()
+        archivio.salvaTratte(
+            slug,
+            listOf(Tratta(orvieto.lat, orvieto.lon, viterbo.lat, viterbo.lon, 58.0, 62)),
+        )
+        assertTrue(File(archivio.cartellaViaggio(slug), "scorta/tratte.csv").exists())
+
+        archivio.elimina(slug)
+        assertFalse(archivio.cartellaViaggio(slug).exists())
     }
 }

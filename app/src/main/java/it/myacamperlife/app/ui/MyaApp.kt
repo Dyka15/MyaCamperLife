@@ -266,6 +266,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     tappe = stato.tappe,
                     corrente = stato.corrente,
                     prossima = stato.prossima,
+                    versoProssima = stato.versoProssima,
                     onPosizione = { conPosizione { vista.registraPosizione() } },
                     onFoto = {
                         ambito.launch {
@@ -396,6 +397,8 @@ fun MyaApp(vista: ViaggiViewModel) {
                 if (notificheConcesse) Sistema.apriNotifiche(contesto)
                 else chiediNotifiche.launch(Avvisi.PERMESSI)
             },
+            onAggiornaScorta = vista::aggiornaScorta,
+            scortaDisponibile = stato.aperto != null,
             onBatteria = { Sistema.apriBatteria(contesto) },
             onAvvioAutomatico = { Sistema.apriAvvioAutomatico(contesto) },
             onChiudi = { impostazioniAperte = false },
@@ -468,4 +471,6 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.RifornimentoRegistrato -> stringResource(R.string.rifornimento_registrato)
     ViaggiViewModel.Avviso.SpesaRegistrata -> stringResource(R.string.spesa_registrata)
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
+    ViaggiViewModel.Avviso.ScortaAggiornata -> stringResource(R.string.scorta_aggiornata)
+    ViaggiViewModel.Avviso.ScortaNonAggiornata -> stringResource(R.string.scorta_non_aggiornata)
 }

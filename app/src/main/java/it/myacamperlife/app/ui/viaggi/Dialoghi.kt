@@ -401,8 +401,10 @@ fun ImpostazioniDialog(
     notificheConcesse: Boolean,
     batteriaSenzaLimiti: Boolean,
     avvioAutomaticoDisponibile: Boolean,
+    scortaDisponibile: Boolean,
     onSalva: (Impostazioni) -> Unit,
     onProvaBriefing: () -> Unit,
+    onAggiornaScorta: () -> Unit,
     onPermessoNotifiche: () -> Unit,
     onBatteria: () -> Unit,
     onAvvioAutomatico: () -> Unit,
@@ -468,6 +470,21 @@ fun ImpostazioniDialog(
                     TextButton(onClick = onProvaBriefing) {
                         Text(stringResource(R.string.impostazioni_prova_briefing))
                     }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    stringResource(R.string.impostazioni_scorta),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(R.string.impostazioni_scorta_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { onChiudi(); onAggiornaScorta() }, enabled = scortaDisponibile) {
+                    Text(stringResource(R.string.impostazioni_aggiorna_scorta))
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

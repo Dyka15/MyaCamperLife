@@ -25,9 +25,10 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1–5 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
-del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — tutto senza
-rete.
+**Fasi 1–6 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
+del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — meteo e
+chilometri compresi. **Nessuna schermata aspetta la rete:** quello che serve si prende in
+anticipo.
 
 Itinerario:
 
@@ -67,8 +68,8 @@ Spese:
 
 Riepilogo della sera:
 
-- alle **19:00** una notifica con le tappe di domani, i chilometri stimati e i giorni
-  successivi. L'ora si cambia, il riepilogo si spegne
+- alle **19:00** una notifica con le tappe di domani, i chilometri, il **meteo** e i
+  giorni successivi. L'ora si cambia, il riepilogo si spegne
 - **avviso di rifornimento** quando l'autonomia stimata non copre la strada di domani con
   un margine, o quando sei sotto gli 80 km comunque
 - legge il campo `giorno` dell'itinerario in tutte le forme che arriva davvero
@@ -79,11 +80,25 @@ Riepilogo della sera:
 - nelle impostazioni si vede **il riepilogo di stasera senza aspettare le 19:00**, e ci
   sono i pulsanti che portano alle tre schermate di sistema da sistemare
 
-Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
-`spese.csv`, `impostazioni.json` e `FORMATI.md` che spiega le colonne. Nessuna rete usata;
-i permessi sono due, la posizione e le notifiche, chiesti quando servono.
+La scorta — l'unica parte che tocca la rete, e la tocca **prima**:
 
-Restano le fasi 6–9: meteo, punti di interesse offline, client AI, rifiniture.
+- **meteo** da Open-Meteo, scaricato alle 19:00 per tutte le tappe in una richiesta sola,
+  e mostrato con l'età dichiarata: «meteo di ieri». Oltre tre giorni non si mostra più —
+  una previsione vecchia non è un dato vecchio, è un dato sbagliato
+- **distanze su strada** da OSRM, chieste una volta quando importi l'itinerario. Da lì in
+  poi sono un dato locale: la testata dice «34 km · 45 min» alla prossima tappa, e i
+  chilometri di domani nel riepilogo sono quelli veri
+- senza tratte si ripiega sulla linea d'aria **dicendolo**, e l'avviso di rifornimento usa
+  un margine più largo perché sa di stare guardando un numero più incerto
+- «Aggiorna adesso» nelle impostazioni, per quando sai di stare per entrare in una zona
+  senza campo
+
+Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
+`spese.csv`, `scorta/tratte.csv`, `scorta/meteo.json`, `impostazioni.json` e `FORMATI.md`
+che spiega le colonne. I permessi sono la posizione, le notifiche e la rete, e nessuna
+lettura dipende dall'ultimo.
+
+Restano le fasi 7–9: punti di interesse offline, client AI, rifiniture.
 
 ## Documenti
 

@@ -3,6 +3,7 @@ package it.myacamperlife.app.dominio
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.OffsetDateTime
 
 /** Un giorno di viaggio previsto, con le tappe da fare. */
 data class Giornata(val giorno: LocalDate, val tappe: List<Tappa>) {
@@ -12,9 +13,11 @@ data class Giornata(val giorno: LocalDate, val tappe: List<Tappa>) {
 /**
  * Il riepilogo della sera: cosa ti aspetta domani, e se domani devi rifornire.
  *
- * @param kmDomani chilometri stimati per domani, **in linea d'aria**: da dove
- *   sei fino all'ultima tappa di domani, passando per quelle in mezzo. E' una
- *   sottostima, e chi lo mostra lo dice.
+ * @param kmDomani chilometri per domani, da dove sei fino all'ultima tappa,
+ *   passando per quelle in mezzo. Sono quelli **su strada** se le tratte sono
+ *   state precalcolate, altrimenti la linea d'aria — che e' una sottostima, e
+ *   [suStrada] dice quale dei due e'.
+ * @param minutiDomani il tempo di guida, che solo le tratte su strada sanno.
  */
 data class Briefing(
     val oggi: LocalDate,
@@ -22,8 +25,14 @@ data class Briefing(
     /** Tappe da fare che l'itinerario non ha datato, o che non si e' saputo leggere. */
     val senzaData: List<Tappa>,
     val kmDomani: Double?,
+    val suStrada: Boolean = false,
+    val minutiDomani: Int? = null,
     val autonomia: Autonomia?,
     val rifornire: Boolean,
+    /** La previsione di domani nel posto dove sarai, quando la scorta ce l'ha. */
+    val meteoDomani: Previsione? = null,
+    /** Da quante ore la previsione e' ferma li'. Nulla se non si sa. */
+    val meteoOreFa: Long? = null,
 ) {
     val domani: Giornata? get() = giornate.firstOrNull { it.giorno == oggi.plusDays(1) }
 
@@ -55,6 +64,9 @@ object Briefings {
      * @param da dove sei adesso: serve a stimare i chilometri di domani. Se
      *   manca, i chilometri si contano da tappa a tappa e il primo tratto —
      *   quello da qui alla prima tappa — non entra nel conto.
+     * @param tratte la scorta stradale, quando c'e'. Con quella i chilometri
+     *   sono veri e arriva anche il tempo di guida.
+     * @param meteo la scorta di previsioni, quando c'e' e non e' scaduta.
      * @param giorni quanti giorni guardare avanti, domani compreso.
      */
     fun componi(
@@ -62,6 +74,9 @@ object Briefings {
         oggi: LocalDate,
         autonomia: Autonomia? = null,
         da: Coordinate? = null,
+        tratte: Tratte? = null,
+        meteo: Meteo? = null,
+        adesso: OffsetDateTime? = null,
         giorni: Int = GIORNI,
     ): Briefing {
         val daFare = tappe.filter { it.stato == StatoTappa.DA_FARE }
@@ -77,22 +92,37 @@ object Briefings {
         val arretrate = perGiorno.filterKeys { it <= oggi }.values.flatten()
 
         val domani = giornate.firstOrNull { it.giorno == oggi.plusDays(1) }
-        val kmDomani = domani?.let { chilometri(da, it.tappe) }
+        val catena = domani?.let { listOfNotNull(da) + it.tappe.map { t -> Coordinate(t.lat, t.lon) } }
+
+        // Prima la strada, poi la linea d'aria: sono due numeri diversi, e
+        // quale dei due sia finisce dentro il briefing, non solo nel commento.
+        val suStrada = catena?.let { tratte?.percorso(it) }
+        val kmDomani = suStrada?.km ?: catena?.let { chilometri(it) }
+
+        // Una previsione scaduta non e' un dato vecchio, e' un dato sbagliato:
+        // non si mostra affatto.
+        val valido = meteo?.takeUnless { adesso != null && it.scaduto(adesso) }
+        val previsione = domani?.tappe?.firstOrNull()?.let { tappa ->
+            valido?.per(tappa.lat, tappa.lon, domani.giorno)
+        }
+        val oreFa = adesso?.let { valido?.eta(it)?.toHours() }
 
         return Briefing(
             oggi = oggi,
             giornate = giornate,
             senzaData = arretrate + senzaData,
             kmDomani = kmDomani,
+            suStrada = suStrada != null,
+            minutiDomani = suStrada?.minuti,
             autonomia = autonomia,
-            rifornire = serveRifornire(autonomia, kmDomani),
+            rifornire = serveRifornire(autonomia, kmDomani, suStrada != null),
+            meteoDomani = previsione,
+            meteoOreFa = previsione?.let { oreFa },
         )
     }
 
-    /** In linea d'aria, da dove sei fino all'ultima tappa, passando per tutte. */
-    private fun chilometri(da: Coordinate?, tappe: List<Tappa>): Double? {
-        if (tappe.isEmpty()) return null
-        val punti = listOfNotNull(da) + tappe.map { Coordinate(it.lat, it.lon) }
+    /** In linea d'aria, da un punto all'altro della catena. */
+    private fun chilometri(punti: List<Coordinate>): Double? {
         if (punti.size < 2) return null
         return punti.zipWithNext { primo, secondo ->
             Distanza.km(primo.lat, primo.lon, secondo.lat, secondo.lon)
@@ -106,20 +136,27 @@ object Briefings {
      *
      * - **sei in riserva** — sotto [RISERVA_KM] si rifornisce comunque, che tu
      *   debba guidare o no
-     * - **domani non ci arrivi con margine** — i chilometri stimati moltiplicati
-     *   per [MARGINE], perche' due approssimazioni tirano nella stessa
-     *   direzione: le distanze sono in linea d'aria, quindi piu' corte di quelle
-     *   su strada, e l'autonomia non conta i chilometri fatti senza registrare
-     *   niente. Il numero vero e' peggiore di quello calcolato, sempre
+     * - **domani non ci arrivi con margine** — i chilometri moltiplicati per un
+     *   margine, perche' i conti tirano tutti nella stessa direzione: se le
+     *   distanze sono in linea d'aria sono piu' corte di quelle su strada, e
+     *   l'autonomia non conta i chilometri fatti senza registrare niente. Il
+     *   numero vero e' peggiore di quello calcolato, sempre
+     *
+     * **Il margine dipende da che numero e'.** Sulla linea d'aria vale
+     * [MARGINE_ARIA], perche' le approssimazioni sono due; sulle tratte
+     * precalcolate scende a [MARGINE_STRADA], perche' una delle due e' sparita
+     * e gonfiare oltre farebbe suonare l'avviso quando non serve — che e' il
+     * modo in cui un avviso smette di essere ascoltato.
      *
      * L'avviso va letto come "probabilmente domani ti serve", non come una
      * misura. Meglio un pieno in piu' che restare a secco su una provinciale.
      */
-    private fun serveRifornire(autonomia: Autonomia?, kmDomani: Double?): Boolean {
+    private fun serveRifornire(autonomia: Autonomia?, kmDomani: Double?, suStrada: Boolean): Boolean {
         if (autonomia == null) return false
         if (autonomia.residui <= RISERVA_KM) return true
         if (kmDomani == null) return false
-        return autonomia.residui < kmDomani * MARGINE
+        val margine = if (suStrada) MARGINE_STRADA else MARGINE_ARIA
+        return autonomia.residui < kmDomani * margine
     }
 
     /**
@@ -140,8 +177,11 @@ object Briefings {
     /** Sotto questi chilometri si rifornisce e basta. */
     const val RISERVA_KM = 80.0
 
-    /** Quanto si gonfia la stima dei chilometri prima di confrontarla. */
-    const val MARGINE = 1.4
+    /** Quanto si gonfia la linea d'aria prima di confrontarla: due incertezze. */
+    const val MARGINE_ARIA = 1.4
+
+    /** Sulle tratte vere ne resta una sola, e il margine si stringe. */
+    const val MARGINE_STRADA = 1.15
 }
 
 /** Una coppia di coordinate, senza l'ora: qui l'ora non serve. */

@@ -12,18 +12,22 @@ import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Autonomia
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Categoria
+import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.NomeFoto
+import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StimaAutonomia
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
+import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
+import it.myacamperlife.app.rete.Scorte
 import java.io.File
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -55,6 +59,12 @@ class ViaggiViewModel(
      * resto della classe resta leggibile senza un telefono.
      */
     private val riarma: (Impostazioni) -> Unit = {},
+    /**
+     * Riempie la scorta dalla rete. Torna `true` se ha aggiornato qualcosa.
+     * Ha un valore di riposo che non fa niente: senza, questa classe non si
+     * potrebbe costruire in un test.
+     */
+    private val scorte: Scorte? = null,
 ) : ViewModel() {
 
     data class Stato(
@@ -68,6 +78,7 @@ class ViaggiViewModel(
         val conto: Conto = Spese.conta(emptyList()),
         val spese: List<Spesa> = emptyList(),
         val autonomia: Autonomia? = null,
+        val tratte: Tratte = Tratte(),
         val impostazioni: Impostazioni = Impostazioni(),
         /** L'ultimo contachilometri registrato: precompila la form. */
         val ultimoKm: Int? = null,
@@ -77,6 +88,22 @@ class ViaggiViewModel(
         val kmConUnPieno: Int? get() = impostazioni.kmConUnPieno
         val corrente: Tappa? get() = Tappe.corrente(tappe)
         val prossima: Tappa? get() = Tappe.prossima(tappe)
+
+        /**
+         * Quanto manca alla prossima tappa, su strada.
+         *
+         * Solo con le tratte precalcolate: la linea d'aria in testata sarebbe
+         * un numero che sembra una distanza di guida e non lo e'. Meglio non
+         * mostrarla che mostrarla travestita.
+         */
+        val versoProssima: Percorso?
+            get() {
+                val da = corrente ?: return null
+                val a = prossima ?: return null
+                return tratte.percorso(
+                    listOf(Coordinate(da.lat, da.lon), Coordinate(a.lat, a.lon)),
+                )
+            }
         val giorni: List<LocalDate>
             get() = voci.map { it.istante.toLocalDate() }.distinct().sortedDescending()
     }
@@ -94,6 +121,8 @@ class ViaggiViewModel(
         data object RifornimentoRegistrato : Avviso
         data object SpesaRegistrata : Avviso
         data object ImpostazioniSalvate : Avviso
+        data object ScortaAggiornata : Avviso
+        data object ScortaNonAggiornata : Avviso
     }
 
     private val _stato = MutableStateFlow(Stato())
@@ -146,6 +175,7 @@ class ViaggiViewModel(
                     punti = archivio.punti(slug),
                 ),
                 impostazioni = impostazioni,
+                tratte = archivio.tratte(slug),
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
             )
         }
@@ -160,6 +190,7 @@ class ViaggiViewModel(
                 spese = dati.spese,
                 autonomia = dati.autonomia,
                 impostazioni = dati.impostazioni,
+                tratte = dati.tratte,
                 ultimoKm = dati.ultimoKm,
             )
         }
@@ -174,6 +205,7 @@ class ViaggiViewModel(
         val spese: List<Spesa>,
         val autonomia: Autonomia?,
         val impostazioni: Impostazioni,
+        val tratte: Tratte,
         val ultimoKm: Int?,
     )
 
@@ -211,6 +243,13 @@ class ViaggiViewModel(
 
         _stato.update { it.copy(avviso = esito.avviso) }
         ricarica(apri = esito.viaggio)
+
+        // Le distanze su strada si chiedono adesso, non quando serviranno:
+        // l'itinerario si importa a casa, dove il campo c'e'. Da qui in poi
+        // sono un dato locale, e basta questa finestra per tutto il viaggio.
+        esito.viaggio?.let { viaggio ->
+            if (scorte?.aggiornaTratte(viaggio.slug) == true) aggiornaViaggio(viaggio)
+        }
     }
 
     // --- la giornata --------------------------------------------------------
@@ -242,6 +281,9 @@ class ViaggiViewModel(
     fun aggiungiTappa(nome: String, lat: Double, lon: Double, giorno: String?, primaDi: String?) =
         operazione { slug ->
             val tappa = archivio.aggiungiTappa(slug, nome, lat, lon, giorno, primaDi)
+            // Una tappa in mezzo spezza una tratta in due: se c'e' campo si
+            // richiedono, altrimenti quel tratto ripiega sulla linea d'aria.
+            scorte?.aggiornaTratte(slug)
             Avviso.TappaAggiunta(tappa.nome)
         }
 
@@ -326,6 +368,33 @@ class ViaggiViewModel(
         // spegnere il riepilogo e vederlo arrivare stasera sarebbe assurdo.
         riarma(nuove)
         _stato.value.aperto?.let { aggiornaViaggio(it) }
+    }
+
+    /**
+     * Riempie la scorta adesso, su richiesta.
+     *
+     * Serve quando si sa di stare per entrare in una zona senza campo: si
+     * scarica prima invece di aspettare le 19:00. Le tratte si richiedono
+     * insieme al meteo, perche' la finestra di rete e' la stessa.
+     */
+    fun aggiornaScorta() = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        val scorte = scorte ?: return@launch
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+
+        val meteo = scorte.aggiornaMeteo(viaggio.slug)
+        // Le tratte si richiedono solo se mancano: non cambiano, e il server
+        // pubblico di OSRM e' una cortesia, non un servizio da tempestare.
+        val servono = withContext(Dispatchers.IO) { archivio.tratte(viaggio.slug).vuoto }
+        val tratte = servono && scorte.aggiornaTratte(viaggio.slug)
+
+        aggiornaViaggio(viaggio)
+        _stato.update {
+            it.copy(
+                inCorso = false,
+                avviso = if (meteo || tratte) Avviso.ScortaAggiornata else Avviso.ScortaNonAggiornata,
+            )
+        }
     }
 
     /**
