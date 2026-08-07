@@ -1,7 +1,11 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.CategoriaPoi
+import it.myacamperlife.app.dominio.Dintorno
+import it.myacamperlife.app.dominio.Luogo
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.MeteoLuogo
+import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.Previsione
 import it.myacamperlife.app.dominio.Tratta
 import it.myacamperlife.app.dominio.Waypoint
@@ -304,5 +308,131 @@ class BriefingArchivioTest {
 
         archivio.elimina(slug)
         assertFalse(archivio.cartellaViaggio(slug).exists())
+    }
+
+    // --- i dintorni -----------------------------------------------------------
+
+    private fun dintorno() = Dintorno(
+        poi = listOf(
+            Poi("node/1", "Area Il Cipresso", CategoriaPoi.SOSTA, 42.7200, 12.1130, "a pagamento"),
+            Poi("node/2", "Eni", CategoriaPoi.CARBURANTE, 42.7250, 12.1200),
+        ),
+        luoghi = listOf(
+            Luogo("Orvieto", 42.7185, 12.1112, abitanti = 20_394),
+            Luogo("Bolsena", 42.6437, 11.9871, abitanti = 4_000),
+            Luogo("Sugano", 42.7350, 12.0900),
+        ),
+    )
+
+    @Test
+    fun `i dintorni salvati si rileggono`() {
+        val slug = creaToscana()
+        archivio.salvaDintorni(slug, dintorno(), quando("2026-08-06", "10:00:00"))
+
+        val poi = archivio.poi(slug)
+        assertEquals(2, poi.size)
+        assertEquals(CategoriaPoi.SOSTA, poi.first { it.id == "node/1" }.categoria)
+        assertEquals("a pagamento", poi.first { it.id == "node/1" }.dettaglio)
+
+        val luoghi = archivio.luoghi(slug)
+        assertEquals(3, luoghi.tutti.size)
+        assertEquals(20_394, luoghi.tutti.first { it.nome == "Orvieto" }.abitanti)
+        assertNull(luoghi.tutti.first { it.nome == "Sugano" }.abitanti)
+    }
+
+    @Test
+    fun `riscaricare i dintorni aggiorna invece di duplicare`() {
+        val slug = creaToscana()
+        archivio.salvaDintorni(slug, dintorno(), quando("2026-08-06", "10:00:00"))
+        archivio.salvaDintorni(slug, dintorno(), quando("2026-08-07", "10:00:00"))
+
+        assertEquals(2, archivio.poi(slug).size)
+        assertEquals(3, archivio.luoghi(slug).tutti.size)
+    }
+
+    @Test
+    fun `senza dintorni le liste sono vuote e non cade niente`() {
+        val slug = creaToscana()
+        assertTrue(archivio.poi(slug).isEmpty())
+        assertTrue(archivio.luoghi(slug).vuoto)
+    }
+
+    // --- come si chiama il posto dove sei -------------------------------------
+
+    @Test
+    fun `il toponimo vince sul nome della tappa`() {
+        val slug = creaToscana()
+        val orvieto = archivio.tappe(slug).first { it.nome == "Orvieto" }
+        archivio.checkin(slug, orvieto, adesso = quando("2026-08-06", "14:00:00"))
+        archivio.salvaDintorni(slug, dintorno(), quando("2026-08-06", "10:00:00"))
+
+        // Sei sceso al lago: il check-in dice Orvieto, ma sei a Bolsena.
+        // Sugano, che dista due chilometri e mezzo da Orvieto, non andrebbe
+        // bene per questa prova: li' vincerebbe Orvieto, ed e' giusto cosi'.
+        assertEquals("Bolsena", archivio.dove(slug, Posizione(42.6437, 11.9871)))
+    }
+
+    @Test
+    fun `senza scorta di toponimi si ripiega sulla tappa`() {
+        val slug = creaToscana()
+        val orvieto = archivio.tappe(slug).first { it.nome == "Orvieto" }
+        archivio.checkin(slug, orvieto, adesso = quando("2026-08-06", "14:00:00"))
+
+        assertEquals("Orvieto", archivio.dove(slug, Posizione(42.6437, 11.9871)))
+    }
+
+    @Test
+    fun `senza posizione si ripiega sulla tappa anche con la scorta`() {
+        val slug = creaToscana()
+        val orvieto = archivio.tappe(slug).first { it.nome == "Orvieto" }
+        archivio.checkin(slug, orvieto, adesso = quando("2026-08-06", "14:00:00"))
+        archivio.salvaDintorni(slug, dintorno(), quando("2026-08-06", "10:00:00"))
+
+        assertEquals("Orvieto", archivio.dove(slug, null))
+    }
+
+    @Test
+    fun `la foto registrata prende il nome del posto vero`() {
+        val slug = creaToscana()
+        archivio.salvaDintorni(slug, dintorno(), quando("2026-08-06", "10:00:00"))
+        archivio.registraFoto(
+            slug = slug,
+            nomeFile = "foto_20260806_150000_Bolsena.jpg",
+            posizione = Posizione(42.6437, 11.9871),
+            adesso = quando("2026-08-06", "15:00:00"),
+        )
+        assertEquals(
+            "Bolsena",
+            archivio.tabellaFoto(slug).vive().single().testo(FotoTabella.TAPPA),
+        )
+    }
+
+    @Test
+    fun `la ricerca parte dall'ultima posizione registrata`() {
+        val slug = creaToscana()
+        archivio.registraPosizione(
+            slug = slug,
+            posizione = Posizione(42.6437, 11.9871),
+            adesso = quando("2026-08-06", "15:00:00"),
+        )
+        val da = archivio.dovePunto(slug)!!
+        assertEquals(42.6437, da.lat, 0.0001)
+    }
+
+    @Test
+    fun `senza niente registrato si parte dalla prima tappa`() {
+        val slug = creaToscana()
+        assertEquals(42.7185, archivio.dovePunto(slug)!!.lat, 0.0001)
+    }
+
+    @Test
+    fun `i punti dei dintorni sono le tappe da fare, con quella dove sei`() {
+        val slug = creaToscana()
+        val orvieto = archivio.tappe(slug).first { it.nome == "Orvieto" }
+        archivio.checkin(slug, orvieto, adesso = quando("2026-08-06", "14:00:00"))
+
+        // Orvieto in testa perche' e' dove sei, poi le due che restano.
+        assertEquals(3, archivio.puntiDintorni(slug).size)
+        assertEquals(42.7185, archivio.puntiDintorni(slug).first().lat, 0.0001)
     }
 }

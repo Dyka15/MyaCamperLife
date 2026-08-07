@@ -6,6 +6,7 @@
     <string name="scheda_viaggio">Viaggio</string>
     <string name="scheda_diario">Diario</string>
     <string name="scheda_numeri">Numeri</string>
+    <string name="scheda_esplora">Esplora</string>
 
     <!-- Azioni -->
     <string name="azione_importa">Importa itinerario</string>
@@ -197,4 +198,13 @@
     <string name="impostazioni_aggiorna_scorta">Aggiorna adesso</string>
     <string name="scorta_aggiornata">Scorta aggiornata</string>
     <string name="scorta_non_aggiornata">Niente da aggiornare: senza rete si usa quella che c\'è.</string>
+
+    <!-- Esplora -->
+    <string name="esplora_tutto">Tutto</string>
+    <string name="esplora_vuoto">I dintorni non sono ancora scaricati</string>
+    <string name="esplora_vuoto_spiegazione">Aree di sosta, campeggi, carico e scarico, distributori, supermercati e cose da vedere lungo l\'itinerario. Si scaricano una volta, con la rete, e poi si consultano senza.</string>
+    <string name="esplora_scarica">Scarica i dintorni</string>
+    <string name="esplora_riscarica">Riscarica i dintorni</string>
+    <string name="esplora_niente_qui">Niente di questo genere nel raggio di venti chilometri.</string>
+    <string name="dintorni_aggiornati">Dintorni scaricati</string>
 </resources>

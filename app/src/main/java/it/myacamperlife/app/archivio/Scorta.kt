@@ -1,5 +1,8 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.CategoriaPoi
+import it.myacamperlife.app.dominio.Luogo
+import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.Tratta
 import it.myacamperlife.app.dominio.Tratte
 
@@ -72,4 +75,87 @@ object TratteTabella {
 
     /** Il nome del file del meteo, nella stessa cartella. */
     const val NOME_METEO = "meteo.json"
+}
+
+/**
+ * Le colonne di `scorta/poi.csv`: i dintorni del viaggio, scaricati in anticipo.
+ *
+ * L'`id` e' quello di OpenStreetMap — `node/123456` — quindi riscaricare i
+ * dintorni **aggiorna** i posti invece di duplicarli, e un posto che nel
+ * frattempo e' stato cancellato da OSM resta nel file finche' non lo si toglie
+ * a mano. Va bene: un'area di sosta che non c'e' piu' e' un'informazione meno
+ * dannosa di un'area di sosta che non compare.
+ */
+object PoiTabella {
+    const val NOME_FILE = "poi.csv"
+
+    const val NOME = "nome"
+    const val CATEGORIA = "categoria"
+    const val LAT = "lat"
+    const val LON = "lon"
+    const val DETTAGLIO = "dettaglio"
+
+    val COLONNE = listOf(Csv.ID, Csv.TS, Csv.CANCELLATO, NOME, CATEGORIA, LAT, LON, DETTAGLIO)
+
+    fun riga(poi: Poi, ts: String): Map<String, String> = mapOf(
+        Csv.ID to poi.id,
+        Csv.TS to ts,
+        NOME to Csv.testo(poi.nome),
+        CATEGORIA to poi.categoria.codice,
+        LAT to Csv.numero(poi.lat, 6),
+        LON to Csv.numero(poi.lon, 6),
+        DETTAGLIO to Csv.testo(poi.dettaglio),
+    )
+
+    fun poi(riga: Riga): Poi? {
+        val id = riga.id ?: return null
+        val categoria = CategoriaPoi.da(riga.testo(CATEGORIA)) ?: return null
+        val lat = riga.numero(LAT) ?: return null
+        val lon = riga.numero(LON) ?: return null
+        return Poi(
+            id = id,
+            nome = riga.testo(NOME),
+            categoria = categoria,
+            lat = lat,
+            lon = lon,
+            dettaglio = riga.testo(DETTAGLIO),
+        )
+    }
+}
+
+/**
+ * Le colonne di `scorta/luoghi.csv`: i toponimi con cui l'app dice dove sei
+ * senza rete.
+ *
+ * L'`id` viene dal nome piu' le coordinate arrotondate, non da OSM: due paesi
+ * omonimi restano due righe, e lo stesso paese riscaricato ne resta una.
+ */
+object LuoghiTabella {
+    const val NOME_FILE = "luoghi.csv"
+
+    const val NOME = "nome"
+    const val LAT = "lat"
+    const val LON = "lon"
+    const val ABITANTI = "abitanti"
+
+    val COLONNE = listOf(Csv.ID, Csv.TS, Csv.CANCELLATO, NOME, LAT, LON, ABITANTI)
+
+    fun chiave(luogo: Luogo): String =
+        luogo.nome.lowercase() + "@" + String.format(java.util.Locale.ROOT, "%.3f,%.3f", luogo.lat, luogo.lon)
+
+    fun riga(luogo: Luogo, ts: String): Map<String, String> = mapOf(
+        Csv.ID to chiave(luogo),
+        Csv.TS to ts,
+        NOME to Csv.testo(luogo.nome),
+        LAT to Csv.numero(luogo.lat, 6),
+        LON to Csv.numero(luogo.lon, 6),
+        ABITANTI to (luogo.abitanti?.toString() ?: ""),
+    )
+
+    fun luogo(riga: Riga): Luogo? {
+        val nome = riga.testo(NOME) ?: return null
+        val lat = riga.numero(LAT) ?: return null
+        val lon = riga.numero(LON) ?: return null
+        return Luogo(nome = nome, lat = lat, lon = lon, abitanti = riga.intero(ABITANTI))
+    }
 }

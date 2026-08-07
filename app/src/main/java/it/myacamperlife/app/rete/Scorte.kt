@@ -3,6 +3,7 @@ package it.myacamperlife.app.rete
 import android.content.Context
 import it.myacamperlife.app.archivio.Archivio
 import it.myacamperlife.app.dominio.Meteo
+import it.myacamperlife.app.dominio.Overpass
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.RispostaOsrm
 import it.myacamperlife.app.dominio.Tratta
@@ -91,6 +92,40 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
 
         if (trovate.isEmpty()) return@withContext false
         archivio.salvaTratte(slug, trovate, adesso)
+        true
+    }
+
+    /**
+     * Scarica i dintorni: punti di interesse e toponimi lungo l'itinerario.
+     *
+     * **Una richiesta sola**, con un corridoio di quindici chilometri intorno
+     * alla polilinea delle tappe. Sette categorie e i nomi dei paesi arrivano
+     * insieme e si separano leggendo i tag: su Overpass, che e' un servizio di
+     * cortesia, chiedere una volta invece di otto e' buona educazione.
+     *
+     * E' la richiesta piu' pesante che l'app fa — decine o centinaia di
+     * kilobyte — e per questo si fa **una volta per viaggio**, quando si importa
+     * l'itinerario, o quando la si chiede.
+     */
+    suspend fun aggiornaDintorni(
+        slug: String,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (!Rete.disponibile(context)) return@withContext false
+
+        val punti = archivio.puntiDintorni(slug)
+        if (punti.isEmpty()) return@withContext false
+
+        val corpo = Rete.posta(
+            indirizzo = Overpass.SERVIZIO,
+            corpo = Overpass.query(punti),
+            massimoCaratteri = Rete.MASSIMO_DINTORNI,
+        ) ?: return@withContext false
+
+        val dintorno = Overpass.leggi(corpo)
+        if (dintorno.poi.isEmpty() && dintorno.luoghi.isEmpty()) return@withContext false
+
+        archivio.salvaDintorni(slug, dintorno, adesso)
         true
     }
 }

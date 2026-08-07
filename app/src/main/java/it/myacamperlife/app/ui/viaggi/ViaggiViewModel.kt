@@ -12,7 +12,9 @@ import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Autonomia
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Categoria
+import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Coordinate
+import it.myacamperlife.app.dominio.Dintorni
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
@@ -20,6 +22,8 @@ import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.NomeFoto
 import it.myacamperlife.app.dominio.Percorso
+import it.myacamperlife.app.dominio.Poi
+import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StimaAutonomia
@@ -79,6 +83,9 @@ class ViaggiViewModel(
         val spese: List<Spesa> = emptyList(),
         val autonomia: Autonomia? = null,
         val tratte: Tratte = Tratte(),
+        val poi: List<Poi> = emptyList(),
+        /** Da dove si cerca nei dintorni: l'ultima posizione nota. */
+        val quiVicino: Coordinate? = null,
         val impostazioni: Impostazioni = Impostazioni(),
         /** L'ultimo contachilometri registrato: precompila la form. */
         val ultimoKm: Int? = null,
@@ -106,6 +113,21 @@ class ViaggiViewModel(
             }
         val giorni: List<LocalDate>
             get() = voci.map { it.istante.toLocalDate() }.distinct().sortedDescending()
+
+        /**
+         * Quante cose ci sono per categoria, da dove sei.
+         *
+         * Serve a non offrire categorie vuote: toccare "Campeggi" e trovare una
+         * lista bianca fa sembrare rotta l'app, quando invece li' non ci sono
+         * campeggi.
+         */
+        val perCategoria: Map<CategoriaPoi, Int>
+            get() = quiVicino?.let { Dintorni.quanti(poi, it.lat, it.lon) } ?: emptyMap()
+
+        fun vicini(categoria: CategoriaPoi?): List<PoiVicino> {
+            val da = quiVicino ?: return emptyList()
+            return Dintorni.vicini(poi, da.lat, da.lon, categoria)
+        }
     }
 
     /** Un messaggio da mostrare una volta e poi scartare. */
@@ -123,6 +145,7 @@ class ViaggiViewModel(
         data object ImpostazioniSalvate : Avviso
         data object ScortaAggiornata : Avviso
         data object ScortaNonAggiornata : Avviso
+        data object DintorniAggiornati : Avviso
     }
 
     private val _stato = MutableStateFlow(Stato())
@@ -176,6 +199,8 @@ class ViaggiViewModel(
                 ),
                 impostazioni = impostazioni,
                 tratte = archivio.tratte(slug),
+                poi = archivio.poi(slug),
+                quiVicino = archivio.dovePunto(slug),
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
             )
         }
@@ -191,6 +216,8 @@ class ViaggiViewModel(
                 autonomia = dati.autonomia,
                 impostazioni = dati.impostazioni,
                 tratte = dati.tratte,
+                poi = dati.poi,
+                quiVicino = dati.quiVicino,
                 ultimoKm = dati.ultimoKm,
             )
         }
@@ -206,6 +233,8 @@ class ViaggiViewModel(
         val autonomia: Autonomia?,
         val impostazioni: Impostazioni,
         val tratte: Tratte,
+        val poi: List<Poi>,
+        val quiVicino: Coordinate?,
         val ultimoKm: Int?,
     )
 
@@ -248,7 +277,10 @@ class ViaggiViewModel(
         // l'itinerario si importa a casa, dove il campo c'e'. Da qui in poi
         // sono un dato locale, e basta questa finestra per tutto il viaggio.
         esito.viaggio?.let { viaggio ->
-            if (scorte?.aggiornaTratte(viaggio.slug) == true) aggiornaViaggio(viaggio)
+            val scorte = scorte ?: return@let
+            val tratte = scorte.aggiornaTratte(viaggio.slug)
+            val dintorni = scorte.aggiornaDintorni(viaggio.slug)
+            if (tratte || dintorni) aggiornaViaggio(viaggio)
         }
     }
 
@@ -295,8 +327,11 @@ class ViaggiViewModel(
      */
     suspend fun preparaFoto(): File? {
         val slug = _stato.value.aperto?.slug ?: return null
+        val posizione = posizioni.ultimaNota()
         return withContext(Dispatchers.IO) {
-            val nome = NomeFoto.per(OffsetDateTime.now(), archivio.luogo(slug))
+            // Il nome porta il toponimo quando la scorta ce l'ha: "Bolsena" e
+            // non "Orvieto", che era solo l'ultimo check-in.
+            val nome = NomeFoto.per(OffsetDateTime.now(), archivio.dove(slug, posizione))
             File(archivio.cartellaFoto(slug), nome)
         }
     }
@@ -342,8 +377,9 @@ class ViaggiViewModel(
     /** Il file dove la fotocamera scrivera' la foto dello scontrino. */
     suspend fun preparaScontrino(): File? {
         val slug = _stato.value.aperto?.slug ?: return null
+        val posizione = posizioni.ultimaNota()
         return withContext(Dispatchers.IO) {
-            val nome = NomeFoto.scontrino(OffsetDateTime.now(), archivio.luogo(slug))
+            val nome = NomeFoto.scontrino(OffsetDateTime.now(), archivio.dove(slug, posizione))
             File(archivio.cartellaScontrini(slug), nome)
         }
     }
@@ -393,6 +429,28 @@ class ViaggiViewModel(
             it.copy(
                 inCorso = false,
                 avviso = if (meteo || tratte) Avviso.ScortaAggiornata else Avviso.ScortaNonAggiornata,
+            )
+        }
+    }
+
+    /**
+     * Riscarica i dintorni: punti di interesse e toponimi.
+     *
+     * A parte dalla scorta generale perche' e' la richiesta piu' pesante che
+     * l'app fa, e perche' ha senso rifarla quando l'itinerario cambia — non
+     * ogni volta che si aggiorna il meteo.
+     */
+    fun aggiornaDintorni() = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        val scorte = scorte ?: return@launch
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+
+        val fatto = scorte.aggiornaDintorni(viaggio.slug)
+        aggiornaViaggio(viaggio)
+        _stato.update {
+            it.copy(
+                inCorso = false,
+                avviso = if (fatto) Avviso.DintorniAggiornati else Avviso.ScortaNonAggiornata,
             )
         }
     }

@@ -10,13 +10,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Una GET e basta.
+ * Una GET, una POST, e basta.
  *
- * **Nessuna libreria HTTP.** `HttpURLConnection` sta dentro Android, e le due
- * richieste che questa app fa — il meteo e le tratte, entrambe una volta al
- * giorno o meno — non giustificano un paio di megabyte di dipendenza. Sarebbe
- * anche in contraddizione con l'aver tolto il riconoscimento del testo per
- * tenere l'APK leggero.
+ * **Nessuna libreria HTTP.** `HttpURLConnection` sta dentro Android, e le tre
+ * richieste che questa app fa — meteo una volta al giorno, tratte e dintorni una
+ * volta per itinerario — non giustificano un paio di megabyte di dipendenza.
+ * Sarebbe anche in contraddizione con l'aver tolto il riconoscimento del testo
+ * per tenere l'APK leggero.
  *
  * **Tutto ha un tetto**: connessione, lettura, e dimensione della risposta.
  * Una richiesta che non finisce e' peggio di una richiesta fallita, perche' la
@@ -25,26 +25,51 @@ import kotlinx.coroutines.withContext
 object Rete {
 
     /** Il corpo della risposta, o `null` per qualunque intoppo. */
-    suspend fun prendi(indirizzo: String): String? = withContext(Dispatchers.IO) {
+    suspend fun prendi(
+        indirizzo: String,
+        massimoCaratteri: Int = MASSIMO_CARATTERI,
+    ): String? = chiama(indirizzo, corpo = null, massimoCaratteri = massimoCaratteri)
+
+    /**
+     * Una POST con un corpo di testo. La vuole Overpass, la cui query e' troppo
+     * lunga per stare in un indirizzo.
+     */
+    suspend fun posta(
+        indirizzo: String,
+        corpo: String,
+        massimoCaratteri: Int = MASSIMO_CARATTERI,
+    ): String? = chiama(indirizzo, corpo, massimoCaratteri)
+
+    private suspend fun chiama(
+        indirizzo: String,
+        corpo: String?,
+        massimoCaratteri: Int,
+    ): String? = withContext(Dispatchers.IO) {
         var connessione: HttpURLConnection? = null
         try {
             connessione = (URL(indirizzo).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
+                requestMethod = if (corpo == null) "GET" else "POST"
                 connectTimeout = ATTESA_CONNESSIONE
-                readTimeout = ATTESA_LETTURA
+                readTimeout = if (corpo == null) ATTESA_LETTURA else ATTESA_LETTURA_LUNGA
                 instanceFollowRedirects = true
                 // I servizi pubblici gradiscono sapere chi chiama, e alcuni
                 // rifiutano le richieste senza.
                 setRequestProperty("User-Agent", AGENTE)
                 setRequestProperty("Accept", "application/json")
+                if (corpo != null) {
+                    doOutput = true
+                    setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+                }
             }
-            if (connessione.responseCode !in 200..299) return@withContext null
 
-            connessione.inputStream.bufferedReader(Charsets.UTF_8).use { lettore ->
-                val buffer = CharArray(MASSIMO_CARATTERI)
-                val letti = lettore.read(buffer, 0, MASSIMO_CARATTERI)
-                if (letti <= 0) null else String(buffer, 0, letti)
+            corpo?.let { testo ->
+                connessione.outputStream.use { flusso ->
+                    flusso.write(testo.toByteArray(Charsets.UTF_8))
+                }
             }
+
+            if (connessione.responseCode !in 200..299) return@withContext null
+            leggi(connessione, massimoCaratteri)
         } catch (e: IOException) {
             // Niente rete, DNS muto, timeout, certificato strano: da qui in su
             // sono tutti lo stesso caso, e il caso e' "si fa senza".
@@ -55,6 +80,24 @@ object Rete {
             connessione?.disconnect()
         }
     }
+
+    /**
+     * Legge fino al tetto, e **una risposta troncata vale come nessuna
+     * risposta**: mezzo JSON non si analizza, e restituirlo produrrebbe zero
+     * risultati facendo credere che il servizio non abbia trovato niente.
+     */
+    private fun leggi(connessione: HttpURLConnection, massimo: Int): String? =
+        connessione.inputStream.bufferedReader(Charsets.UTF_8).use { lettore ->
+            val testo = StringBuilder()
+            val buffer = CharArray(BLOCCO)
+            while (true) {
+                val letti = lettore.read(buffer)
+                if (letti <= 0) break
+                if (testo.length + letti > massimo) return null
+                testo.appendRange(buffer, 0, letti)
+            }
+            testo.toString().takeUnless { it.isEmpty() }
+        }
 
     /**
      * Se vale la pena provarci.
@@ -79,6 +122,22 @@ object Rete {
     /** Quindici per leggere: oltre, il briefing delle 19:00 aspetterebbe troppo. */
     private const val ATTESA_LETTURA = 15_000
 
+    /**
+     * Overpass elabora la query prima di rispondere, e una query larga ci mette
+     * un minuto. Non e' un'attesa che blocca qualcosa: succede in sottofondo
+     * mentre l'app resta usabile.
+     */
+    private const val ATTESA_LETTURA_LUNGA = 120_000
+
+    private const val BLOCCO = 16 * 1024
+
     /** Circa due megabyte: una risposta piu' grande di cosi' non e' la nostra. */
-    private const val MASSIMO_CARATTERI = 2_000_000
+    const val MASSIMO_CARATTERI = 2_000_000
+
+    /**
+     * I dintorni sono la risposta piu' grande: sette categorie e i toponimi di
+     * un corridoio di centinaia di chilometri. Sei megabyte di testo sono un
+     * tetto generoso e comunque limitato.
+     */
+    const val MASSIMO_DINTORNI = 6_000_000
 }

@@ -235,7 +235,7 @@ rete.
 
 | | Fase |
 |---|---|
-| Cercare intorno alla posizione: aree di sosta, campeggi, carico e scarico, distributori, supermercati, attrazioni | 7 |
+| Cercare intorno alla posizione: aree di sosta, campeggi, carico e scarico, acqua potabile, distributori, supermercati, attrazioni | 7 |
 | Ordinare per distanza e aprire il risultato nell'app di mappe | 7 |
 | Fare una domanda libera e avere una risposta ragionata con le fonti | 8 |
 | Ritrovare la risposta salvata quando si arriva sul posto, offline | 8 |

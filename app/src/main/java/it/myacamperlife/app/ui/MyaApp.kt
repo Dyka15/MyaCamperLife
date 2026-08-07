@@ -44,10 +44,12 @@ import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.Sistema
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.ui.diario.DiarioContent
+import it.myacamperlife.app.ui.esplora.EsploraContent
 import it.myacamperlife.app.ui.numeri.NumeriContent
 import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
 import it.myacamperlife.app.ui.viaggi.AzioniTappaDialog
@@ -67,6 +69,7 @@ private enum class Scheda(val etichetta: Int, val icona: Int) {
     VIAGGIO(R.string.scheda_viaggio, R.drawable.ic_tab_viaggio),
     DIARIO(R.string.scheda_diario, R.drawable.ic_tab_diario),
     NUMERI(R.string.scheda_numeri, R.drawable.ic_tab_numeri),
+    ESPLORA(R.string.scheda_esplora, R.drawable.ic_tab_esplora),
 }
 
 /**
@@ -77,8 +80,7 @@ private enum class Scheda(val etichetta: Int, val icona: Int) {
  * coerenti passando dall'una all'altra.
  *
  * Le schede compaiono solo dentro un viaggio: fuori non ci sarebbe niente da
- * separare. **Esplora** si aggiunge alla fase 7, quando avra' qualcosa da
- * mostrare.
+ * separare.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -283,12 +285,20 @@ fun MyaApp(vista: ViaggiViewModel) {
 
                 scheda == Scheda.DIARIO -> DiarioContent(voci = stato.voci, giorni = stato.giorni)
 
-                else -> NumeriContent(
+                scheda == Scheda.NUMERI -> NumeriContent(
                     consumo = stato.consumo,
                     autonomia = stato.autonomia,
                     conto = stato.conto,
                     kmConUnPieno = stato.kmConUnPieno,
                     onImpostaKm = { impostazioniAperte = true },
+                )
+
+                else -> EsploraContent(
+                    perCategoria = stato.perCategoria,
+                    risultati = stato::vicini,
+                    haScorta = stato.poi.isNotEmpty(),
+                    onScarica = vista::aggiornaDintorni,
+                    onApri = { vicino -> apriNellaMappa(contesto, vicino) },
                 )
             }
 
@@ -434,6 +444,26 @@ fun MyaApp(vista: ViaggiViewModel) {
 }
 
 /**
+ * Apre un punto di interesse nell'app di mappe.
+ *
+ * Un intent `geo:` e non un modulo di navigazione: Organic Maps e OsmAnd fanno
+ * quel lavoro meglio di quanto potremmo farlo noi, funzionano offline, e sono
+ * probabilmente gia' installati. Due righe invece di un gigabyte di grafo
+ * stradale.
+ */
+private fun apriNellaMappa(contesto: android.content.Context, vicino: PoiVicino) {
+    val lat = String.format(java.util.Locale.ROOT, "%.6f", vicino.poi.lat)
+    val lon = String.format(java.util.Locale.ROOT, "%.6f", vicino.poi.lon)
+    val etichetta = Uri.encode(vicino.poi.etichetta())
+    val intento = android.content.Intent(
+        android.content.Intent.ACTION_VIEW,
+        Uri.parse("geo:$lat,$lon?q=$lat,$lon($etichetta)"),
+    )
+    // Se non c'e' nessuna app di mappe non si fa niente, invece di cadere.
+    if (intento.resolveActivity(contesto.packageManager) != null) contesto.startActivity(intento)
+}
+
+/**
  * L'Uri con cui la fotocamera di sistema scrive nel nostro file.
  *
  * Passa dal FileProvider e non da un percorso: da Android 7 un `file://`
@@ -473,4 +503,5 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
     ViaggiViewModel.Avviso.ScortaAggiornata -> stringResource(R.string.scorta_aggiornata)
     ViaggiViewModel.Avviso.ScortaNonAggiornata -> stringResource(R.string.scorta_non_aggiornata)
+    ViaggiViewModel.Avviso.DintorniAggiornati -> stringResource(R.string.dintorni_aggiornati)
 }

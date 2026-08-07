@@ -516,6 +516,35 @@ solo per due cose, e per nessuna delle due è indispensabile:
 Con quel dataset a bordo, `/dove` e la denominazione delle foto diventano **✅ offline
 pieno**, non 🔶.
 
+**Come è andata a finire, in fase 7.** I toponimi e i punti di interesse non arrivano da un
+dataset dentro l'APK ma dalla stessa scorta della fase 6: **una richiesta a Overpass per
+viaggio**, in un corridoio di quindici chilometri intorno alla polilinea delle tappe, che
+riporta sia le sette categorie di POI sia i nomi dei paesi. Da quel momento tutto è locale
+e offline, esattamente come previsto.
+
+Tre ragioni, in ordine di peso:
+
+1. **Un estratto d'Italia costa dai dieci ai venti megabyte di APK** per servire un viaggio
+   che copre trecento chilometri. Avendo appena tolto il riconoscimento del testo per
+   tenere l'applicazione a nove megabyte, aggiungerne venti per lo stesso genere di
+   comodità sarebbe incoerente.
+2. **Il meccanismo esiste già ed è provato.** L'itinerario si importa a casa, dove il campo
+   c'è; è la stessa finestra in cui si prendono meteo e tratte. Un solo modo di fare le
+   cose invece di due.
+3. **Non ho potuto costruire l'estratto.** Geofabrik, GeoNames e Overpass sono tutti fuori
+   portata dall'ambiente in cui questo codice è stato scritto, quindi un dataset da
+   allegare non esisteva. È una limitazione mia, non un argomento tecnico, e va detta
+   insieme alle altre due.
+
+**Cosa si perde.** Se per un viaggio non c'è mai stata rete, Esplora non ha niente da
+mostrare e le foto tornano a portare il nome della tappa. La registrazione non peggiora di
+un millimetro — quella non ha mai dipeso dalla rete — ma il «✅ offline pieno» di questa
+sezione va letto come «offline pieno dopo il primo scarico».
+
+Il formato dei file è CSV come tutto il resto, quindi la variante con l'estratto allegato
+resta possibile in seguito **senza cambiare una riga del codice che legge**: basterebbe
+riempire `scorta/poi.csv` e `scorta/luoghi.csv` da un'altra parte.
+
 ---
 
 ## 6. Le funzioni generative
@@ -734,7 +763,7 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **4** | Spese: voci, categorie, modalità di pagamento, valuta estera, totali, foto scontrino | conto di fine viaggio |
 | **5** | Briefing serale 19:00 offline: raggruppamento tappe, avviso rifornimento, `BootReceiver`, watchdog, onboarding HyperOS | riavvii il telefono, alle 19:00 arriva |
 | **6** | Rete: scarico meteo alle 19:00, precalcolo tratte OSRM | il briefing porta il meteo, e i km di domani sono quelli veri |
-| **7** | Geocoding inverso offline (GeoNames) + POI offline da OSM | "cosa c'è vicino" in mezzo al nulla |
+| **7** | Esplora offline: POI e toponimi da Overpass, scaricati per viaggio | "cosa c'è vicino" in mezzo al nulla |
 | **8** | Client AI: Gemini con Grok di riserva, Esplora a due strati, giornate in prosa | l'ultima cosa che restava su Telegram |
 | **9** | Rifiniture: specchio SAF, dettato vocale, parser deterministico | |
 

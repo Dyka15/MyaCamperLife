@@ -4,13 +4,17 @@ import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Briefings
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Coordinate
+import it.myacamperlife.app.dominio.Dintorno
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.dominio.GiornoTappa
+import it.myacamperlife.app.dominio.Luoghi
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Modalita
+import it.myacamperlife.app.dominio.Overpass
+import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.Punto
 import it.myacamperlife.app.dominio.PuntoMeteo
 import it.myacamperlife.app.dominio.PuntoTratta
@@ -166,6 +170,91 @@ class Archivio(private val radice: File) {
     fun puntiTratte(slug: String): List<PuntoTratta> =
         tappe(slug).map { PuntoTratta(it.nome, it.lat, it.lon) }
 
+    // --- i dintorni: punti di interesse e toponimi -----------------------------
+
+    fun tabellaPoi(slug: String): Tabella =
+        Tabella(File(cartellaScorta(slug), PoiTabella.NOME_FILE), PoiTabella.COLONNE)
+
+    fun tabellaLuoghi(slug: String): Tabella =
+        Tabella(File(cartellaScorta(slug), LuoghiTabella.NOME_FILE), LuoghiTabella.COLONNE)
+
+    fun poi(slug: String): List<Poi> = tabellaPoi(slug).vive().mapNotNull { PoiTabella.poi(it) }
+
+    fun luoghi(slug: String): Luoghi =
+        Luoghi(tabellaLuoghi(slug).vive().mapNotNull { LuoghiTabella.luogo(it) })
+
+    /**
+     * Salva i dintorni scaricati.
+     *
+     * Righe accodate: riscaricare aggiorna quello che c'era, perche' l'`id` di
+     * un punto di interesse e' quello di OpenStreetMap e quello di un toponimo
+     * viene dal nome e dalla posizione.
+     */
+    fun salvaDintorni(slug: String, dintorno: Dintorno, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        val ts = ts(adesso)
+        if (dintorno.poi.isNotEmpty()) {
+            tabellaPoi(slug).accodaTutte(dintorno.poi.map { PoiTabella.riga(it, ts) })
+        }
+        if (dintorno.luoghi.isNotEmpty()) {
+            tabellaLuoghi(slug).accodaTutte(dintorno.luoghi.map { LuoghiTabella.riga(it, ts) })
+        }
+    }
+
+    /**
+     * I punti su cui centrare la richiesta dei dintorni: le tappe che devi
+     * ancora fare, piu' quella dove sei.
+     *
+     * Non tutte: la polilinea di un itinerario di cinquanta tappe metterebbe in
+     * ginocchio il server pubblico, e i dintorni delle tappe gia' fatte non
+     * servono piu' a niente.
+     */
+    fun puntiDintorni(slug: String, quanti: Int = Overpass.PUNTI_MASSIMI): List<Coordinate> {
+        val tappe = tappe(slug)
+        val corrente = Tappe.corrente(tappe)
+        val daFare = tappe.filter { it.stato == StatoTappa.DA_FARE }
+        return (listOfNotNull(corrente) + daFare)
+            .take(quanti)
+            .map { Coordinate(it.lat, it.lon) }
+    }
+
+    /**
+     * Come si chiama il posto dove sei, senza rete.
+     *
+     * Il toponimo vince sul nome della tappa quando c'e': "3 km da Bolsena"
+     * dice dove sei davvero, "Orvieto" dice dove hai fatto l'ultimo check-in, e
+     * fra i due il primo e' piu' onesto. Senza scorta di toponimi si ripiega
+     * sulla tappa, che e' come funzionava prima e funziona comunque.
+     */
+    fun dove(slug: String, posizione: Posizione?): String? {
+        if (posizione != null) {
+            luoghi(slug).nome(posizione.lat, posizione.lon)?.let { return it }
+        }
+        return luogo(slug)
+    }
+
+    /**
+     * Da dove cercare nei dintorni: l'ultimo punto registrato, o la tappa
+     * corrente, o la prima tappa dell'itinerario.
+     *
+     * Tre ripieghi in fila perche' Esplora deve dare una risposta anche appena
+     * importato un itinerario, prima di aver registrato qualunque cosa: la prima
+     * tappa e' dove sarai, ed e' meglio di una schermata vuota.
+     */
+    fun dovePunto(slug: String): Coordinate? {
+        punti(slug).lastOrNull()?.let { return Coordinate(it.lat, it.lon) }
+        val tappe = tappe(slug)
+        val riferimento = Tappe.corrente(tappe) ?: tappe.firstOrNull() ?: return null
+        return Coordinate(riferimento.lat, riferimento.lon)
+    }
+
+    /** La stessa cosa con la distanza dentro: "3 km da Bolsena". */
+    fun doveDetto(slug: String, posizione: Posizione?): String? {
+        if (posizione != null) {
+            luoghi(slug).descrizione(posizione.lat, posizione.lon)?.let { return it }
+        }
+        return luogo(slug)
+    }
+
     // --- viaggi -------------------------------------------------------------
 
     fun viaggi(): List<Viaggio> = (cartellaViaggi().listFiles() ?: emptyArray())
@@ -312,7 +401,7 @@ class Archivio(private val radice: File) {
                 Csv.ID to nuovoId(),
                 Csv.TS to ts(adesso),
                 SpostamentiTabella.GENERE to SpostamentiTabella.POSIZIONE,
-                SpostamentiTabella.TAPPA to Csv.testo(luogo(slug)),
+                SpostamentiTabella.TAPPA to Csv.testo(dove(slug, posizione)),
                 SpostamentiTabella.LAT to coordinata(posizione.lat),
                 SpostamentiTabella.LON to coordinata(posizione.lon),
                 SpostamentiTabella.NOTA to Csv.testo(nota),
@@ -334,7 +423,7 @@ class Archivio(private val radice: File) {
                 Csv.ID to nuovoId(),
                 Csv.TS to ts(adesso),
                 NoteTabella.TESTO to pulito,
-                NoteTabella.TAPPA to Csv.testo(luogo(slug)),
+                NoteTabella.TAPPA to Csv.testo(dove(slug, posizione)),
                 NoteTabella.LAT to coordinata(posizione?.lat),
                 NoteTabella.LON to coordinata(posizione?.lon),
             ),
@@ -355,7 +444,7 @@ class Archivio(private val radice: File) {
                 Csv.TS to ts(adesso),
                 FotoTabella.FILE to Csv.testo(nomeFile),
                 FotoTabella.DIDASCALIA to Csv.testo(didascalia),
-                FotoTabella.TAPPA to Csv.testo(luogo(slug)),
+                FotoTabella.TAPPA to Csv.testo(dove(slug, posizione)),
                 FotoTabella.LAT to coordinata(posizione?.lat),
                 FotoTabella.LON to coordinata(posizione?.lon),
             ),
@@ -387,7 +476,7 @@ class Archivio(private val radice: File) {
                 RifornimentiTabella.LITRI to Csv.numero(litri, 2),
                 RifornimentiTabella.EURO to (euro?.let { Csv.numero(it) } ?: ""),
                 RifornimentiTabella.PIENO to Csv.booleano(pieno),
-                RifornimentiTabella.LUOGO to Csv.testo(luogo(slug)),
+                RifornimentiTabella.LUOGO to Csv.testo(dove(slug, posizione)),
                 RifornimentiTabella.LAT to coordinata(posizione?.lat),
                 RifornimentiTabella.LON to coordinata(posizione?.lon),
             ),
@@ -424,7 +513,7 @@ class Archivio(private val radice: File) {
             descrizione = Csv.testo(descrizione).takeUnless { it.isEmpty() },
             valuta = valuta.trim().uppercase().ifEmpty { Spesa.EURO },
             cambio = cambio,
-            tappa = luogo(slug),
+            tappa = dove(slug, posizione),
             scontrino = scontrino,
         )
         tabellaSpese(slug).accoda(
@@ -651,7 +740,12 @@ class Archivio(private val radice: File) {
             .lastOrNull { it.genere == Genere.ARRIVO && it.testo.isNotBlank() }
             ?.testo
 
-    /** Dove sei ora, secondo l'itinerario: serve a nominare foto e note. */
+    /**
+     * Dove sei secondo l'**itinerario**: il nome dell'ultima tappa spuntata.
+     *
+     * E' il ripiego di [dove], non il primo posto dove guardare: dice dove hai
+     * fatto l'ultimo check-in, che non e' necessariamente dove sei.
+     */
     fun luogo(slug: String): String? = Tappe.corrente(tappe(slug))?.nome
 
     // --- utilita' -----------------------------------------------------------
@@ -782,6 +876,31 @@ class Archivio(private val radice: File) {
             appendLine("| `da_lat`, `da_lon`, `a_lat`, `a_lon` | I due capi. Sono questi a identificare la tratta, non i nomi |")
             appendLine("| `km` | Chilometri su strada |")
             appendLine("| `minuti` | Tempo di guida stimato |")
+            appendLine()
+            appendLine("## scorta/poi.csv")
+            appendLine()
+            appendLine("I punti di interesse lungo l'itinerario, presi da OpenStreetMap quando")
+            appendLine("c'era rete. Sette categorie e niente altro: quello che un camper cerca.")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `id` | L'identificativo OpenStreetMap, `node/123456`: riscaricare aggiorna invece di duplicare |")
+            appendLine("| `nome` | Come si chiama, quando ha un nome |")
+            appendLine("| `categoria` | `sosta`, `campeggio`, `servizio`, `acqua`, `carburante`, `spesa`, `attrazione` |")
+            appendLine("| `lat`, `lon` | Il punto, o il centro se in OSM e' un poligono |")
+            appendLine("| `dettaglio` | Quello che cambia la decisione: il gestore, se e' a pagamento, se e' sempre aperto |")
+            appendLine()
+            appendLine("## scorta/luoghi.csv")
+            appendLine()
+            appendLine("I nomi dei posti abitati lungo l'itinerario. Servono a dire dove sei")
+            appendLine("**senza rete**: e' con questi che una foto si chiama `_Bolsena` invece di")
+            appendLine("portare il nome dell'ultimo check-in.")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `nome` | Il toponimo |")
+            appendLine("| `lat`, `lon` | Il centro abitato |")
+            appendLine("| `abitanti` | Serve a scegliere fra due nomi ugualmente vicini: il paese vince sulla frazione |")
             appendLine()
             appendLine("## scorta/meteo.json")
             appendLine()

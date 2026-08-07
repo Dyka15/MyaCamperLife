@@ -32,6 +32,19 @@
         android:required="false" />
 
 
+    <!-- Da Android 11 un'app non vede le altre se non lo dichiara, e
+         `resolveActivity` risponde `null` anche quando l'app c'e'. Queste due
+         dichiarazioni sono il minimo indispensabile: aprire una tappa in una
+         mappa, e portare l'utente nella schermata di avvio automatico di
+         Xiaomi quando il riepilogo non arriva. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <package android:name="com.miui.securitycenter" />
+    </queries>
+
     <application
         android:name=".MyaApplication"
         android:allowBackup="true"

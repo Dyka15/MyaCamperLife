@@ -67,9 +67,16 @@ object Sistema {
             .setData(Uri.fromParts("package", context.packageName, null)),
     )
 
+    /**
+     * Si prova ad aprire, e si vede com'e' andata.
+     *
+     * **Non si controlla prima con `resolveActivity`**: da Android 11 quel
+     * controllo risponde `null` per le app che non abbiamo dichiarato nel
+     * manifest, anche quando esistono, e ci farebbe rinunciare a schermate
+     * raggiungibilissime. Provare e catturare e' l'unico modo affidabile.
+     */
     private fun apri(context: Context, intento: Intent): Boolean {
         intento.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (intento.resolveActivity(context.packageManager) == null) return false
         return try {
             context.startActivity(intento)
             true

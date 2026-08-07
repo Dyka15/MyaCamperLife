@@ -25,7 +25,7 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1–6 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
+**Fasi 1–7 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
 del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — meteo e
 chilometri compresi. **Nessuna schermata aspetta la rete:** quello che serve si prende in
 anticipo.
@@ -93,12 +93,28 @@ La scorta — l'unica parte che tocca la rete, e la tocca **prima**:
 - «Aggiorna adesso» nelle impostazioni, per quando sai di stare per entrare in una zona
   senza campo
 
-Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
-`spese.csv`, `scorta/tratte.csv`, `scorta/meteo.json`, `impostazioni.json` e `FORMATI.md`
-che spiega le colonne. I permessi sono la posizione, le notifiche e la rete, e nessuna
-lettura dipende dall'ultimo.
+Esplora — cosa c'è nei dintorni, **senza rete**:
 
-Restano le fasi 7–9: punti di interesse offline, client AI, rifiniture.
+- sette categorie che servono in camper: aree di sosta, campeggi, carico e scarico, acqua
+  potabile, distributori, supermercati, cose da vedere
+- ordinate per distanza da dove sei, con quante ce ne sono per categoria. Le categorie
+  vuote non compaiono: una lista bianca fa sembrare rotta l'app
+- un tocco apre il posto in Organic Maps o OsmAnd con un intent `geo:`. La navigazione la
+  fanno loro, meglio di quanto potremmo farla noi e già offline
+- i dintorni si scaricano da OpenStreetMap **una volta per viaggio**, in un corridoio di
+  quindici chilometri intorno all'itinerario, e poi si consultano senza rete
+
+E l'app sa **dire dove sei senza rete**: insieme ai punti di interesse arrivano i nomi dei
+paesi lungo il percorso, e da quel momento una foto si chiama `foto_..._Bolsena.jpg` anche
+se l'ultimo check-in era a Orvieto. Fra due nomi ugualmente vicini vince il paese più
+grande — «3 km da Orvieto» dice qualcosa, «3 km da Sugano» no.
+
+Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
+`spese.csv`, `scorta/tratte.csv`, `scorta/poi.csv`, `scorta/luoghi.csv`,
+`scorta/meteo.json`, `impostazioni.json` e `FORMATI.md` che spiega le colonne. I permessi
+sono la posizione, le notifiche e la rete, e nessuna lettura dipende dall'ultimo.
+
+Restano le fasi 8–9: client AI, rifiniture.
 
 ## Documenti
 
