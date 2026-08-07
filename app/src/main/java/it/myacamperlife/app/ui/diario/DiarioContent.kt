@@ -111,6 +111,7 @@ private fun etichetta(voce: Voce): String = stringResource(
         Genere.NOTA -> R.string.genere_nota
         Genere.FOTO -> R.string.genere_foto
         Genere.RIFORNIMENTO -> R.string.genere_rifornimento
+        Genere.SPESA -> R.string.genere_spesa
     },
 )
 

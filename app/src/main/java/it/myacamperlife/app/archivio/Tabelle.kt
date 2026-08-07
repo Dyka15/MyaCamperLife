@@ -54,6 +54,40 @@ object FotoTabella {
 /** Coordinate, quando il GPS le ha date. */
 data class Posizione(val lat: Double, val lon: Double)
 
+/**
+ * Le spese del viaggio.
+ *
+ * Tre colonne per un solo importo — [IMPORTO], [VALUTA], [CAMBIO] — e una
+ * quarta, [EURO], che e' il loro prodotto. La ridondanza e' voluta: `importo`
+ * e' quello che c'era scritto sullo scontrino e non cambia mai, `euro` e'
+ * quello che serve a un foglio di calcolo per fare una somma senza sapere
+ * niente di cambi.
+ *
+ * Il carburante non sta qui: ha la sua tabella, che ne chiede gia' l'importo.
+ */
+object SpeseTabella {
+    const val NOME_FILE = "spese.csv"
+    const val CARTELLA = "scontrini"
+
+    const val CATEGORIA = "categoria"
+    const val DESCRIZIONE = "descrizione"
+    const val IMPORTO = "importo"
+    const val VALUTA = "valuta"
+    const val CAMBIO = "cambio"
+    const val EURO = "euro"
+    const val MODALITA = "modalita"
+    const val TAPPA = "tappa"
+    const val LAT = "lat"
+    const val LON = "lon"
+    const val SCONTRINO = "scontrino"
+
+    val COLONNE = listOf(
+        Csv.ID, Csv.TS, Csv.CANCELLATO,
+        CATEGORIA, DESCRIZIONE, IMPORTO, VALUTA, CAMBIO, EURO, MODALITA,
+        TAPPA, LAT, LON, SCONTRINO,
+    )
+}
+
 object RifornimentiTabella {
     const val NOME_FILE = "rifornimenti.csv"
 

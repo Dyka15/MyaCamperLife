@@ -17,10 +17,21 @@ import java.time.format.DateTimeFormatter
  */
 object NomeFoto {
 
-    fun per(istante: OffsetDateTime, luogo: String? = null): String {
+    fun per(istante: OffsetDateTime, luogo: String? = null): String =
+        col("foto", istante, luogo)
+
+    /**
+     * Lo scontrino segue la stessa regola con un altro prefisso, e vive in una
+     * cartella sua: e' un documento, non un ricordo, e mescolarlo alle foto
+     * renderebbe spiacevole sfogliare il viaggio.
+     */
+    fun scontrino(istante: OffsetDateTime, luogo: String? = null): String =
+        col("scontrino", istante, luogo)
+
+    private fun col(prefisso: String, istante: OffsetDateTime, luogo: String?): String {
         val quando = istante.format(FORMATO)
         val dove = luogo?.let { ripulisci(it) }?.takeUnless { it.isEmpty() }
-        return if (dove == null) "foto_$quando.jpg" else "foto_${quando}_$dove.jpg"
+        return if (dove == null) "${prefisso}_$quando.jpg" else "${prefisso}_${quando}_$dove.jpg"
     }
 
     /**

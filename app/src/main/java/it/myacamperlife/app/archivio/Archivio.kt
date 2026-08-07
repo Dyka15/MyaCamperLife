@@ -1,10 +1,15 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
+import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Genere
+import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Punto
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.Spesa
+import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
@@ -66,8 +71,14 @@ class Archivio(private val radice: File) {
     fun tabellaRifornimenti(slug: String): Tabella =
         Tabella(File(cartellaViaggio(slug), RifornimentiTabella.NOME_FILE), RifornimentiTabella.COLONNE)
 
+    fun tabellaSpese(slug: String): Tabella =
+        Tabella(File(cartellaViaggio(slug), SpeseTabella.NOME_FILE), SpeseTabella.COLONNE)
+
     fun cartellaFoto(slug: String): File =
         File(cartellaViaggio(slug), FotoTabella.CARTELLA).apply { mkdirs() }
+
+    fun cartellaScontrini(slug: String): File =
+        File(cartellaViaggio(slug), SpeseTabella.CARTELLA).apply { mkdirs() }
 
     fun diario(slug: String): Diario = Diario(File(cartellaViaggio(slug), "diario.md"))
 
@@ -300,6 +311,61 @@ class Archivio(private val radice: File) {
         aggiornaDiario(slug, adesso.toLocalDate())
     }
 
+    /**
+     * Registra una spesa.
+     *
+     * Si scrive quello che c'era sullo scontrino — importo e valuta — e il
+     * cambio applicato in quel momento. La colonna `euro` e' il prodotto dei
+     * due, calcolato qui una volta sola: un foglio di calcolo la somma senza
+     * dover sapere niente di valute.
+     */
+    fun registraSpesa(
+        slug: String,
+        categoria: Categoria,
+        importo: Double,
+        modalita: Modalita,
+        descrizione: String? = null,
+        valuta: String = Spesa.EURO,
+        cambio: Double? = null,
+        scontrino: String? = null,
+        posizione: Posizione? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Spesa {
+        val spesa = Spesa(
+            id = nuovoId(),
+            istante = adesso,
+            categoria = categoria,
+            importo = importo,
+            modalita = modalita,
+            descrizione = Csv.testo(descrizione).takeUnless { it.isEmpty() },
+            valuta = valuta.trim().uppercase().ifEmpty { Spesa.EURO },
+            cambio = cambio,
+            tappa = luogo(slug),
+            scontrino = scontrino,
+        )
+        tabellaSpese(slug).accoda(
+            mapOf(
+                Csv.ID to spesa.id,
+                Csv.TS to ts(adesso),
+                SpeseTabella.CATEGORIA to spesa.categoria.codice,
+                SpeseTabella.DESCRIZIONE to Csv.testo(spesa.descrizione),
+                SpeseTabella.IMPORTO to Csv.numero(spesa.importo),
+                SpeseTabella.VALUTA to spesa.valuta,
+                // Quattro decimali: un cambio a due arrotonderebbe di piu' di
+                // quanto valga la spesa che sta convertendo.
+                SpeseTabella.CAMBIO to (spesa.cambio?.let { Csv.numero(it, 4) } ?: ""),
+                SpeseTabella.EURO to Csv.numero(spesa.euro),
+                SpeseTabella.MODALITA to spesa.modalita.codice,
+                SpeseTabella.TAPPA to Csv.testo(spesa.tappa),
+                SpeseTabella.LAT to coordinata(posizione?.lat),
+                SpeseTabella.LON to coordinata(posizione?.lon),
+                SpeseTabella.SCONTRINO to Csv.testo(spesa.scontrino),
+            ),
+        )
+        aggiornaDiario(slug, adesso.toLocalDate())
+        return spesa
+    }
+
     // --- consumi e autonomia -------------------------------------------------
 
     fun rifornimenti(slug: String): List<Rifornimento> = tabellaRifornimenti(slug)
@@ -326,6 +392,55 @@ class Archivio(private val radice: File) {
 
     fun consumo(slug: String): Consumo = Consumi.calcola(rifornimenti(slug))
 
+    // --- spese ---------------------------------------------------------------
+
+    /**
+     * Le spese registrate.
+     *
+     * Gli euro si **ricalcolano** da importo e cambio invece di leggere la
+     * colonna `euro`: se qualcuno corregge il cambio in un foglio di calcolo,
+     * il totale lo segue. La colonna resta per chi legge il file, non per
+     * l'app.
+     */
+    fun spese(slug: String): List<Spesa> = tabellaSpese(slug)
+        .vive()
+        .mapNotNull { riga ->
+            val id = riga.id ?: return@mapNotNull null
+            val istante = runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull()
+                ?: return@mapNotNull null
+            val importo = riga.numero(SpeseTabella.IMPORTO) ?: return@mapNotNull null
+            Spesa(
+                id = id,
+                istante = istante,
+                categoria = Categoria.da(riga.testo(SpeseTabella.CATEGORIA)),
+                importo = importo,
+                modalita = Modalita.da(riga.testo(SpeseTabella.MODALITA)),
+                descrizione = riga.testo(SpeseTabella.DESCRIZIONE),
+                valuta = riga.testo(SpeseTabella.VALUTA)?.uppercase() ?: Spesa.EURO,
+                cambio = riga.numero(SpeseTabella.CAMBIO),
+                tappa = riga.testo(SpeseTabella.TAPPA),
+                scontrino = riga.testo(SpeseTabella.SCONTRINO),
+            )
+        }
+        .sortedBy { it.istante }
+
+    /**
+     * Il conto del viaggio: le spese piu' il carburante.
+     *
+     * Il carburante arriva dai rifornimenti e non dalle spese, perche' e' li'
+     * che lo si registra. E' l'unico punto in cui le due tabelle si toccano.
+     */
+    fun conto(slug: String): Conto {
+        val rifornimenti = rifornimenti(slug)
+        return Spese.conta(
+            spese = spese(slug),
+            carburante = rifornimenti.sumOf { it.euro ?: 0.0 },
+            giorniDelCarburante = rifornimenti
+                .filter { it.euro != null }
+                .map { it.istante.toLocalDate() },
+        )
+    }
+
     /**
      * Tutti i punti con coordinate registrati nel viaggio: check-in, posizioni,
      * note, foto, rifornimenti.
@@ -348,6 +463,7 @@ class Archivio(private val radice: File) {
         raccogli(tabellaNote(slug).vive(), NoteTabella.LAT, NoteTabella.LON)
         raccogli(tabellaFoto(slug).vive(), FotoTabella.LAT, FotoTabella.LON)
         raccogli(tabellaRifornimenti(slug).vive(), RifornimentiTabella.LAT, RifornimentiTabella.LON)
+        raccogli(tabellaSpese(slug).vive(), SpeseTabella.LAT, SpeseTabella.LON)
     }.sortedBy { it.istante }
 
     // --- impostazioni --------------------------------------------------------
@@ -372,6 +488,7 @@ class Archivio(private val radice: File) {
         note = tabellaNote(slug).vive(),
         foto = tabellaFoto(slug).vive(),
         rifornimenti = tabellaRifornimenti(slug).vive(),
+        spese = tabellaSpese(slug).vive(),
     )
 
     fun aggiornaDiario(slug: String, giorno: LocalDate) {
@@ -498,6 +615,25 @@ class Archivio(private val radice: File) {
             appendLine("| `pieno` | `si` se il serbatoio e' stato riempito. Solo fra due pieni il consumo e' calcolabile |")
             appendLine("| `luogo` | Dove eri, secondo l'itinerario |")
             appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")
+            appendLine()
+            appendLine("## spese.csv")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `categoria` | `sosta`, `pedaggi`, `spesa`, `ristorante`, `visite`, `trasporti`, `mezzo`, `altro` |")
+            appendLine("| `descrizione` | Testo libero, su una riga sola |")
+            appendLine("| `importo` | Quanto c'era scritto sullo scontrino, nella sua valuta |")
+            appendLine("| `valuta` | Sigla a tre lettere. `EUR` se non e' scritto niente |")
+            appendLine("| `cambio` | Quanti euro vale un'unita' di `valuta`, al momento della spesa. Vuoto per l'euro |")
+            appendLine("| `euro` | `importo` per `cambio`. E' una comodita' per il foglio di calcolo: **la verita' sono `importo` e `cambio`**, e l'app rifa' il conto ogni volta che legge |")
+            appendLine("| `modalita` | `contanti`, `pos` oppure `carta` |")
+            appendLine("| `tappa` | Dove eri, secondo l'itinerario |")
+            appendLine("| `lat`, `lon` | Coordinate, se il GPS le aveva |")
+            appendLine("| `scontrino` | Nome del file nella sottocartella `scontrini/` |")
+            appendLine()
+            appendLine("Il carburante non sta qui: sta in `rifornimenti.csv`, che ne chiede gia'")
+            appendLine("l'importo. Il conto di fine viaggio somma le due tabelle, e tenerle")
+            appendLine("separate e' l'unico modo perche' non conti due volte lo stesso pieno.")
             appendLine()
             appendLine("## impostazioni.json")
             appendLine()

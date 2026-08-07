@@ -59,6 +59,7 @@ object VociDelGiorno {
         note: List<Riga>,
         foto: List<Riga>,
         rifornimenti: List<Riga> = emptyList(),
+        spese: List<Riga> = emptyList(),
     ): List<Voce> = buildList {
         spostamenti.forEach { riga ->
             val istante = istante(riga) ?: return@forEach
@@ -93,6 +94,17 @@ object VociDelGiorno {
             val istante = istante(riga) ?: return@forEach
             add(Voce(istante, Genere.RIFORNIMENTO, descrizioneRifornimento(riga)))
         }
+        spese.forEach { riga ->
+            val istante = istante(riga) ?: return@forEach
+            add(
+                Voce(
+                    istante = istante,
+                    genere = Genere.SPESA,
+                    testo = descrizioneSpesa(riga),
+                    allegato = riga.testo(SpeseTabella.SCONTRINO),
+                ),
+            )
+        }
     }.sortedBy { it.istante }
 
     /**
@@ -116,6 +128,34 @@ object VociDelGiorno {
         ).joinToString(", ")
 
         return if (quanto.isEmpty()) "$testa$dove" else "$testa$dove: $quanto"
+    }
+
+    /**
+     * "Sosta — area Il Cipresso: 18,00 EUR (contanti)", e in valuta estera
+     * "ristorante: 45,00 CHF = 47,70 EUR (carta)".
+     *
+     * Una spesa estera porta nel diario **tutti e due i numeri**: quello dello
+     * scontrino, che e' l'unico verificabile, e quello in euro, che e' l'unico
+     * confrontabile.
+     */
+    private fun descrizioneSpesa(riga: Riga): String {
+        val categoria = riga.testo(SpeseTabella.CATEGORIA) ?: "spesa"
+        val descrizione = riga.testo(SpeseTabella.DESCRIZIONE)
+        val importo = riga.numero(SpeseTabella.IMPORTO)
+        val valuta = riga.testo(SpeseTabella.VALUTA) ?: "EUR"
+        val euro = riga.numero(SpeseTabella.EURO)
+        val modalita = riga.testo(SpeseTabella.MODALITA)
+
+        val cosa = categoria + (descrizione?.let { " — $it" }.orEmpty())
+        val quanto = when {
+            importo == null -> null
+            valuta.equals("EUR", ignoreCase = true) -> "${Csv.numero(importo)} €"
+            euro != null -> "${Csv.numero(importo)} $valuta = ${Csv.numero(euro)} €"
+            else -> "${Csv.numero(importo)} $valuta"
+        }
+        val come = modalita?.let { " ($it)" }.orEmpty()
+
+        return if (quanto == null) cosa else "$cosa: $quanto$come"
     }
 
     /** I giorni che hanno almeno una voce. */

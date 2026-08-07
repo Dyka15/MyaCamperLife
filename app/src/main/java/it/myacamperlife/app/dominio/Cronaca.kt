@@ -14,7 +14,7 @@ data class Voce(
     val allegato: String? = null,
 )
 
-enum class Genere { ARRIVO, POSIZIONE, NOTA, FOTO, RIFORNIMENTO }
+enum class Genere { ARRIVO, POSIZIONE, NOTA, FOTO, RIFORNIMENTO, SPESA }
 
 /**
  * Compone la sezione di diario di una giornata a partire dalle sue voci.
@@ -66,6 +66,7 @@ object Cronaca {
         // ed euro richiede le regole del CSV, che stanno nell'archivio, e il
         // dominio non deve dipendere da quello.
         Genere.RIFORNIMENTO -> voce.testo.ifBlank { "rifornimento" }
+        Genere.SPESA -> voce.testo.ifBlank { "spesa" }
         Genere.FOTO -> {
             val didascalia = voce.testo.takeUnless { it.isBlank() }
             val file = voce.allegato

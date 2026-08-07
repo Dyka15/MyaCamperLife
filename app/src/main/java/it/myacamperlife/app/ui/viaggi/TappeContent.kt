@@ -49,6 +49,7 @@ fun TappeContent(
     onFoto: () -> Unit,
     onNota: () -> Unit,
     onLitri: () -> Unit,
+    onSpesa: () -> Unit,
     onTappa: (Tappa) -> Unit,
 ) {
     LazyColumn(
@@ -57,7 +58,7 @@ fun TappeContent(
     ) {
         item {
             Testata(corrente, prossima)
-            AzioniRapide(onPosizione, onFoto, onNota, onLitri)
+            AzioniRapide(onPosizione, onFoto, onNota, onLitri, onSpesa)
             HorizontalDivider()
         }
 
@@ -115,26 +116,39 @@ private fun AzioniRapide(
     onFoto: () -> Unit,
     onNota: () -> Unit,
     onLitri: () -> Unit,
+    onSpesa: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         AzioneRapida(R.drawable.ic_posizione, R.string.azione_posizione, onPosizione)
         AzioneRapida(R.drawable.ic_foto, R.string.azione_foto, onFoto)
         AzioneRapida(R.drawable.ic_nota, R.string.azione_nota, onNota)
         AzioneRapida(R.drawable.ic_litri, R.string.azione_litri, onLitri)
+        AzioneRapida(R.drawable.ic_spesa, R.string.azione_spesa, onSpesa)
     }
 }
 
+/**
+ * Cinque azioni su una riga: il riempimento interno del pulsante e' ridotto
+ * perche' su uno schermo stretto le etichette non vadano a capo.
+ */
 @Composable
 private fun AzioneRapida(icona: Int, etichetta: Int, onTocco: () -> Unit) {
-    TextButton(onClick = onTocco) {
+    TextButton(
+        onClick = onTocco,
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(painter = painterResource(icona), contentDescription = null)
-            Text(stringResource(etichetta), style = MaterialTheme.typography.labelMedium)
+            Text(
+                stringResource(etichetta),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+            )
         }
     }
 }

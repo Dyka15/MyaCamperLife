@@ -43,4 +43,13 @@ class NomeFotoTest {
 
         assertEquals("foto_20260806_090503.jpg", NomeFoto.per(mattina))
     }
+
+    @Test
+    fun `lo scontrino ha lo stesso schema con un altro prefisso`() {
+        assertEquals("scontrino_20260806_143012.jpg", NomeFoto.scontrino(istante))
+        assertEquals(
+            "scontrino_20260806_143012_Orvieto.jpg",
+            NomeFoto.scontrino(istante, "Orvieto"),
+        )
+    }
 }

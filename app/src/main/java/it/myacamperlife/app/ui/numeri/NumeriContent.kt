@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -23,7 +24,13 @@ import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.dominio.Autonomia
 import it.myacamperlife.app.dominio.Consumo
+import it.myacamperlife.app.dominio.Conto
+import it.myacamperlife.app.dominio.Quota
 import it.myacamperlife.app.dominio.Segmento
+import it.myacamperlife.app.ui.viaggi.etichettaCategoria
+import it.myacamperlife.app.ui.viaggi.etichettaModalita
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * La scheda Numeri: autonomia e consumi.
@@ -36,6 +43,7 @@ import it.myacamperlife.app.dominio.Segmento
 fun NumeriContent(
     consumo: Consumo,
     autonomia: Autonomia?,
+    conto: Conto,
     kmConUnPieno: Int?,
     onImpostaKm: () -> Unit,
 ) {
@@ -46,6 +54,40 @@ fun NumeriContent(
     ) {
         item { AutonomiaCard(autonomia, kmConUnPieno, onImpostaKm) }
         item { ConsumoCard(consumo) }
+        item { ContoCard(conto) }
+
+        if (!conto.vuoto) {
+            gruppo(R.string.conto_per_categoria, conto.perCategoria, conto.spese) {
+                stringResource(etichettaCategoria(it))
+            }
+            gruppo(R.string.conto_per_modalita, conto.perModalita, conto.spese) {
+                stringResource(etichettaModalita(it))
+            }
+            gruppo(R.string.conto_per_giorno, conto.perGiorno.asReversed(), conto.spese) {
+                it.format(GIORNO)
+            }
+
+            if (conto.valute.isNotEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.conto_valute),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                items(conto.valute) { cambiato ->
+                    RigaValore(
+                        etichetta = cambiato.valuta,
+                        valore = stringResource(
+                            R.string.conto_valuta_riga,
+                            decimale(cambiato.importo, 2),
+                            cambiato.valuta,
+                            decimale(cambiato.euro, 2),
+                        ),
+                    )
+                }
+            }
+        }
 
         if (consumo.segmenti.isNotEmpty()) {
             item {
@@ -215,3 +257,115 @@ private fun Spiegazione(testo: String, azione: String? = null, onAzione: (() -> 
 private fun decimale(valore: Double, cifre: Int): String = "%.${cifre}f".format(valore)
 
 private fun arrotonda(valore: Double): Int = Math.round(valore).toInt()
+
+/**
+ * Il conto: spese e carburante, e la loro somma.
+ *
+ * I due numeri restano separati perche' vengono da due gesti diversi — la
+ * spesa la registri, il carburante lo registri coi litri — e vederli insieme
+ * spiega da solo perche' il totale non e' quello che ti aspettavi.
+ */
+@Composable
+private fun ContoCard(conto: Conto) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.conto_titolo),
+                style = MaterialTheme.typography.titleMedium,
+            )
+
+            if (conto.vuoto) {
+                Spiegazione(testo = stringResource(R.string.conto_vuoto))
+                return@Column
+            }
+
+            Text(
+                stringResource(R.string.conto_totale, decimale(conto.totale, 2)),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            RigaValore(
+                stringResource(R.string.conto_spese),
+                stringResource(R.string.conto_totale, decimale(conto.spese, 2)),
+            )
+            RigaValore(
+                stringResource(R.string.conto_carburante),
+                stringResource(R.string.conto_totale, decimale(conto.carburante, 2)),
+            )
+            conto.alGiorno?.let { media ->
+                Text(
+                    stringResource(R.string.conto_al_giorno, decimale(media, 2), conto.giorni),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            Text(
+                stringResource(R.string.conto_carburante_a_parte),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Una sezione del conto: titolo e righe, ciascuna con la sua barretta.
+ *
+ * Le barrette sono in proporzione alle **spese**, non al totale col
+ * carburante: sono fette di quella torta, e confrontarle con un numero di cui
+ * non fanno parte darebbe percentuali che non tornano.
+ */
+private fun <T> LazyListScope.gruppo(
+    titolo: Int,
+    quote: List<Quota<T>>,
+    totale: Double,
+    etichetta: @Composable (T) -> String,
+) {
+    if (quote.isEmpty()) return
+
+    item {
+        Text(
+            stringResource(titolo),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+    items(quote) { quota -> RigaQuota(etichetta(quota.chiave), quota, totale) }
+}
+
+@Composable
+private fun <T> RigaQuota(etichetta: String, quota: Quota<T>, totale: Double) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                etichetta,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                stringResource(R.string.conto_totale, decimale(quota.euro, 2)),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        LinearProgressIndicator(
+            progress = { quota.frazione(totale) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp, bottom = 2.dp),
+        )
+        Text(
+            text = if (quota.voci == 1) {
+                stringResource(R.string.conto_una_voce)
+            } else {
+                stringResource(R.string.conto_voci, quota.voci)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private val GIORNO: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ITALIAN)

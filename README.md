@@ -25,8 +25,8 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1, 2 e 3 di 9 realizzate.** L'app registra una giornata di viaggio e calcola i
-consumi del mezzo, tutto senza rete.
+**Fasi 1–4 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
+del mezzo e tiene il conto delle spese, tutto senza rete.
 
 Itinerario:
 
@@ -49,13 +49,27 @@ Numeri:
   pesata sui chilometri
 - **autonomia residua stimata** dai km con un pieno, meno i chilometri dedotti da tutti i
   punti registrati — check-in, posizioni, foto, rifornimenti
+- **conto del viaggio**: totali per categoria, per modalità di pagamento e per giorno,
+  spesa media giornaliera
 - ogni numero dichiara com'è nato: una stima si chiama stima
 
-Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
-`impostazioni.json` e `FORMATI.md` che spiega le colonne. Nessuna rete usata; l'unico
-permesso è la posizione, chiesto quando serve.
+Spese:
 
-Restano le fasi 4–9: spese, briefing serale, meteo, punti di interesse offline, client AI.
+- categoria, importo e **modalità di pagamento** — contanti, POS, carta — in una form
+  che si compila con tre tocchi e una cifra
+- **valuta estera**: si salva quello che c'era sullo scontrino più il cambio del momento,
+  modificabile; il totale in euro si ricalcola sempre da quei due
+- **foto dello scontrino, con l'importo letto sul telefono**: il riconoscimento del testo
+  è dentro l'APK, nessuna immagine esce dal dispositivo e funziona senza rete. Quello che
+  legge è una proposta, e lo dice
+- il carburante resta nei rifornimenti e non fra le spese: il conto somma le due tabelle
+  tenendole distinte, così un pieno non viene contato due volte
+
+Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
+`spese.csv`, `impostazioni.json` e `FORMATI.md` che spiega le colonne. Nessuna rete usata;
+l'unico permesso è la posizione, chiesto quando serve.
+
+Restano le fasi 5–9: briefing serale, meteo, punti di interesse offline, client AI.
 
 ## Documenti
 

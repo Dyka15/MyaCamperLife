@@ -24,6 +24,7 @@
     <string name="azione_foto">Foto</string>
     <string name="azione_nota">Nota</string>
     <string name="azione_litri">Litri</string>
+    <string name="azione_spesa">Spesa</string>
 
     <!-- Elenco vuoto -->
     <string name="vuoto_titolo">Nessun viaggio</string>
@@ -91,6 +92,7 @@
     <string name="genere_nota">Nota</string>
     <string name="genere_foto">Foto</string>
     <string name="genere_rifornimento">Rifornimento</string>
+    <string name="genere_spesa">Spesa</string>
     <string name="voce_senza_testo">senza descrizione</string>
 
     <!-- Rifornimento -->
@@ -129,4 +131,48 @@
     <string name="tratto_km">Da %1$d a %2$d</string>
     <string name="tratto_dettaglio">%1$d km, %2$s litri</string>
     <string name="tratto_euro">%1$s €</string>
+
+    <!-- Spese -->
+    <string name="spesa_titolo">Spesa</string>
+    <string name="spesa_importo">Importo (%1$s)</string>
+    <string name="spesa_importo_proposto">Letto dallo scontrino: controllalo.</string>
+    <string name="spesa_in_euro">Fanno %1$s €</string>
+    <string name="spesa_descrizione">Descrizione (facoltativa)</string>
+    <string name="spesa_valuta_estera">Valuta estera</string>
+    <string name="spesa_valuta">Valuta</string>
+    <string name="spesa_cambio">Euro per 1 %1$s</string>
+    <string name="spesa_cambio_spiegazione">Il cambio si salva com\'è adesso: la spesa resta giusta anche se domani cambia.</string>
+    <string name="spesa_scontrino_scatta">Fotografa lo scontrino</string>
+    <string name="spesa_scontrino_rifai">Rifai la foto dello scontrino</string>
+    <string name="spesa_registrata">Spesa registrata</string>
+    <string name="scontrino_illeggibile">Non ho trovato un importo nella foto: scrivilo a mano.</string>
+
+    <string name="categoria_sosta">Sosta</string>
+    <string name="categoria_pedaggi">Pedaggi</string>
+    <string name="categoria_spesa">Spesa</string>
+    <string name="categoria_ristorante">Ristorante</string>
+    <string name="categoria_visite">Visite</string>
+    <string name="categoria_trasporti">Trasporti</string>
+    <string name="categoria_mezzo">Mezzo</string>
+    <string name="categoria_altro">Altro</string>
+
+    <string name="modalita_contanti">Contanti</string>
+    <string name="modalita_pos">POS</string>
+    <string name="modalita_carta">Carta</string>
+
+    <!-- Il conto -->
+    <string name="conto_titolo">Conto del viaggio</string>
+    <string name="conto_totale">%1$s €</string>
+    <string name="conto_spese">Spese</string>
+    <string name="conto_carburante">Carburante</string>
+    <string name="conto_al_giorno">%1$s € al giorno, su %2$d giorni</string>
+    <string name="conto_vuoto">Non hai ancora registrato spese. Il carburante si registra con i litri e finisce comunque qui.</string>
+    <string name="conto_per_categoria">Per categoria</string>
+    <string name="conto_per_modalita">Come hai pagato</string>
+    <string name="conto_per_giorno">Giorno per giorno</string>
+    <string name="conto_valute">In valuta estera</string>
+    <string name="conto_valuta_riga">%1$s %2$s = %3$s €</string>
+    <string name="conto_voci">%1$d voci</string>
+    <string name="conto_una_voce">1 voce</string>
+    <string name="conto_carburante_a_parte">Il carburante arriva dai rifornimenti, non dalle spese: così un pieno non viene contato due volte.</string>
 </resources>

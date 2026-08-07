@@ -8,12 +8,18 @@ import it.myacamperlife.app.archivio.Documenti
 import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.archivio.Posizione
 import it.myacamperlife.app.archivio.Posizioni
+import it.myacamperlife.app.archivio.Scontrino
 import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Autonomia
+import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
+import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.NomeFoto
+import it.myacamperlife.app.dominio.Spesa
+import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StimaAutonomia
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
@@ -43,6 +49,7 @@ class ViaggiViewModel(
     private val archivio: Archivio,
     private val documenti: Documenti,
     private val posizioni: Posizioni,
+    private val scontrini: Scontrino,
 ) : ViewModel() {
 
     data class Stato(
@@ -53,6 +60,8 @@ class ViaggiViewModel(
         val voci: List<Voce> = emptyList(),
         val diario: String = "",
         val consumo: Consumo = Consumo(emptyList()),
+        val conto: Conto = Spese.conta(emptyList()),
+        val spese: List<Spesa> = emptyList(),
         val autonomia: Autonomia? = null,
         val kmConUnPieno: Int? = null,
         /** L'ultimo contachilometri registrato: precompila la form. */
@@ -77,6 +86,8 @@ class ViaggiViewModel(
         data object NotaRegistrata : Avviso
         data object FotoRegistrata : Avviso
         data object RifornimentoRegistrato : Avviso
+        data object SpesaRegistrata : Avviso
+        data object ScontrinoIlleggibile : Avviso
         data object ImpostazioniSalvate : Avviso
     }
 
@@ -110,6 +121,8 @@ class ViaggiViewModel(
                 voci = archivio.voci(slug),
                 diario = archivio.diario(slug).testo(),
                 consumo = Consumi.calcola(rifornimenti),
+                conto = archivio.conto(slug),
+                spese = archivio.spese(slug),
                 autonomia = StimaAutonomia.calcola(
                     kmConUnPieno = kmConUnPieno,
                     rifornimenti = rifornimenti,
@@ -126,6 +139,8 @@ class ViaggiViewModel(
                 voci = dati.voci,
                 diario = dati.diario,
                 consumo = dati.consumo,
+                conto = dati.conto,
+                spese = dati.spese,
                 autonomia = dati.autonomia,
                 kmConUnPieno = dati.kmConUnPieno,
                 ultimoKm = dati.ultimoKm,
@@ -138,6 +153,8 @@ class ViaggiViewModel(
         val voci: List<Voce>,
         val diario: String,
         val consumo: Consumo,
+        val conto: Conto,
+        val spese: List<Spesa>,
         val autonomia: Autonomia?,
         val kmConUnPieno: Int?,
         val ultimoKm: Int?,
@@ -237,6 +254,58 @@ class ViaggiViewModel(
             )
             Avviso.RifornimentoRegistrato
         }
+
+    // --- spese ---------------------------------------------------------------
+
+    fun registraSpesa(
+        categoria: Categoria,
+        importo: Double,
+        modalita: Modalita,
+        descrizione: String?,
+        valuta: String,
+        cambio: Double?,
+        scontrino: File?,
+    ) = operazione { slug ->
+        archivio.registraSpesa(
+            slug = slug,
+            categoria = categoria,
+            importo = importo,
+            modalita = modalita,
+            descrizione = descrizione,
+            valuta = valuta,
+            cambio = cambio,
+            scontrino = scontrino?.name,
+            posizione = posizioni.ultimaNota(),
+        )
+        Avviso.SpesaRegistrata
+    }
+
+    /** Il file dove la fotocamera scrivera' la foto dello scontrino. */
+    suspend fun preparaScontrino(): File? {
+        val slug = _stato.value.aperto?.slug ?: return null
+        return withContext(Dispatchers.IO) {
+            val nome = NomeFoto.scontrino(OffsetDateTime.now(), archivio.luogo(slug))
+            File(archivio.cartellaScontrini(slug), nome)
+        }
+    }
+
+    /**
+     * Prova a leggere l'importo dalla foto dello scontrino.
+     *
+     * Il risultato e' una **proposta**: finisce nel campo dell'importo, dove si
+     * corregge. Se la lettura non trova niente lo dice, invece di lasciare il
+     * campo vuoto senza spiegazioni.
+     */
+    suspend fun leggiScontrino(file: File): Double? {
+        val importo = scontrini.importo(Uri.fromFile(file))
+        if (importo == null) _stato.update { it.copy(avviso = Avviso.ScontrinoIlleggibile) }
+        return importo
+    }
+
+    /** Uno scontrino fotografato e poi non salvato non resta nella cartella. */
+    fun scartaScontrino(file: File) = viewModelScope.launch {
+        withContext(Dispatchers.IO) { file.delete() }
+    }
 
     /**
      * Salva i km con un pieno. Vive fuori da [operazione] perche' e' una

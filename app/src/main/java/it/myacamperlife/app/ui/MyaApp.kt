@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.Spesa
+import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.ui.diario.DiarioContent
 import it.myacamperlife.app.ui.numeri.NumeriContent
@@ -51,6 +53,7 @@ import it.myacamperlife.app.ui.viaggi.ElencoViaggiContent
 import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
 import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
+import it.myacamperlife.app.ui.viaggi.SpesaDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
 import it.myacamperlife.app.ui.viaggi.ViaggiViewModel
 import java.io.File
@@ -90,6 +93,11 @@ fun MyaApp(vista: ViaggiViewModel) {
     var fotoInAttesa by remember { mutableStateOf<File?>(null) }
     var rifornimentoAperto by remember { mutableStateOf(false) }
     var impostazioniAperte by remember { mutableStateOf(false) }
+    var spesaAperta by remember { mutableStateOf(false) }
+    var scontrinoInAttesa by remember { mutableStateOf<File?>(null) }
+    var scontrino by remember { mutableStateOf<File?>(null) }
+    var importoLetto by remember { mutableStateOf<Double?>(null) }
+    var letturaInCorso by remember { mutableStateOf(false) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -101,6 +109,27 @@ fun MyaApp(vista: ViaggiViewModel) {
         val file = fotoInAttesa
         fotoInAttesa = null
         if (riuscito && file != null) fotoScattata = file else file?.let(vista::scartaFoto)
+    }
+
+    // Lo scontrino ha un suo lanciatore: al ritorno non chiede una didascalia,
+    // fa partire la lettura dell'importo.
+    val scattaScontrino = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture(),
+    ) { riuscito ->
+        val file = scontrinoInAttesa
+        scontrinoInAttesa = null
+        if (!riuscito || file == null) {
+            file?.let(vista::scartaScontrino)
+        } else {
+            // Una foto gia' presa viene sostituita: non restano scarti.
+            scontrino?.takeIf { it != file }?.let(vista::scartaScontrino)
+            scontrino = file
+            letturaInCorso = true
+            ambito.launch {
+                importoLetto = vista.leggiScontrino(file)
+                letturaInCorso = false
+            }
+        }
     }
 
     // Il permesso si chiede quando serve, non all'avvio: prima di allora non
@@ -234,6 +263,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     },
                     onNota = { notaAperta = true },
                     onLitri = { rifornimentoAperto = true },
+                    onSpesa = { spesaAperta = true },
                     onTappa = { tappaScelta = it },
                 )
 
@@ -242,6 +272,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                 else -> NumeriContent(
                     consumo = stato.consumo,
                     autonomia = stato.autonomia,
+                    conto = stato.conto,
                     kmConUnPieno = stato.kmConUnPieno,
                     onImpostaKm = { impostazioniAperte = true },
                 )
@@ -293,6 +324,49 @@ fun MyaApp(vista: ViaggiViewModel) {
             ultimoKm = stato.ultimoKm,
             onSalva = vista::registraRifornimento,
             onChiudi = { rifornimentoAperto = false },
+        )
+    }
+
+    if (spesaAperta) {
+        // La valuta e il cambio proposti sono gli ultimi usati nel viaggio: in
+        // Svizzera si registrano dieci spese in franchi, non una.
+        val valutaSuggerita = stato.spese.lastOrNull { it.estera }?.valuta ?: Spesa.EURO
+        SpesaDialog(
+            valutaSuggerita = valutaSuggerita,
+            cambioSuggerito = Spese.ultimoCambio(stato.spese, valutaSuggerita),
+            scontrino = scontrino,
+            importoLetto = importoLetto,
+            letturaInCorso = letturaInCorso,
+            onScontrino = {
+                ambito.launch {
+                    val file = vista.preparaScontrino() ?: return@launch
+                    scontrinoInAttesa = file
+                    scattaScontrino.launch(uriDi(contesto, file))
+                }
+            },
+            onSalva = { categoria, importo, modalita, descrizione, valuta, cambio ->
+                vista.registraSpesa(
+                    categoria = categoria,
+                    importo = importo,
+                    modalita = modalita,
+                    descrizione = descrizione,
+                    valuta = valuta,
+                    cambio = cambio,
+                    scontrino = scontrino,
+                )
+                spesaAperta = false
+                // Salvata: il file resta, e' l'allegato della spesa.
+                scontrino = null
+                importoLetto = null
+            },
+            onChiudi = {
+                spesaAperta = false
+                // Chiudere senza salvare non deve lasciare in giro la foto di
+                // uno scontrino che non appartiene a nessuna spesa.
+                scontrino?.let(vista::scartaScontrino)
+                scontrino = null
+                importoLetto = null
+            },
         )
     }
 
@@ -361,5 +435,7 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.NotaRegistrata -> stringResource(R.string.nota_registrata)
     ViaggiViewModel.Avviso.FotoRegistrata -> stringResource(R.string.foto_registrata)
     ViaggiViewModel.Avviso.RifornimentoRegistrato -> stringResource(R.string.rifornimento_registrato)
+    ViaggiViewModel.Avviso.SpesaRegistrata -> stringResource(R.string.spesa_registrata)
+    ViaggiViewModel.Avviso.ScontrinoIlleggibile -> stringResource(R.string.scontrino_illeggibile)
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
 }

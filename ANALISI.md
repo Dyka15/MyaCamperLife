@@ -87,8 +87,9 @@ id;ts;km;litri;euro;pieno;luogo;lat;lon
 b7c2;2026-08-06T18:05:00+02:00;48210;62,3;107,16;si;Orvieto;42,7185;12,1112
 
 spese.csv
-id;ts;categoria;euro;modalita;valuta;cambio;tappa;scontrino
-c1d4;2026-08-06T20:11:00+02:00;sosta;18,00;contanti;EUR;;Orvieto;
+id;ts;categoria;descrizione;importo;valuta;cambio;euro;modalita;tappa;lat;lon;scontrino
+c1d4;2026-08-06T20:11:00+02:00;sosta;area Il Cipresso;18,00;EUR;;18,00;contanti;Orvieto;;;
+e9f1;2026-08-09T20:40:00+02:00;ristorante;;45,00;CHF;1,0600;47,70;carta;Lugano;;;
 ```
 
 **Punto e virgola come separatore, virgola come decimale.** È la sola combinazione che
@@ -187,6 +188,8 @@ MyaCamperLife/
 │       ├── foto.csv               nome file, didascalia, coordinate
 │       ├── foto/
 │       │   └── foto_20260806_143012_Orvieto.jpg
+│       ├── scontrini/
+│       │   └── scontrino_20260806_201100_Orvieto.jpg
 │       └── diario.md              un file per viaggio, una sezione per giorno
 ├── scorta/                        dati scaricati in anticipo (sez. 5)
 │   ├── meteo.json                 annidato: resta JSON
@@ -433,6 +436,24 @@ Tutto offline tranne un dettaglio.
 | Lettura automatica dell'importo dallo scontrino | 🔶 ML Kit riconosce il testo **interamente sul dispositivo**. Il modello va incluso nell'APK (pochi MB) e non nella variante consegnata da Play Services, che vuole un download iniziale |
 | Valuta estera | 🔶 Il cambio è un dato di rete: si salva il tasso *sul momento della registrazione*, modificabile a mano, così la voce resta corretta per sempre senza riconnettersi |
 | Pedaggi automatici | ❌ manuali |
+
+**Il carburante non è una spesa.** Sta in `rifornimenti.csv`, che ne chiede già l'importo.
+Se stesse anche in `spese.csv` il conto lo conterebbe due volte, e nessuna regola
+automatica potrebbe accorgersene — due tabelle scritte a mano non si riconciliano. Il
+conto di fine viaggio somma le due, tenendole a vista come due righe distinte: è anche
+l'unico modo perché si capisca da dove viene il totale.
+
+**Quello che c'era sullo scontrino non si riscrive mai.** La riga porta `importo` nella
+sua valuta e il `cambio` applicato in quel momento; la colonna `euro` è il loro prodotto,
+scritta per chi apre il file in un foglio di calcolo. L'app in lettura **rifà il conto**
+da `importo` e `cambio`: correggere un cambio sbagliato in un foglio di calcolo aggiorna
+il totale, mentre la cifra dello scontrino — l'unica verificabile — resta intatta.
+
+**La lettura dello scontrino è una proposta.** ML Kit riconosce il testo, poi una funzione
+pura decide quale dei numeri sia il totale: cerca l'ultima riga che parla di totale
+escludendo subtotali, IVA, resto e contante, e ripiega sul numero più alto. Il risultato
+arriva nel campo dell'importo, dichiarato come proposta, dove si corregge con una cifra.
+Le regole sono verificate su scontrini veri, senza fotocamera.
 
 ---
 
