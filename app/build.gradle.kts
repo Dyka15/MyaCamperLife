@@ -62,11 +62,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Riconoscimento del testo sul dispositivo: legge l'importo dallo
-    // scontrino senza rete. E' la variante col modello dentro l'APK, non
-    // quella consegnata da Play Services, che vorrebbe un download.
-    implementation(libs.mlkit.text.recognition)
-
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)

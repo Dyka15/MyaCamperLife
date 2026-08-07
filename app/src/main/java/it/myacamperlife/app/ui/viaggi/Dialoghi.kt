@@ -8,12 +8,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -432,17 +430,14 @@ fun ImpostazioniDialog(
  * cifra. Tutto il resto — descrizione, valuta estera, scontrino — sta sotto e
  * si puo' ignorare: e' il genere di attrito che fa smettere di registrare.
  *
- * Lo scontrino non e' solo un allegato. Fotografandolo, l'app prova a leggere
- * l'importo e lo propone nel campo, dove si corregge. La proposta si dichiara
- * per quello che e'.
+ * Lo scontrino si fotografa e resta allegato alla spesa, con un nome che porta
+ * data, ora e luogo come le foto del diario.
  */
 @Composable
 fun SpesaDialog(
     valutaSuggerita: String,
     cambioSuggerito: Double?,
     scontrino: File?,
-    importoLetto: Double?,
-    letturaInCorso: Boolean,
     onScontrino: () -> Unit,
     onSalva: (
         categoria: Categoria,
@@ -463,17 +458,6 @@ fun SpesaDialog(
         mutableStateOf(cambioSuggerito?.let { Csv.numero(it, 4) }.orEmpty())
     }
     var estera by remember { mutableStateOf(!valutaSuggerita.equals(Spesa.EURO, true)) }
-    var propostoDalloScontrino by remember { mutableStateOf(false) }
-
-    // L'importo letto riempie il campo solo se e' vuoto: se nel frattempo hai
-    // digitato una cifra, quella vale piu' di una lettura automatica.
-    LaunchedEffect(importoLetto) {
-        val letto = importoLetto
-        if (letto != null && importo.isBlank()) {
-            importo = Csv.numero(letto)
-            propostoDalloScontrino = true
-        }
-    }
 
     val quanto = Csv.leggiNumero(importo)
     val tasso = Csv.leggiNumero(cambio)
@@ -497,17 +481,15 @@ fun SpesaDialog(
 
                 OutlinedTextField(
                     value = importo,
-                    onValueChange = { importo = it; propostoDalloScontrino = false },
+                    onValueChange = { importo = it },
                     label = { Text(stringResource(R.string.spesa_importo, sigla)) },
                     // Stessa forma usata per il chilometraggio: con un `if` in
                     // posizione di argomento il tipo @Composable si propaga nei
                     // rami, cosa che dentro un `let` non succede.
-                    supportingText = if (propostoDalloScontrino) {
-                        { Text(stringResource(R.string.spesa_importo_proposto)) }
-                    } else if (inEuro != null) {
-                        { Text(stringResource(R.string.spesa_in_euro, Csv.numero(inEuro))) }
-                    } else {
+                    supportingText = if (inEuro == null) {
                         null
+                    } else {
+                        { Text(stringResource(R.string.spesa_in_euro, Csv.numero(inEuro))) }
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -567,23 +549,13 @@ fun SpesaDialog(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onScontrino, enabled = !letturaInCorso) {
-                        Text(
-                            stringResource(
-                                if (scontrino == null) R.string.spesa_scontrino_scatta
-                                else R.string.spesa_scontrino_rifai,
-                            ),
-                        )
-                    }
-                    if (letturaInCorso) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
+                TextButton(onClick = onScontrino) {
+                    Text(
+                        stringResource(
+                            if (scontrino == null) R.string.spesa_scontrino_scatta
+                            else R.string.spesa_scontrino_rifai,
+                        ),
+                    )
                 }
                 if (scontrino != null) {
                     Text(

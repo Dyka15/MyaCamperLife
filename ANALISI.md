@@ -433,7 +433,7 @@ Tutto offline tranne un dettaglio.
 | Modalità di pagamento: contanti, POS, carta di credito | ✅ |
 | Totali per viaggio, per giorno, per categoria e per modalità | ✅ |
 | Foto dello scontrino | ✅ |
-| Lettura automatica dell'importo dallo scontrino | 🔶 ML Kit riconosce il testo **interamente sul dispositivo**. Il modello va incluso nell'APK (pochi MB) e non nella variante consegnata da Play Services, che vuole un download iniziale |
+| Lettura automatica dell'importo dallo scontrino | ❌ **Scartata.** Tecnicamente si fa e funziona offline, ma il modello di riconoscimento dentro l'APK lo porta da 9 a 29 MB. Venti megabyte per risparmiare di digitare quattro cifre non valgono il prezzo; l'alternativa leggera scarica il modello al primo uso, e in un'area di sosta senza campo non lo scarica |
 | Valuta estera | 🔶 Il cambio è un dato di rete: si salva il tasso *sul momento della registrazione*, modificabile a mano, così la voce resta corretta per sempre senza riconnettersi |
 | Pedaggi automatici | ❌ manuali |
 
@@ -448,12 +448,6 @@ sua valuta e il `cambio` applicato in quel momento; la colonna `euro` è il loro
 scritta per chi apre il file in un foglio di calcolo. L'app in lettura **rifà il conto**
 da `importo` e `cambio`: correggere un cambio sbagliato in un foglio di calcolo aggiorna
 il totale, mentre la cifra dello scontrino — l'unica verificabile — resta intatta.
-
-**La lettura dello scontrino è una proposta.** ML Kit riconosce il testo, poi una funzione
-pura decide quale dei numeri sia il totale: cerca l'ultima riga che parla di totale
-escludendo subtotali, IVA, resto e contante, e ripiega sul numero più alto. Il risultato
-arriva nel campo dell'importo, dichiarato come proposta, dove si corregge con una cifra.
-Le regole sono verificate su scontrini veri, senza fotocamera.
 
 ---
 
@@ -719,7 +713,7 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **1** | Scaffolding, lettura e scrittura dei CSV, import `.md` con `waypoints`, elenco tappe | apri sul telefono un itinerario che hai già |
 | **2** | Diario: posizione GPS, note, foto con la convenzione di nome, check-in, salta/ripristina, aggiungi tappa, `diario.md` | una giornata di viaggio registrata senza rete |
 | **3** | Rifornimenti, consumi pieno-a-pieno, km con un pieno, autonomia residua | km/l e autonomia del viaggio scorso |
-| **4** | Spese: voci, categorie, modalità di pagamento, totali, foto scontrino | conto di fine viaggio |
+| **4** | Spese: voci, categorie, modalità di pagamento, valuta estera, totali, foto scontrino | conto di fine viaggio |
 | **5** | Briefing serale 19:00 offline: raggruppamento tappe, avviso rifornimento, `BootReceiver`, watchdog, onboarding HyperOS | riavvii il telefono, alle 19:00 arriva |
 | **6** | Rete: scarico meteo alle 19:00, precalcolo tratte OSRM | il briefing porta il meteo, e i km di domani sono quelli veri |
 | **7** | Geocoding inverso offline (GeoNames) + POI offline da OSM | "cosa c'è vicino" in mezzo al nulla |

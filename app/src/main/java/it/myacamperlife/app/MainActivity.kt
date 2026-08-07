@@ -11,7 +11,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import it.myacamperlife.app.archivio.Documenti
 import it.myacamperlife.app.archivio.Posizioni
-import it.myacamperlife.app.archivio.Scontrino
 import it.myacamperlife.app.ui.MyaApp
 import it.myacamperlife.app.ui.theme.MyaTheme
 import it.myacamperlife.app.ui.viaggi.ViaggiViewModel
@@ -25,7 +24,6 @@ class MainActivity : ComponentActivity() {
                     archivio = (application as MyaApplication).archivio,
                     documenti = Documenti(applicationContext),
                     posizioni = Posizioni(applicationContext),
-                    scontrini = Scontrino(applicationContext),
                 )
             }
         }

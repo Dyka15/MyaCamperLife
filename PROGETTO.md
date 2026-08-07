@@ -211,7 +211,6 @@ Funzione nuova: nel sistema attuale non c'è.
 | Registrare una spesa con categoria, importo e tappa | 4 |
 | Indicare la modalità di pagamento: contanti, POS, carta di credito | 4 |
 | Allegare la foto dello scontrino | 4 |
-| Leggere l'importo dallo scontrino, sul dispositivo | 4 |
 | Registrare spese in valuta estera, con il cambio del momento, modificabile | 4 |
 | Vedere totali per viaggio, per giorno, per categoria e per modalità | 4 |
 

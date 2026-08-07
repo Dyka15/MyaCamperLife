@@ -59,9 +59,8 @@ Spese:
   che si compila con tre tocchi e una cifra
 - **valuta estera**: si salva quello che c'era sullo scontrino più il cambio del momento,
   modificabile; il totale in euro si ricalcola sempre da quei due
-- **foto dello scontrino, con l'importo letto sul telefono**: il riconoscimento del testo
-  è dentro l'APK, nessuna immagine esce dal dispositivo e funziona senza rete. Quello che
-  legge è una proposta, e lo dice
+- **foto dello scontrino**, allegata alla spesa, con un nome che porta data, ora e luogo
+  come le foto del diario
 - il carburante resta nei rifornimenti e non fra le spese: il conto somma le due tabelle
   tenendole distinte, così un pieno non viene contato due volte
 

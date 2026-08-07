@@ -96,8 +96,6 @@ fun MyaApp(vista: ViaggiViewModel) {
     var spesaAperta by remember { mutableStateOf(false) }
     var scontrinoInAttesa by remember { mutableStateOf<File?>(null) }
     var scontrino by remember { mutableStateOf<File?>(null) }
-    var importoLetto by remember { mutableStateOf<Double?>(null) }
-    var letturaInCorso by remember { mutableStateOf(false) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -112,7 +110,7 @@ fun MyaApp(vista: ViaggiViewModel) {
     }
 
     // Lo scontrino ha un suo lanciatore: al ritorno non chiede una didascalia,
-    // fa partire la lettura dell'importo.
+    // resta allegato alla spesa che si sta compilando.
     val scattaScontrino = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
     ) { riuscito ->
@@ -124,11 +122,6 @@ fun MyaApp(vista: ViaggiViewModel) {
             // Una foto gia' presa viene sostituita: non restano scarti.
             scontrino?.takeIf { it != file }?.let(vista::scartaScontrino)
             scontrino = file
-            letturaInCorso = true
-            ambito.launch {
-                importoLetto = vista.leggiScontrino(file)
-                letturaInCorso = false
-            }
         }
     }
 
@@ -335,8 +328,6 @@ fun MyaApp(vista: ViaggiViewModel) {
             valutaSuggerita = valutaSuggerita,
             cambioSuggerito = Spese.ultimoCambio(stato.spese, valutaSuggerita),
             scontrino = scontrino,
-            importoLetto = importoLetto,
-            letturaInCorso = letturaInCorso,
             onScontrino = {
                 ambito.launch {
                     val file = vista.preparaScontrino() ?: return@launch
@@ -357,7 +348,6 @@ fun MyaApp(vista: ViaggiViewModel) {
                 spesaAperta = false
                 // Salvata: il file resta, e' l'allegato della spesa.
                 scontrino = null
-                importoLetto = null
             },
             onChiudi = {
                 spesaAperta = false
@@ -365,7 +355,6 @@ fun MyaApp(vista: ViaggiViewModel) {
                 // uno scontrino che non appartiene a nessuna spesa.
                 scontrino?.let(vista::scartaScontrino)
                 scontrino = null
-                importoLetto = null
             },
         )
     }
@@ -436,6 +425,5 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.FotoRegistrata -> stringResource(R.string.foto_registrata)
     ViaggiViewModel.Avviso.RifornimentoRegistrato -> stringResource(R.string.rifornimento_registrato)
     ViaggiViewModel.Avviso.SpesaRegistrata -> stringResource(R.string.spesa_registrata)
-    ViaggiViewModel.Avviso.ScontrinoIlleggibile -> stringResource(R.string.scontrino_illeggibile)
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
 }

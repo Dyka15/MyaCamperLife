@@ -135,7 +135,6 @@
     <!-- Spese -->
     <string name="spesa_titolo">Spesa</string>
     <string name="spesa_importo">Importo (%1$s)</string>
-    <string name="spesa_importo_proposto">Letto dallo scontrino: controllalo.</string>
     <string name="spesa_in_euro">Fanno %1$s €</string>
     <string name="spesa_descrizione">Descrizione (facoltativa)</string>
     <string name="spesa_valuta_estera">Valuta estera</string>
@@ -145,7 +144,6 @@
     <string name="spesa_scontrino_scatta">Fotografa lo scontrino</string>
     <string name="spesa_scontrino_rifai">Rifai la foto dello scontrino</string>
     <string name="spesa_registrata">Spesa registrata</string>
-    <string name="scontrino_illeggibile">Non ho trovato un importo nella foto: scrivilo a mano.</string>
 
     <string name="categoria_sosta">Sosta</string>
     <string name="categoria_pedaggi">Pedaggi</string>

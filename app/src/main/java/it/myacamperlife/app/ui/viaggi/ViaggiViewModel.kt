@@ -8,7 +8,6 @@ import it.myacamperlife.app.archivio.Documenti
 import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.archivio.Posizione
 import it.myacamperlife.app.archivio.Posizioni
-import it.myacamperlife.app.archivio.Scontrino
 import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Autonomia
 import it.myacamperlife.app.dominio.Categoria
@@ -49,7 +48,6 @@ class ViaggiViewModel(
     private val archivio: Archivio,
     private val documenti: Documenti,
     private val posizioni: Posizioni,
-    private val scontrini: Scontrino,
 ) : ViewModel() {
 
     data class Stato(
@@ -87,7 +85,6 @@ class ViaggiViewModel(
         data object FotoRegistrata : Avviso
         data object RifornimentoRegistrato : Avviso
         data object SpesaRegistrata : Avviso
-        data object ScontrinoIlleggibile : Avviso
         data object ImpostazioniSalvate : Avviso
     }
 
@@ -287,19 +284,6 @@ class ViaggiViewModel(
             val nome = NomeFoto.scontrino(OffsetDateTime.now(), archivio.luogo(slug))
             File(archivio.cartellaScontrini(slug), nome)
         }
-    }
-
-    /**
-     * Prova a leggere l'importo dalla foto dello scontrino.
-     *
-     * Il risultato e' una **proposta**: finisce nel campo dell'importo, dove si
-     * corregge. Se la lettura non trova niente lo dice, invece di lasciare il
-     * campo vuoto senza spiegazioni.
-     */
-    suspend fun leggiScontrino(file: File): Double? {
-        val importo = scontrini.importo(Uri.fromFile(file))
-        if (importo == null) _stato.update { it.copy(avviso = Avviso.ScontrinoIlleggibile) }
-        return importo
     }
 
     /** Uno scontrino fotografato e poi non salvato non resta nella cartella. */
