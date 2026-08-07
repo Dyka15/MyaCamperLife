@@ -381,6 +381,24 @@ l'altro le policy del Play Store riservano alle app di sveglia, e un'app per cam
 Idea a costo quasi nullo, dato che il motore vocale esiste già in Cicala: far
 **leggere** il riepilogo serale ad alta voce. Fuori scope per la v1, ma vale ricordarlo.
 
+**Il campo `giorno` è testo libero, e va letto come tale.** L'itinerario lo scrive chi lo
+scrive: arrivano `2026-08-06`, `06/08/2026`, `6 agosto`, `mer 6`. Il lettore riconosce
+tutte queste forme, risolve le parziali *in avanti* — un itinerario parla del viaggio che
+devi fare — e su quello che non riconosce **restituisce niente**: la tappa finisce fra
+quelle senza data e viene comunque nominata nel riepilogo. Metterla nel giorno sbagliato
+sarebbe molto peggio che lasciarla senza. Per la stessa ragione `giorno 2` non si
+converte: è il secondo giorno di viaggio, e senza sapere quando parti indovinare
+significherebbe sbagliare.
+
+**Un riepilogo vuoto non si notifica.** Nessuna tappa in vista e nessun avviso: la
+notifica non parte. Una notifica che non porta informazione insegna a ignorare le
+notifiche, e la prossima volta che ce n'è una vera nessuno la legge.
+
+**La sveglia si riarma prima di comporre il riepilogo, non dopo.** Se comporre andasse
+storto, riarmando in fondo si perderebbe anche il riepilogo di domani, e quello di
+dopodomani, per sempre. Una notifica saltata è un guaio di una sera; una catena spezzata
+è una funzione che smette di esistere in silenzio.
+
 ### 4.6 Consumi e autonomia — funzione nuova
 
 Oggi il diario registra litri e importo, e si fermano lì. Sono dati che chiedono di

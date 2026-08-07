@@ -173,4 +173,20 @@
     <string name="conto_voci">%1$d voci</string>
     <string name="conto_una_voce">1 voce</string>
     <string name="conto_carburante_a_parte">Il carburante arriva dai rifornimenti, non dalle spese: così un pieno non viene contato due volte.</string>
+
+    <!-- Briefing serale -->
+    <string name="canale_briefing">Riepilogo della sera</string>
+    <string name="canale_briefing_descrizione">Le tappe di domani e l\'avviso di rifornimento, una volta al giorno.</string>
+    <string name="impostazioni_briefing">Riepilogo della sera</string>
+    <string name="impostazioni_briefing_spiegazione">Le tappe dei prossimi giorni e l\'avviso se domani conviene rifornire. Funziona senza rete.</string>
+    <string name="impostazioni_ora">Ora del riepilogo (0–23)</string>
+    <string name="impostazioni_prova_briefing">Vedi il riepilogo di stasera</string>
+    <string name="impostazioni_se_non_arriva">Se il riepilogo non arriva</string>
+    <string name="impostazioni_se_non_arriva_spiegazione">Android e HyperOS possono congelare un\'app che non apri da qualche giorno, e con lei la sveglia delle 19:00. Questi tre interruttori lo impediscono.</string>
+    <string name="impostazioni_notifiche">Permesso di notifica</string>
+    <string name="impostazioni_batteria">Batteria senza limiti per l\'app</string>
+    <string name="impostazioni_avvio_automatico">Avvio automatico (Xiaomi)</string>
+    <string name="briefing_niente">Stasera non c\'è niente da dire</string>
+    <string name="briefing_niente_spiegazione">Nessuna tappa nei prossimi giorni e nessun avviso di rifornimento. Un riepilogo vuoto non viene notificato.</string>
+    <string name="briefing_anteprima">È il testo che arriverebbe come notifica.</string>
 </resources>

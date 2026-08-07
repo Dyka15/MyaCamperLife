@@ -2,7 +2,14 @@ package it.myacamperlife.app
 
 import android.app.Application
 import it.myacamperlife.app.archivio.Archivio
+import it.myacamperlife.app.avvisi.Avvisi
+import it.myacamperlife.app.avvisi.GuardianoBriefing
+import it.myacamperlife.app.avvisi.SvegliaBriefing
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class MyaApplication : Application() {
 
@@ -16,5 +23,26 @@ class MyaApplication : Application() {
      */
     val archivio: Archivio by lazy {
         Archivio(File(filesDir, Archivio.NOME_CARTELLA))
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Il canale si dichiara subito: crearlo non costa niente e non
+        // richiede il permesso di notificare. Senza, la prima notifica
+        // verrebbe scartata.
+        Avvisi(this).preparaCanale()
+
+        // Riarmare a ogni avvio e' la rete di sicurezza piu' economica: se una
+        // sveglia e' andata persa, aprire l'app la rimette. Su un thread di
+        // I/O, perche' le impostazioni stanno in un file.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val impostazioni = archivio.impostazioni()
+            SvegliaBriefing.programma(
+                context = this@MyaApplication,
+                attivo = impostazioni.briefingAttivo,
+                ora = impostazioni.ora,
+            )
+            GuardianoBriefing.programma(this@MyaApplication)
+        }
     }
 }

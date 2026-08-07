@@ -8,6 +8,16 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- Il riepilogo della sera. Da Android 13 il permesso si chiede a
+         runtime, e senza di esso la notifica viene scartata in silenzio. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Un riavvio cancella tutte le sveglie: senza questo, il riepilogo
+         smetterebbe di arrivare senza dire niente.
+         Nessun SCHEDULE_EXACT_ALARM: un riepilogo serale tollera qualche
+         minuto di scarto, e quel permesso e' riservato alle sveglie. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Niente CAMERA: le foto si scattano con l'app fotocamera di sistema,
          a cui si passa il file da scrivere. Chiedere il permesso servirebbe
          solo per usare la fotocamera da dentro l'app, che non ci serve. -->
@@ -48,6 +58,24 @@
             </intent-filter>
 
         </activity>
+
+        <!-- Le 19:00. Non esportato: lo sveglia solo il nostro AlarmManager. -->
+        <receiver
+            android:name=".avvisi.BriefingReceiver"
+            android:exported="false" />
+
+        <!-- Riarma la sveglia dopo un riavvio o un aggiornamento dell'app.
+             Esportato perche' e' il sistema a mandare questi eventi. -->
+        <receiver
+            android:name=".avvisi.AvvioReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <!-- Passa alla fotocamera di sistema il file dove scrivere lo scatto.
              Non esportato: i permessi si concedono un Uri per volta. -->

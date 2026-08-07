@@ -25,8 +25,9 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1–4 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
-del mezzo e tiene il conto delle spese, tutto senza rete.
+**Fasi 1–5 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
+del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — tutto senza
+rete.
 
 Itinerario:
 
@@ -64,11 +65,25 @@ Spese:
 - il carburante resta nei rifornimenti e non fra le spese: il conto somma le due tabelle
   tenendole distinte, così un pieno non viene contato due volte
 
+Riepilogo della sera:
+
+- alle **19:00** una notifica con le tappe di domani, i chilometri stimati e i giorni
+  successivi. L'ora si cambia, il riepilogo si spegne
+- **avviso di rifornimento** quando l'autonomia stimata non copre la strada di domani con
+  un margine, o quando sei sotto gli 80 km comunque
+- legge il campo `giorno` dell'itinerario in tutte le forme che arriva davvero
+  (`2026-08-06`, `06/08/2026`, `6 agosto`, `mer 6`); quello che non riconosce lo lascia
+  senza data invece di metterlo nel giorno sbagliato
+- **sopravvive al riavvio** del telefono e all'aggiornamento dell'app, e un controllo ogni
+  sei ore rimette la sveglia se HyperOS se l'è portata via
+- nelle impostazioni si vede **il riepilogo di stasera senza aspettare le 19:00**, e ci
+  sono i pulsanti che portano alle tre schermate di sistema da sistemare
+
 Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
 `spese.csv`, `impostazioni.json` e `FORMATI.md` che spiega le colonne. Nessuna rete usata;
-l'unico permesso è la posizione, chiesto quando serve.
+i permessi sono due, la posizione e le notifiche, chiesti quando servono.
 
-Restano le fasi 5–9: briefing serale, meteo, punti di interesse offline, client AI.
+Restano le fasi 6–9: meteo, punti di interesse offline, client AI, rifiniture.
 
 ## Documenti
 

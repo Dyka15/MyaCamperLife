@@ -62,6 +62,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Il guardiano del briefing: un controllo ogni sei ore che la sveglia
+    // delle 19:00 sia ancora in coda. WorkManager sopravvive dove HyperOS
+    // pota le sveglie.
+    implementation(libs.androidx.work.runtime.ktx)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)

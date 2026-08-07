@@ -40,6 +40,9 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Posizioni
+import it.myacamperlife.app.avvisi.Avvisi
+import it.myacamperlife.app.avvisi.Sistema
+import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
@@ -48,6 +51,7 @@ import it.myacamperlife.app.ui.diario.DiarioContent
 import it.myacamperlife.app.ui.numeri.NumeriContent
 import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
 import it.myacamperlife.app.ui.viaggi.AzioniTappaDialog
+import it.myacamperlife.app.ui.viaggi.BriefingDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
 import it.myacamperlife.app.ui.viaggi.ElencoViaggiContent
 import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
@@ -96,6 +100,8 @@ fun MyaApp(vista: ViaggiViewModel) {
     var spesaAperta by remember { mutableStateOf(false) }
     var scontrinoInAttesa by remember { mutableStateOf<File?>(null) }
     var scontrino by remember { mutableStateOf<File?>(null) }
+    var briefingAperto by remember { mutableStateOf(false) }
+    var briefing by remember { mutableStateOf<Briefing?>(null) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -122,6 +128,20 @@ fun MyaApp(vista: ViaggiViewModel) {
             // Una foto gia' presa viene sostituita: non restano scarti.
             scontrino?.takeIf { it != file }?.let(vista::scartaScontrino)
             scontrino = file
+        }
+    }
+
+    // Il permesso di notifica si chiede dalle impostazioni, dove c'e' la
+    // funzione che lo giustifica sotto gli occhi.
+    var notificheConcesse by remember { mutableStateOf(Avvisi(contesto).permessoConcesso()) }
+    val chiediNotifiche = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { esiti ->
+        notificheConcesse = esiti.values.any { it }
+        if (!notificheConcesse) {
+            // Negato una seconda volta il sistema non richiede piu' niente:
+            // l'unica strada che resta e' la schermata delle impostazioni.
+            Sistema.apriNotifiche(contesto)
         }
     }
 
@@ -361,9 +381,31 @@ fun MyaApp(vista: ViaggiViewModel) {
 
     if (impostazioniAperte) {
         ImpostazioniDialog(
-            kmConUnPieno = stato.kmConUnPieno,
-            onSalva = vista::salvaKmConUnPieno,
+            impostazioni = stato.impostazioni,
+            notificheConcesse = notificheConcesse,
+            batteriaSenzaLimiti = Sistema.batteriaSenzaLimiti(contesto),
+            avvioAutomaticoDisponibile = Sistema.avvioAutomaticoDisponibile(contesto),
+            onSalva = vista::salvaImpostazioni,
+            onProvaBriefing = {
+                ambito.launch {
+                    briefing = vista.briefingDiStasera()
+                    briefingAperto = true
+                }
+            },
+            onPermessoNotifiche = {
+                if (notificheConcesse) Sistema.apriNotifiche(contesto)
+                else chiediNotifiche.launch(Avvisi.PERMESSI)
+            },
+            onBatteria = { Sistema.apriBatteria(contesto) },
+            onAvvioAutomatico = { Sistema.apriAvvioAutomatico(contesto) },
             onChiudi = { impostazioniAperte = false },
+        )
+    }
+
+    if (briefingAperto) {
+        BriefingDialog(
+            briefing = briefing,
+            onChiudi = { briefingAperto = false; briefing = null },
         )
     }
 

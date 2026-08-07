@@ -22,4 +22,14 @@ import kotlinx.serialization.Serializable
 data class Impostazioni(
     /** Quanti chilometri fa il mezzo con un serbatoio pieno. */
     val kmConUnPieno: Int? = null,
-)
+    /**
+     * Se il riepilogo della sera deve arrivare. Acceso di riposo: e' la
+     * funzione, e chi non la vuole la spegne in due tocchi.
+     */
+    val briefingAttivo: Boolean = true,
+    /** L'ora del riepilogo, 0-23. Le 19:00 come nel sistema di prima. */
+    val oraBriefing: Int = 19,
+) {
+    /** L'ora riportata dentro il quadrante, comunque sia scritta nel file. */
+    val ora: Int get() = oraBriefing.coerceIn(0, 23)
+}

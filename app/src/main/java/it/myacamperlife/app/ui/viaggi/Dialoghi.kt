@@ -1,5 +1,6 @@
 package it.myacamperlife.app.ui.viaggi
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -34,14 +36,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Csv
+import it.myacamperlife.app.archivio.Impostazioni
+import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.StatoTappa
+import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.dominio.Tappa
 import java.io.File
 
@@ -380,22 +386,45 @@ fun RifornimentoDialog(
     )
 }
 
-/** I km con un pieno: il solo parametro del mezzo che l'app conosce. */
+/**
+ * Le impostazioni: il mezzo, il riepilogo della sera, e i pulsanti per quando
+ * il riepilogo non arriva.
+ *
+ * L'ultima sezione esiste per HyperOS. Un'app che non viene aperta per qualche
+ * giorno viene congelata, e con lei sparisce la sveglia: non c'e' modo di
+ * impedirlo dal codice, si puo' solo portare l'utente dove si disattiva. Se il
+ * telefono non e' uno Xiaomi il pulsante dell'avvio automatico non compare.
+ */
 @Composable
 fun ImpostazioniDialog(
-    kmConUnPieno: Int?,
-    onSalva: (Int?) -> Unit,
+    impostazioni: Impostazioni,
+    notificheConcesse: Boolean,
+    batteriaSenzaLimiti: Boolean,
+    avvioAutomaticoDisponibile: Boolean,
+    onSalva: (Impostazioni) -> Unit,
+    onProvaBriefing: () -> Unit,
+    onPermessoNotifiche: () -> Unit,
+    onBatteria: () -> Unit,
+    onAvvioAutomatico: () -> Unit,
     onChiudi: () -> Unit,
 ) {
-    var km by remember { mutableStateOf(kmConUnPieno?.toString().orEmpty()) }
+    var km by remember { mutableStateOf(impostazioni.kmConUnPieno?.toString().orEmpty()) }
+    var briefing by remember { mutableStateOf(impostazioni.briefingAttivo) }
+    var ora by remember { mutableStateOf(impostazioni.ora.toString()) }
+
     val valore = Csv.leggiIntero(km)
-    val valida = km.isBlank() || (valore != null && valore > 0)
+    val oraScelta = Csv.leggiIntero(ora)
+    val valida = (km.isBlank() || (valore != null && valore > 0)) &&
+        oraScelta != null && oraScelta in 0..23
 
     AlertDialog(
         onDismissRequest = onChiudi,
         title = { Text(stringResource(R.string.impostazioni_titolo)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 OutlinedTextField(
                     value = km,
                     onValueChange = { km = it },
@@ -409,16 +438,168 @@ fun ImpostazioniDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = briefing, onCheckedChange = { briefing = it })
+                    Column(modifier = Modifier.padding(start = 12.dp)) {
+                        Text(
+                            stringResource(R.string.impostazioni_briefing),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            stringResource(R.string.impostazioni_briefing_spiegazione),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (briefing) {
+                    OutlinedTextField(
+                        value = ora,
+                        onValueChange = { ora = it },
+                        label = { Text(stringResource(R.string.impostazioni_ora)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    TextButton(onClick = onProvaBriefing) {
+                        Text(stringResource(R.string.impostazioni_prova_briefing))
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    stringResource(R.string.impostazioni_se_non_arriva),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(R.string.impostazioni_se_non_arriva_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                RigaSistema(
+                    etichetta = stringResource(R.string.impostazioni_notifiche),
+                    fatto = notificheConcesse,
+                    onTocco = onPermessoNotifiche,
+                )
+                RigaSistema(
+                    etichetta = stringResource(R.string.impostazioni_batteria),
+                    fatto = batteriaSenzaLimiti,
+                    onTocco = onBatteria,
+                )
+                if (avvioAutomaticoDisponibile) {
+                    RigaSistema(
+                        etichetta = stringResource(R.string.impostazioni_avvio_automatico),
+                        // Il sistema non dice se e' concesso: si puo' solo
+                        // portarci l'utente e fidarsi.
+                        fatto = null,
+                        onTocco = onAvvioAutomatico,
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = valida,
-                onClick = { onChiudi(); onSalva(valore) },
+                onClick = {
+                    onChiudi()
+                    onSalva(
+                        impostazioni.copy(
+                            kmConUnPieno = valore,
+                            briefingAttivo = briefing,
+                            oraBriefing = oraScelta ?: impostazioni.ora,
+                        ),
+                    )
+                },
             ) { Text(stringResource(R.string.azione_salva)) }
         },
         dismissButton = {
             TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
+
+/**
+ * Una riga della sezione di sistema: cosa manca, e un tocco per andarci.
+ *
+ * @param fatto `null` quando il sistema non lo dichiara — l'avvio automatico di
+ *   Xiaomi non e' interrogabile, e mostrare una spunta inventata sarebbe
+ *   peggio di non mostrarne nessuna.
+ */
+@Composable
+private fun RigaSistema(etichetta: String, fatto: Boolean?, onTocco: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTocco)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = when (fatto) {
+                true -> "\u2713"
+                false -> "\u25CB"
+                null -> "\u2192"
+            },
+            fontFamily = FontFamily.Monospace,
+            color = if (fatto == true) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.width(28.dp),
+        )
+        Text(etichetta, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * Il riepilogo che arriverebbe stasera, mostrato adesso.
+ *
+ * E' l'unico modo sensato di provare una funzione che scatta una volta al
+ * giorno: il testo e' esattamente quello della notifica, composto dalle stesse
+ * funzioni.
+ */
+@Composable
+fun BriefingDialog(briefing: Briefing?, onChiudi: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = {
+            Text(
+                if (briefing == null || briefing.vuoto) {
+                    stringResource(R.string.briefing_niente)
+                } else {
+                    TestoBriefing.titolo(briefing)
+                },
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (briefing == null || briefing.vuoto) {
+                    Text(
+                        stringResource(R.string.briefing_niente_spiegazione),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    val corpo = TestoBriefing.corpo(briefing)
+                    if (corpo.isNotBlank()) {
+                        Text(corpo, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                Text(
+                    stringResource(R.string.briefing_anteprima),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_chiudi)) }
         },
     )
 }

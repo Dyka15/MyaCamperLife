@@ -1,6 +1,9 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Briefing
+import it.myacamperlife.app.dominio.Briefings
 import it.myacamperlife.app.dominio.Categoria
+import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
@@ -11,6 +14,7 @@ import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StatoTappa
+import it.myacamperlife.app.dominio.StimaAutonomia
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
 import it.myacamperlife.app.dominio.Voce
@@ -466,6 +470,45 @@ class Archivio(private val radice: File) {
         raccogli(tabellaSpese(slug).vive(), SpeseTabella.LAT, SpeseTabella.LON)
     }.sortedBy { it.istante }
 
+    // --- briefing serale -----------------------------------------------------
+
+    /**
+     * Il riepilogo della sera per un viaggio.
+     *
+     * Il punto di partenza dei chilometri di domani e' **l'ultima posizione
+     * registrata**, non la tappa corrente: se oggi ti sei spostato di
+     * cinquanta chilometri fuori itinerario, domani parti da li'.
+     */
+    fun briefing(
+        slug: String,
+        oggi: LocalDate = LocalDate.now(),
+        kmConUnPieno: Int? = impostazioni().kmConUnPieno,
+    ): Briefing {
+        val punti = punti(slug)
+        return Briefings.componi(
+            tappe = tappe(slug),
+            oggi = oggi,
+            autonomia = StimaAutonomia.calcola(
+                kmConUnPieno = kmConUnPieno,
+                rifornimenti = rifornimenti(slug),
+                punti = punti,
+            ),
+            da = punti.lastOrNull()?.let { Coordinate(it.lat, it.lon) }
+                ?: Tappe.corrente(tappe(slug))?.let { Coordinate(it.lat, it.lon) },
+        )
+    }
+
+    /**
+     * Il briefing del viaggio piu' recente, o `null` se non ce n'e' nessuno.
+     *
+     * Il viaggio in corso e' l'ultimo creato: non c'e' un flag "attivo" da
+     * tenere aggiornato, e non serve — chi apre un viaggio nuovo sta partendo.
+     */
+    fun briefingCorrente(oggi: LocalDate = LocalDate.now()): Briefing? {
+        val viaggio = viaggi().firstOrNull() ?: return null
+        return briefing(viaggio.slug, oggi)
+    }
+
     // --- impostazioni --------------------------------------------------------
 
     fun impostazioni(): Impostazioni {
@@ -637,9 +680,13 @@ class Archivio(private val radice: File) {
             appendLine()
             appendLine("## impostazioni.json")
             appendLine()
-            appendLine("`kmConUnPieno`: quanti chilometri fa il mezzo con un serbatoio pieno.")
-            appendLine("Serve alla stima dell'autonomia. Le chiavi API non stanno qui: vivono")
-            appendLine("nell'archivio cifrato dell'app.")
+            appendLine("| Chiave | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `kmConUnPieno` | Quanti chilometri fa il mezzo con un serbatoio pieno. Serve alla stima dell'autonomia |")
+            appendLine("| `briefingAttivo` | Se il riepilogo della sera deve arrivare |")
+            appendLine("| `oraBriefing` | L'ora del riepilogo, 0-23. Di riposo le 19 |")
+            appendLine()
+            appendLine("Le chiavi API non stanno qui: vivono nell'archivio cifrato dell'app.")
             appendLine()
             appendLine("## diario.md")
             appendLine()

@@ -10,6 +10,7 @@ import it.myacamperlife.app.archivio.Posizione
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Autonomia
+import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
@@ -48,6 +49,12 @@ class ViaggiViewModel(
     private val archivio: Archivio,
     private val documenti: Documenti,
     private val posizioni: Posizioni,
+    /**
+     * Riarma la sveglia del riepilogo quando le impostazioni cambiano.
+     * E' l'unico pezzo di Android che serve qui, e arriva da fuori cosi' il
+     * resto della classe resta leggibile senza un telefono.
+     */
+    private val riarma: (Impostazioni) -> Unit = {},
 ) : ViewModel() {
 
     data class Stato(
@@ -61,12 +68,13 @@ class ViaggiViewModel(
         val conto: Conto = Spese.conta(emptyList()),
         val spese: List<Spesa> = emptyList(),
         val autonomia: Autonomia? = null,
-        val kmConUnPieno: Int? = null,
+        val impostazioni: Impostazioni = Impostazioni(),
         /** L'ultimo contachilometri registrato: precompila la form. */
         val ultimoKm: Int? = null,
         val inCorso: Boolean = false,
         val avviso: Avviso? = null,
     ) {
+        val kmConUnPieno: Int? get() = impostazioni.kmConUnPieno
         val corrente: Tappa? get() = Tappe.corrente(tappe)
         val prossima: Tappa? get() = Tappe.prossima(tappe)
         val giorni: List<LocalDate>
@@ -98,13 +106,25 @@ class ViaggiViewModel(
     // --- viaggi -------------------------------------------------------------
 
     private fun ricarica(apri: Viaggio? = null) = viewModelScope.launch {
-        val elenco = withContext(Dispatchers.IO) {
+        // Le impostazioni si leggono anche senza un viaggio aperto: la
+        // schermata delle impostazioni si apre da qualunque punto, e mostrare
+        // valori di riposo su un file che ne ha altri li cancellerebbe al
+        // primo salvataggio.
+        val caricato = withContext(Dispatchers.IO) {
             archivio.prepara()
-            archivio.viaggi()
+            archivio.viaggi() to archivio.impostazioni()
         }
+        val (elenco, impostazioni) = caricato
         val daAprire = apri
             ?: _stato.value.aperto?.let { aperto -> elenco.find { it.slug == aperto.slug } }
-        _stato.update { it.copy(caricamento = false, viaggi = elenco, aperto = daAprire) }
+        _stato.update {
+            it.copy(
+                caricamento = false,
+                viaggi = elenco,
+                aperto = daAprire,
+                impostazioni = impostazioni,
+            )
+        }
         daAprire?.let { aggiornaViaggio(it) }
     }
 
@@ -112,7 +132,7 @@ class ViaggiViewModel(
         val dati = withContext(Dispatchers.IO) {
             val slug = viaggio.slug
             val rifornimenti = archivio.rifornimenti(slug)
-            val kmConUnPieno = archivio.impostazioni().kmConUnPieno
+            val impostazioni = archivio.impostazioni()
             DatiViaggio(
                 tappe = archivio.tappe(slug),
                 voci = archivio.voci(slug),
@@ -121,11 +141,11 @@ class ViaggiViewModel(
                 conto = archivio.conto(slug),
                 spese = archivio.spese(slug),
                 autonomia = StimaAutonomia.calcola(
-                    kmConUnPieno = kmConUnPieno,
+                    kmConUnPieno = impostazioni.kmConUnPieno,
                     rifornimenti = rifornimenti,
                     punti = archivio.punti(slug),
                 ),
-                kmConUnPieno = kmConUnPieno,
+                impostazioni = impostazioni,
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
             )
         }
@@ -139,7 +159,7 @@ class ViaggiViewModel(
                 conto = dati.conto,
                 spese = dati.spese,
                 autonomia = dati.autonomia,
-                kmConUnPieno = dati.kmConUnPieno,
+                impostazioni = dati.impostazioni,
                 ultimoKm = dati.ultimoKm,
             )
         }
@@ -153,7 +173,7 @@ class ViaggiViewModel(
         val conto: Conto,
         val spese: List<Spesa>,
         val autonomia: Autonomia?,
-        val kmConUnPieno: Int?,
+        val impostazioni: Impostazioni,
         val ultimoKm: Int?,
     )
 
@@ -291,17 +311,34 @@ class ViaggiViewModel(
         withContext(Dispatchers.IO) { file.delete() }
     }
 
+    // --- impostazioni e briefing ---------------------------------------------
+
     /**
-     * Salva i km con un pieno. Vive fuori da [operazione] perche' e' una
-     * impostazione globale: si puo' cambiare anche senza un viaggio aperto.
+     * Salva le impostazioni e riarma la sveglia del riepilogo.
+     *
+     * Vive fuori da [operazione] perche' sono impostazioni globali: si possono
+     * cambiare anche senza un viaggio aperto.
      */
-    fun salvaKmConUnPieno(km: Int?) = viewModelScope.launch {
-        withContext(Dispatchers.IO) {
-            archivio.salvaImpostazioni(archivio.impostazioni().copy(kmConUnPieno = km))
-        }
-        _stato.update { it.copy(kmConUnPieno = km, avviso = Avviso.ImpostazioniSalvate) }
+    fun salvaImpostazioni(nuove: Impostazioni) = viewModelScope.launch {
+        withContext(Dispatchers.IO) { archivio.salvaImpostazioni(nuove) }
+        _stato.update { it.copy(impostazioni = nuove, avviso = Avviso.ImpostazioniSalvate) }
+        // La sveglia segue l'impostazione senza aspettare il prossimo avvio:
+        // spegnere il riepilogo e vederlo arrivare stasera sarebbe assurdo.
+        riarma(nuove)
         _stato.value.aperto?.let { aggiornaViaggio(it) }
     }
+
+    /**
+     * Il riepilogo che arriverebbe stasera, calcolato adesso.
+     *
+     * Serve a verificarlo senza aspettare le 19:00 — che e' l'unico modo
+     * sensato di provare una funzione che scatta una volta al giorno.
+     */
+    suspend fun briefingDiStasera(): Briefing? = withContext(Dispatchers.IO) {
+        _stato.value.aperto?.let { archivio.briefing(it.slug) } ?: archivio.briefingCorrente()
+    }
+
+
 
     fun registraFoto(file: File, didascalia: String?) = operazione { slug ->
         archivio.registraFoto(slug, file.name, didascalia, posizioni.ultimaNota())
