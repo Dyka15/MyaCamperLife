@@ -56,6 +56,7 @@ import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.ui.diario.DiarioContent
 import it.myacamperlife.app.ui.esplora.EsploraContent
+import it.myacamperlife.app.ui.foto.FotoDialog
 import it.myacamperlife.app.ui.numeri.NumeriContent
 import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
 import it.myacamperlife.app.ui.viaggi.AzioniVoceDialog
@@ -126,6 +127,9 @@ fun MyaApp(vista: ViaggiViewModel) {
     // form giusta per il suo genere.
     var voceScelta by remember { mutableStateOf<Voce?>(null) }
     var voceDaCorreggere by remember { mutableStateOf<Voce?>(null) }
+
+    /** La voce di cui si sta guardando la foto — o lo scontrino. */
+    var fotoAperta by remember { mutableStateOf<Voce?>(null) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -378,6 +382,8 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onProsa = vista::riscriviGiornata,
                     onCronaca = vista::rigeneraDiario,
                     onVoce = { voceScelta = it },
+                    allegato = vista::allegato,
+                    onFoto = { fotoAperta = it },
                 )
 
                 scheda == Scheda.NUMERI -> NumeriContent(
@@ -429,9 +435,19 @@ fun MyaApp(vista: ViaggiViewModel) {
         )
     }
 
+    fotoAperta?.let { voce ->
+        FotoDialog(
+            file = vista.allegato(voce),
+            didascalia = voce.testo,
+            onApriFuori = { vista.allegato(voce)?.let { apriFuori(contesto, it) } },
+            onChiudi = { fotoAperta = null },
+        )
+    }
+
     voceScelta?.let { voce ->
         AzioniVoceDialog(
             voce = voce,
+            allegato = vista.allegato(voce),
             onCorreggi = { voceDaCorreggere = voce },
             onCancella = { vista.cancellaVoce(voce) },
             onChiudi = { voceScelta = null },
@@ -512,6 +528,7 @@ fun MyaApp(vista: ViaggiViewModel) {
 
     fotoScattata?.let { file ->
         DidascaliaDialog(
+            file = file,
             onSalva = { didascalia ->
                 fotoScattata = null
                 vista.registraFoto(file, didascalia)
@@ -682,6 +699,26 @@ private fun apriNellaMappa(
     )
     // Se non c'e' nessuna app di mappe non si fa niente, invece di cadere.
     if (intento.resolveActivity(contesto.packageManager) != null) contesto.startActivity(intento)
+}
+
+/**
+ * Apre una foto nell'app che le apre di mestiere.
+ *
+ * Serve a quello che la vista dentro l'app non fa: ingrandire uno scontrino per
+ * leggere una cifra, condividere una foto, ruotarla. L'Uri passa dal
+ * FileProvider con il permesso di lettura per una volta sola — il file resta
+ * dov'e', non se ne fa una copia in giro.
+ *
+ * `try`/`catch` e non `resolveActivity`: da Android 11 quest'ultimo restituisce
+ * null per le app non dichiarate in `<queries>`, e il pulsante sembrerebbe rotto
+ * su un telefono che invece la galleria ce l'ha.
+ */
+private fun apriFuori(contesto: android.content.Context, file: File) {
+    val uri = uriDi(contesto, file)
+    val intento = android.content.Intent(android.content.Intent.ACTION_VIEW)
+        .setDataAndType(uri, "image/*")
+        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    runCatching { contesto.startActivity(intento) }
 }
 
 /**

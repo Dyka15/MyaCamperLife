@@ -400,6 +400,24 @@ class ViaggiViewModel(
         Avviso.NotaRegistrata
     }
 
+    /**
+     * Il file dell'allegato di una voce, quando c'e'.
+     *
+     * Foto e scontrini stanno in due cartelle diverse, e il genere della voce
+     * dice quale: e' l'unica cosa che l'interfaccia non puo' dedurre dal nome del
+     * file. Restituisce un `File` anche se non esiste — chi lo mostra distingue
+     * "sto caricando" da "non c'e' piu'", e sono due messaggi diversi.
+     */
+    fun allegato(voce: Voce): File? {
+        val slug = _stato.value.aperto?.slug ?: return null
+        val nome = voce.allegato ?: return null
+        return when (voce.genere) {
+            Genere.FOTO -> File(archivio.cartellaFoto(slug), nome)
+            Genere.SPESA -> File(archivio.cartellaScontrini(slug), nome)
+            else -> null
+        }
+    }
+
     // --- tornare su quello che si e' registrato -------------------------------
 
     /**

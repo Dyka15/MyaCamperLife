@@ -261,6 +261,12 @@
     <string name="esplora_risposte">Risposte salvate</string>
     <string name="dossier_perso">Il file della risposta non c\'è più.</string>
 
+    <!-- Le foto dentro l'app -->
+    <string name="foto_descrizione">Foto del viaggio</string>
+    <string name="foto_persa_breve">manca</string>
+    <string name="foto_persa">Il file non c\'è più: potrebbe essere stato cancellato dal gestore file, o non copiato al cambio di telefono. La voce di diario resta.</string>
+    <string name="foto_apri_fuori">Apri con…</string>
+
     <!-- Tornare su una voce già registrata -->
     <string name="voce_titolo">Questa voce</string>
     <string name="voce_cancella_titolo">Cancellare questa voce?</string>

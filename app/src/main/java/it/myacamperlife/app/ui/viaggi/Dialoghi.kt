@@ -58,6 +58,7 @@ import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.rete.Provenienza
+import it.myacamperlife.app.ui.foto.Miniatura
 import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.dominio.Tappa
 import java.io.File
@@ -81,6 +82,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AzioniVoceDialog(
     voce: Voce,
+    /** La foto o lo scontrino della voce, se ne ha uno. */
+    allegato: File?,
     onCorreggi: () -> Unit,
     onCancella: () -> Unit,
     onChiudi: () -> Unit,
@@ -98,6 +101,10 @@ fun AzioniVoceDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // La miniatura c'e' soprattutto per la conferma di cancellazione:
+                // "cancellare questa voce?" con la foto sotto gli occhi e' una
+                // domanda a cui si puo' rispondere.
+                if (allegato != null) Miniatura(file = allegato, lato = 96)
                 Text(
                     text = voce.testo.ifBlank { stringResource(R.string.voce_senza_testo) },
                     style = MaterialTheme.typography.bodyMedium,
@@ -232,7 +239,7 @@ fun NotaDialog(onSalva: (String) -> Unit, onChiudi: () -> Unit) {
 
 /** La didascalia di una foto appena scattata: facoltativa. */
 @Composable
-fun DidascaliaDialog(onSalva: (String?) -> Unit, onScarta: () -> Unit) {
+fun DidascaliaDialog(file: File?, onSalva: (String?) -> Unit, onScarta: () -> Unit) {
     var testo by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -240,6 +247,16 @@ fun DidascaliaDialog(onSalva: (String?) -> Unit, onScarta: () -> Unit) {
         title = { Text(stringResource(R.string.foto_titolo)) },
         text = {
             Column {
+                // Lo scatto si guarda prima di tenerlo: e' la stessa domanda di
+                // sempre davanti a una fotocamera, "e' venuta?", e finora questa
+                // schermata non ci rispondeva.
+                if (file != null) {
+                    Miniatura(
+                        file = file,
+                        lato = 120,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
                 OutlinedTextField(
                     value = testo,
                     onValueChange = { testo = it },
@@ -1170,11 +1187,18 @@ fun SpesaDialog(
                         )
                     }
                     if (scontrino != null) {
-                        Text(
-                            scontrino.name,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        // La miniatura risponde alla domanda che uno si fa dopo
+                        // aver fotografato uno scontrino al buio in un'area di
+                        // sosta: e' venuta leggibile?
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Miniatura(file = scontrino, lato = 56)
+                            Text(
+                                scontrino.name,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
                     }
                 }
             }

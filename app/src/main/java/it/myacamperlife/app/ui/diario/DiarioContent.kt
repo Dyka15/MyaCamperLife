@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.dominio.Voce
+import it.myacamperlife.app.ui.foto.Miniatura
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -42,6 +44,9 @@ fun DiarioContent(
     onProsa: (LocalDate) -> Unit,
     onCronaca: () -> Unit,
     onVoce: (Voce) -> Unit,
+    /** Il file dell'allegato, per le voci che ne hanno uno. */
+    allegato: (Voce) -> File?,
+    onFoto: (Voce) -> Unit,
 ) {
     if (voci.isEmpty()) {
         Column(modifier = Modifier.padding(24.dp)) {
@@ -94,7 +99,12 @@ fun DiarioContent(
             // Senza chiave: due voci nello stesso secondo e dello stesso
             // genere darebbero una chiave duplicata, e LazyColumn cade.
             items(delGiorno) { voce ->
-                RigaVoce(voce, onTocco = { onVoce(voce) })
+                RigaVoce(
+                    voce = voce,
+                    allegato = allegato(voce),
+                    onTocco = { onVoce(voce) },
+                    onFoto = { onFoto(voce) },
+                )
             }
         }
 
@@ -116,7 +126,12 @@ fun DiarioContent(
 }
 
 @Composable
-private fun RigaVoce(voce: Voce, onTocco: () -> Unit) {
+private fun RigaVoce(
+    voce: Voce,
+    allegato: File?,
+    onTocco: () -> Unit,
+    onFoto: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -141,6 +156,17 @@ private fun RigaVoce(voce: Voce, onTocco: () -> Unit) {
             Text(
                 text = testo(voce),
                 style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        // La miniatura sta a destra e ha un tocco suo: sul resto della riga il
+        // tocco apre correggi/cancella, e una foto va guardata senza passare per
+        // un menu.
+        if (allegato != null) {
+            Miniatura(
+                file = allegato,
+                onTocco = onFoto,
+                modifier = Modifier.padding(start = 8.dp),
             )
         }
     }

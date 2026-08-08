@@ -65,6 +65,11 @@ Diario:
   di una spesa, il testo di una nota: si aggiustano dall'app, non aprendo il CSV. Correggere
   accoda una riga con lo stesso identificativo, cancellare accoda una lapide — **l'originale
   resta scritto nel file**, che è il motivo per cui offrire questa funzione non fa paura
+- **le foto si vedono**: una miniatura accanto alla voce, e la foto a schermo intero
+  toccandola. Vale anche per lo scontrino di una spesa, e dopo uno scatto la didascalia
+  arriva con l'anteprima — «è venuta?» è la prima domanda, e prima non c'era risposta.
+  Nessuna libreria di immagini: due megabyte di dipendenza per aprire un JPEG sono la stessa
+  cifra per cui è stato tolto il riconoscimento del testo
 
 Numeri:
 
@@ -210,5 +215,8 @@ In `esempi/` c'è un itinerario con cui provare l'importazione.
 
 Kotlin, Jetpack Compose (Material 3), file CSV e Markdown su archiviazione locale.
 **Nessun database:** i volumi sono migliaia di righe e un archivio opaco contraddirebbe
-il terzo principio. `minSdk` 33 (Android 13). Dispositivo di riferimento: Poco F7
-(HyperOS, Android 16).
+il terzo principio. **Nessuna libreria HTTP e nessuna libreria di immagini:** le tre
+richieste di rete stanno in ottanta righe di `HttpURLConnection`, e aprire un JPEG
+sottocampionato in centoventi di `BitmapFactory` — un paio di megabyte di dipendenza per
+ciascuna sarebbero la stessa cifra per cui è stato tolto il riconoscimento del testo.
+`minSdk` 33 (Android 13). Dispositivo di riferimento: Poco F7 (HyperOS, Android 16).

@@ -185,6 +185,7 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Sfogliare le giornate passate, filtrare, cercare nel testo delle note | 2 |
 | **Correggere** una voce già registrata: il testo di una nota, la didascalia di una foto, i numeri e la data di un rifornimento o di una spesa | 11 |
 | **Cancellare** una voce: si accoda una lapide, la riga originale resta nel file | 11 |
+| **Vedere le foto**: una miniatura accanto a ogni voce che ne ha una, e la foto a schermo intero toccandola. Vale anche per lo scontrino di una spesa | 12 |
 
 ### 4.3 Rifornimenti, consumi e autonomia
 
@@ -266,8 +267,9 @@ lasciarlo scoprire usando l'app:
 
 - **compattare i file.** La funzione che riscrive una tabella tenendo solo l'ultima versione
   di ogni riga esiste ed è verificata, ma nessun pulsante la chiama
-- **rivedere le foto dentro l'app.** Nel diario compare il nome del file, non l'immagine; lo
-  stesso per la foto di uno scontrino
+- **ingrandire una foto dentro l'app.** Si guarda a schermo intero ma non si zooma né si fa
+  scorrere: per leggere una cifra su uno scontrino c'è «Apri con…», che la passa alla
+  galleria del telefono
 - **filtrare e cercare nel testo delle note** (4.2): c'è solo lo scorrimento per giorno
 - **la coda delle giornate da narrare senza rete** (5): il pulsante dice che manca la rete e
   la giornata resta cronaca
