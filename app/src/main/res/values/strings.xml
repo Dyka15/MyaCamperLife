@@ -253,6 +253,21 @@
     <string name="esplora_risposte">Risposte salvate</string>
     <string name="dossier_perso">Il file della risposta non c\'è più.</string>
 
+    <!-- La scheda di una tappa -->
+    <string name="scheda_descrizione">Dall\'itinerario</string>
+    <string name="scheda_meteo">Che tempo farà</string>
+    <string name="scheda_dintorni">Nei dintorni</string>
+    <string name="scheda_dintorni_vuoti">Niente di segnato nel raggio di venti chilometri. Non vuol dire che non ci sia: OpenStreetMap non copre tutto.</string>
+    <string name="scheda_dintorni_senza_scorta">I dintorni non sono ancora scaricati.</string>
+    <string name="scheda_categoria_quante">%1$s · %2$d</string>
+    <string name="scheda_da">Si arriva da %1$s</string>
+    <string name="scheda_da_con_distanza">Da %1$s · %2$d km · %3$s</string>
+    <string name="scheda_posizione_nel_viaggio">Tappa %1$d di %2$d</string>
+    <string name="scheda_apri_mappa">Apri nella mappa</string>
+    <string name="scheda_chiedi">Cerca nei dintorni</string>
+    <string name="scheda_chiedi_spiegazione">Chiede al modello cosa c\'è intorno a questa tappa, con quello che l\'app già sa. Serve la rete; la risposta si salva e si rilegge offline arrivando qui.</string>
+    <string name="scheda_risposte">Risposte su questa tappa</string>
+
     <!-- I modelli -->
     <string name="impostazioni_modelli">Modelli</string>
     <string name="impostazioni_modelli_spiegazione">Chiavi, identificativi e il prompt di Esplora. Le chiavi non finiscono nella cartella dei file.</string>

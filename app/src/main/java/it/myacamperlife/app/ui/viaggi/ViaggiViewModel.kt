@@ -25,12 +25,15 @@ import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.NomeFoto
 import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.PoiVicino
+import it.myacamperlife.app.dominio.Schede
+import it.myacamperlife.app.dominio.SchedaTappa
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StimaAutonomia
@@ -112,6 +115,12 @@ class ViaggiViewModel(
         val autonomia: Autonomia? = null,
         val tratte: Tratte = Tratte(),
         val poi: List<Poi> = emptyList(),
+        /**
+         * La scorta di previsioni. Sta nello stato e non si rilegge a ogni
+         * scheda: e' un file piccolo, e la schermata di una tappa deve aprirsi
+         * senza toccare il disco.
+         */
+        val meteo: Meteo? = null,
         val dossier: List<Dossier> = emptyList(),
         /** Da dove si cerca nei dintorni: l'ultima posizione nota. */
         val quiVicino: Coordinate? = null,
@@ -157,6 +166,28 @@ class ViaggiViewModel(
             val da = quiVicino ?: return emptyList()
             return Dintorni.vicini(poi, da.lat, da.lon, categoria)
         }
+
+        /**
+         * La scheda di una tappa: descrizione, meteo di quel giorno, dintorni.
+         *
+         * Non sta nello stato perche' e' una **vista** su dati che ci sono
+         * gia': tenerne una copia significherebbe doverla invalidare a ogni
+         * check-in, e sarebbe l'unico pezzo di stato con quel problema.
+         *
+         * La schermata se la compone da se' — cosi' puo' congelare l'orologio e
+         * ricalcolare solo quando i dati cambiano; questa serve al contesto da
+         * dare al modello, dove l'adesso e' proprio adesso.
+         */
+        fun scheda(tappa: Tappa): SchedaTappa = Schede.componi(
+            tappa = tappa,
+            tappe = tappe,
+            oggi = LocalDate.now(),
+            poi = poi,
+            tratte = tratte,
+            meteo = meteo,
+            adesso = OffsetDateTime.now(),
+            dossier = dossier,
+        )
     }
 
     /** Un messaggio da mostrare una volta e poi scartare. */
@@ -236,6 +267,7 @@ class ViaggiViewModel(
                 impostazioni = impostazioni,
                 tratte = archivio.tratte(slug),
                 poi = archivio.poi(slug),
+                meteo = archivio.meteo(slug),
                 dossier = archivio.dossier(slug),
                 quiVicino = archivio.dovePunto(slug),
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
@@ -254,6 +286,7 @@ class ViaggiViewModel(
                 impostazioni = dati.impostazioni,
                 tratte = dati.tratte,
                 poi = dati.poi,
+                meteo = dati.meteo,
                 dossier = dati.dossier,
                 quiVicino = dati.quiVicino,
                 ultimoKm = dati.ultimoKm,
@@ -272,6 +305,7 @@ class ViaggiViewModel(
         val impostazioni: Impostazioni,
         val tratte: Tratte,
         val poi: List<Poi>,
+        val meteo: Meteo?,
         val dossier: List<Dossier>,
         val quiVicino: Coordinate?,
         val ultimoKm: Int?,
@@ -587,12 +621,9 @@ class ViaggiViewModel(
      */
     fun chiedi(domanda: String) = viewModelScope.launch {
         val viaggio = _stato.value.aperto ?: return@launch
-        val assistente = assistente ?: return@launch
         val stato = _stato.value
-
-        _stato.update { it.copy(inCorso = true, avviso = null) }
-
         val posizione = stato.quiVicino
+
         val contesto = withContext(Dispatchers.IO) {
             Esplora.contesto(
                 dove = archivio.doveDetto(viaggio.slug, posizione?.let { Posizione(it.lat, it.lon) }),
@@ -606,10 +637,58 @@ class ViaggiViewModel(
             )
         }
 
+        interroga(domanda, contesto, posizione, tappa = null)
+    }
+
+    /**
+     * Chiede al modello **di una tappa**, che non e' dove sei.
+     *
+     * Il contesto lo compone la scheda: il giorno previsto, la previsione per
+     * quel giorno, i dintorni di **quel** posto. Chiedere di Bolsena stando a
+     * Orvieto e' il caso normale, quindi la risposta si attribuisce a Bolsena e
+     * non a dove eri: e' con quel nome che la si ritrova nella sua scheda, tre
+     * giorni dopo, senza campo.
+     */
+    fun chiediDiTappa(tappa: Tappa) = viewModelScope.launch {
+        if (_stato.value.aperto == null) return@launch
+        val scheda = _stato.value.scheda(tappa)
+
+        val contesto = Esplora.contestoDiTappa(
+            tappa = tappa,
+            giorno = scheda.giorno,
+            oggi = LocalDate.now(),
+            previsione = scheda.previsione,
+            vicini = Dintorni.vicini(_stato.value.poi, tappa.lat, tappa.lon)
+                .take(Esplora.VICINI_NEL_CONTESTO),
+            da = scheda.da,
+        )
+
+        interroga(Esplora.DOMANDA_TAPPA, contesto, posizione = null, tappa = tappa.nome)
+    }
+
+    /**
+     * Il pezzo comune alle due domande: manda, salva su file, aggiorna.
+     *
+     * **Il salvataggio non e' facoltativo.** Una risposta letta e chiusa e'
+     * persa; e' il dossier a rendere utile una funzione altrimenti solo online,
+     * quindi sta qui dentro e non nel chiamante, dove si potrebbe dimenticare.
+     */
+    private suspend fun interroga(
+        domanda: String,
+        contesto: String,
+        posizione: Coordinate?,
+        tappa: String?,
+    ) {
+        val viaggio = _stato.value.aperto ?: return
+        val assistente = assistente ?: return
+        val impostazioni = _stato.value.impostazioni
+
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+
         val esito = assistente.chiedi(
-            sistema = stato.impostazioni.prompt(),
+            sistema = impostazioni.prompt(),
             domanda = Esplora.domanda(contesto, domanda),
-            impostazioni = stato.impostazioni,
+            impostazioni = impostazioni,
         )
 
         when (esito) {
@@ -621,6 +700,7 @@ class ViaggiViewModel(
                         contesto = contesto,
                         risposta = esito.risposta,
                         posizione = posizione?.let { Posizione(it.lat, it.lon) },
+                        tappa = tappa,
                     )
                 }
                 aggiornaViaggio(viaggio)

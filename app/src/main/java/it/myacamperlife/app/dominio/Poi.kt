@@ -116,11 +116,23 @@ data class PoiVicino(val poi: Poi, val km: Double) {
 }
 
 /**
+ * Cosa c'e' di una categoria intorno a un punto: quanti, e il piu' vicino.
+ *
+ * Sta insieme perche' separati non servono: il numero senza la distanza non
+ * dice se vale la pena, la distanza senza il numero non dice se c'e' scelta.
+ */
+data class RiassuntoCategoria(
+    val categoria: CategoriaPoi,
+    val quanti: Int,
+    val piuVicino: PoiVicino,
+)
+
+/**
  * La ricerca nei dintorni. Funzione pura: nessun file, nessuna rete.
  *
  * E' il primo dei due strati di Esplora: **questo risponde sempre**, perche'
- * legge una scorta locale. Il secondo — la domanda libera a un modello —
- * arriva alla fase 8 e sta sopra a questo, non al suo posto.
+ * legge una scorta locale. Il secondo — la domanda libera a un modello — sta
+ * sopra a questo, non al suo posto.
  */
 object Dintorni {
 
@@ -147,6 +159,33 @@ object Dintorni {
                 it.categoria == categoria && Distanza.km(lat, lon, it.lat, it.lon) <= entro
             }
         }.filterValues { it > 0 }
+
+    /**
+     * Cosa c'e' intorno a un punto, una riga per categoria.
+     *
+     * **Il numero da solo non risponde alla domanda.** "Aree di sosta: 3" non
+     * dice se sono a due chilometri o a diciotto, e su un camper la differenza
+     * decide la giornata. Ogni riga porta quindi anche il piu' vicino della
+     * categoria, con la sua distanza.
+     *
+     * Le categorie vuote non compaiono, come nell'elenco: una riga con zero
+     * accanto occupa lo spazio di una riga e non dice niente.
+     *
+     * Ordinate per vicinanza del capofila, non per l'ordine dell'enum: quello
+     * che e' a un chilometro conta prima di quello che e' a quindici.
+     */
+    fun riassunto(
+        poi: List<Poi>,
+        lat: Double,
+        lon: Double,
+        entro: Double = RAGGIO_KM,
+    ): List<RiassuntoCategoria> = CategoriaPoi.entries
+        .mapNotNull { categoria ->
+            val dentro = vicini(poi, lat, lon, categoria, entro, quanti = Int.MAX_VALUE)
+            val primo = dentro.firstOrNull() ?: return@mapNotNull null
+            RiassuntoCategoria(categoria, dentro.size, primo)
+        }
+        .sortedBy { it.piuVicino.km }
 
     /** Venti chilometri: oltre non e' piu' "nei dintorni". */
     const val RAGGIO_KM = 20.0

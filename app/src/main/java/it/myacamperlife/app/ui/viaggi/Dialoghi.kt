@@ -53,7 +53,6 @@ import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Momento
 import it.myacamperlife.app.dominio.Spesa
-import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.rete.Provenienza
 import it.myacamperlife.app.rete.RicercaIndirizzo
@@ -62,53 +61,6 @@ import java.io.File
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
-
-/** Le azioni possibili su una tappa, decise dal suo stato. */
-@Composable
-fun AzioniTappaDialog(
-    tappa: Tappa,
-    onCheckin: () -> Unit,
-    onAlterna: () -> Unit,
-    onChiudi: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onChiudi,
-        title = { Text(tappa.nome) },
-        text = {
-            Text(
-                when (tappa.stato) {
-                    StatoTappa.DA_FARE -> stringResource(R.string.tappa_da_fare)
-                    StatoTappa.FATTA -> stringResource(R.string.tappa_fatta)
-                    StatoTappa.SALTATA -> stringResource(R.string.tappa_saltata)
-                },
-            )
-        },
-        confirmButton = {
-            if (tappa.stato == StatoTappa.DA_FARE) {
-                TextButton(onClick = { onChiudi(); onCheckin() }) {
-                    Text(stringResource(R.string.azione_checkin))
-                }
-            }
-        },
-        dismissButton = {
-            Row {
-                // Su una tappa dove sei stato, saltare non vuol dire niente.
-                if (tappa.stato != StatoTappa.FATTA) {
-                    TextButton(onClick = { onChiudi(); onAlterna() }) {
-                        Text(
-                            if (tappa.stato == StatoTappa.SALTATA) {
-                                stringResource(R.string.azione_ripristina)
-                            } else {
-                                stringResource(R.string.azione_salta)
-                            },
-                        )
-                    }
-                }
-                TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_chiudi)) }
-            }
-        },
-    )
-}
 
 /** Una nota di viaggio. Un campo, due tocchi. */
 @Composable

@@ -115,6 +115,68 @@ object Esplora {
         }
     }.trim()
 
+    /**
+     * Il contesto di **una tappa**, che non e' dove sei.
+     *
+     * E' la differenza che rende utile il pulsante nella scheda: si chiede di
+     * Bolsena stando a Orvieto, tre giorni prima di arrivarci, e il modello deve
+     * ragionare su Bolsena e su quel giorno — non su qui e adesso. Da qui le due
+     * date distinte: `oggi` perche' serve a sapere quanto e' lontano il fatto, e
+     * il giorno della tappa perche' e' quello che conta per il meteo e per le
+     * aperture stagionali.
+     */
+    fun contestoDiTappa(
+        tappa: Tappa,
+        giorno: LocalDate?,
+        oggi: LocalDate,
+        previsione: Previsione? = null,
+        vicini: List<PoiVicino> = emptyList(),
+        da: Tappa? = null,
+    ): String = buildString {
+        appendLine("Contesto, misurato dall'app:")
+        appendLine("- oggi e' $oggi")
+        appendLine("- la tappa di cui si parla e' ${tappa.nome}")
+        appendLine("- le sue coordinate: ${tappa.lat} ${tappa.lon}")
+        giorno?.let {
+            val fra = it.toEpochDay() - oggi.toEpochDay()
+            appendLine("- ci si arriva il $it, ${TestoTappa.quando(fra)}")
+        }
+        da?.let { appendLine("- si arriva da ${it.nome}") }
+        tappa.descrizione?.trim()?.takeUnless { it.isEmpty() }?.let {
+            // Fra virgolette e attribuita: e' testo di chi ha scritto
+            // l'itinerario, non una misura dell'app, e le due cose non si
+            // confondono.
+            appendLine("- dall'itinerario, scritto da chi viaggia: \"$it\"")
+        }
+        previsione?.let { appendLine("- previsione per quel giorno: ${TestoMeteo.riga(it)}") }
+
+        if (vicini.isNotEmpty()) {
+            appendLine("- nei dintorni della tappa, da OpenStreetMap:")
+            vicini.forEach { vicino ->
+                appendLine(
+                    "  · ${vicino.poi.etichetta()} (${vicino.poi.categoria.senzaNome}), " +
+                        "${vicino.distanza}",
+                )
+            }
+            appendLine(
+                "  Questo elenco viene da OpenStreetMap e puo' essere incompleto o " +
+                    "invecchiato: usalo come punto di partenza, non come verita'.",
+            )
+        }
+    }.trim()
+
+    /**
+     * La domanda che parte dal pulsante della scheda.
+     *
+     * **E' scritta e non chiesta.** Un campo di testo su quella schermata
+     * significherebbe comporre una domanda ogni volta per chiedere sempre la
+     * stessa cosa; il campo libero resta in Esplora, dove serve a chiedere
+     * qualcosa di diverso. Qui un tocco, come le azioni rapide.
+     */
+    val DOMANDA_TAPPA: String = "Cosa c'e' da sapere nei dintorni di questa tappa? " +
+        "Dove si passa la notte in camper, cosa vale la pena vedere, e cosa devo " +
+        "tenere presente arrivandoci."
+
     /** La domanda completa: contesto, poi quello che ha scritto l'utente. */
     fun domanda(contesto: String, chiesto: String): String =
         if (contesto.isBlank()) chiesto.trim() else "$contesto\n\nDomanda: ${chiesto.trim()}"

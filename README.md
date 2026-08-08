@@ -38,6 +38,23 @@ Itinerario:
 - aggiungi una tappa scegliendo dove inserirla, con le coordinate dal GPS o digitate
 - tiene più viaggi e li elenca dal più recente
 
+**La scheda di una tappa** — un tocco sulla tappa e c'è tutto quello che l'app sa di quel
+posto, **senza rete**:
+
+- la **descrizione per intero** che sta nel file dell'itinerario, non la riga troncata
+  dell'elenco
+- il **meteo del suo giorno**, non di oggi: una tappa di giovedì porta la previsione di
+  giovedì, con l'età del dato dichiarata come sempre
+- **cosa c'è nei dintorni di quella tappa**, una riga per categoria con quante ce ne sono e
+  la più vicina con la sua distanza. «Aree di sosta: 3» non dice se sono a due chilometri o
+  a diciotto, e su un camper la differenza decide la giornata
+- da dove ci si arriva e quanti chilometri di strada, quando le tratte ce l'hanno
+- **«Cerca nei dintorni»**: chiede a un modello di *quella* tappa — il suo giorno, il suo
+  meteo, i suoi dintorni — e non di dove sei adesso. La risposta si salva e resta lì, così
+  arrivando fra tre giorni la si rilegge senza campo
+- **si scorre di lato** per passare alla tappa successiva: un itinerario si legge in fila, e
+  tornare all'elenco per aprire la tappa dopo sarebbero due tocchi per quello che fa un dito
+
 Diario:
 
 - registra posizione, note, foto e rifornimenti con quattro tocchi dalla schermata

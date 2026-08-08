@@ -805,6 +805,7 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **7** | Esplora offline: POI e toponimi da Overpass, scaricati per viaggio | "cosa c'è vicino" in mezzo al nulla |
 | **8** | Client AI: Gemini con Grok di riserva, Esplora a due strati, giornate in prosa | l'ultima cosa che restava su Telegram |
 | **9** | Specchio nella cartella scelta (SAF), coordinate in un campo, ricerca di un indirizzo | apri `spese.csv` in un foglio di calcolo |
+| **10** | Scheda di una tappa: descrizione, meteo del suo giorno, dintorni di quel posto, domanda al modello su quella tappa, scorrimento laterale | tocchi Bolsena tre giorni prima e sai cosa ti aspetta |
 
 **La fase 9 è stata anticipata prima della 8.** Finché i file stanno solo nell'area privata
 dell'app, il terzo principio — *i file sono il prodotto* — è vero nel codice e falso in
@@ -848,6 +849,25 @@ spegnere — con un'avvertenza sull'ordine: le due chiamate ai modelli non sono 
 per davvero (ambiente senza rete verso l'esterno, nessuna chiave), quindi conviene provare
 una domanda in Esplora e una giornata in prosa **prima** di spegnere i workflow, non dopo.
 Tutto il resto dell'app non dipende da quelle chiamate.
+
+**La fase 10 non era in programma, e viene dall'uso.** Le nove fasi hanno riempito l'app di
+dati che poi restavano ciascuno nella sua schermata: la descrizione di una tappa era una
+riga troncata nell'elenco, il meteo si vedeva solo per domani e solo nel riepilogo delle
+19:00, i dintorni solo intorno a dove sei. Nessuna delle tre schermate rispondeva alla
+domanda che si fa davvero — *com'è la tappa di dopodomani* — e la risposta **era già tutta
+in locale**: bastava metterla insieme. Non c'è nessuna funzione nuova qui dentro, solo una
+schermata che non c'era; l'unica riga di rete è il pulsante che chiede al modello, e anche
+quello salva la risposta su file perché la si rilegga arrivando sul posto.
+
+Due conseguenze meno ovvie:
+
+- **La previsione di una tappa è quella del suo giorno.** Mostrare su una tappa di giovedì
+  il meteo di oggi sarebbe un numero sbagliato messo dove sembra giusto, che è peggio di un
+  numero assente. Se la scorta non arriva a quel giorno, la sezione non compare.
+- **«Non c'è niente» e «non lo so» si dicono diversamente.** Con la scorta scaricata e zero
+  risultati intorno alla tappa si dice che non c'è niente di segnato — è una risposta, e
+  anche un avvertimento sul fatto che OpenStreetMap non copre tutto. Senza scorta si dice
+  che non è scaricata e si offre di farlo: quello ha un rimedio.
 
 Sul repository, la scelta è già fatta: questo. MyaCamperLife e Cicala non condividono
 dominio né ciclo di rilascio, quindi non condividono codice; condividono conoscenze — lo

@@ -703,6 +703,13 @@ class Archivio(private val radice: File) {
      * tre giorni dopo, senza campo. E' il pezzo che rende utile una funzione
      * altrimenti solo online.
      */
+    /**
+     * @param tappa a quale tappa attribuire la risposta. Di riposo e' dove eri
+     *   quando hai chiesto, che e' giusto per una domanda fatta in Esplora; una
+     *   domanda fatta **su** una tappa la passa esplicitamente, perche' e' con
+     *   quel nome che la si ritrova nella scheda di quella tappa — e chiedere di
+     *   Bolsena stando a Orvieto e' il caso normale, non l'eccezione.
+     */
     fun salvaDossier(
         slug: String,
         domanda: String,
@@ -710,6 +717,7 @@ class Archivio(private val radice: File) {
         risposta: RispostaModello,
         posizione: Posizione? = null,
         adesso: OffsetDateTime = OffsetDateTime.now(),
+        tappa: String? = null,
     ): String {
         val nome = Esplora.nomeFile(adesso, domanda)
         File(cartellaDossier(slug), nome)
@@ -721,7 +729,7 @@ class Archivio(private val radice: File) {
                 Csv.TS to ts(adesso),
                 DossierTabella.ISTANTE to ts(adesso),
                 DossierTabella.DOMANDA to Csv.testo(domanda),
-                DossierTabella.TAPPA to Csv.testo(dove(slug, posizione)),
+                DossierTabella.TAPPA to Csv.testo(tappa ?: dove(slug, posizione)),
                 DossierTabella.MODELLO to risposta.modello.codice,
                 DossierTabella.FILE to nome,
             ),

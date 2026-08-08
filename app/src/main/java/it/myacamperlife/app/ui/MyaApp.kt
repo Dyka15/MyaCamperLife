@@ -49,15 +49,12 @@ import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Itinerario
-import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
-import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.ui.diario.DiarioContent
 import it.myacamperlife.app.ui.esplora.EsploraContent
 import it.myacamperlife.app.ui.numeri.NumeriContent
 import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
-import it.myacamperlife.app.ui.viaggi.AzioniTappaDialog
 import it.myacamperlife.app.ui.viaggi.BriefingDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
 import it.myacamperlife.app.ui.viaggi.DossierDialog
@@ -66,6 +63,7 @@ import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
 import it.myacamperlife.app.ui.viaggi.ModelliDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
 import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
+import it.myacamperlife.app.ui.viaggi.SchedaTappaContent
 import it.myacamperlife.app.ui.viaggi.SpesaDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
 import it.myacamperlife.app.ui.viaggi.ViaggiViewModel
@@ -99,7 +97,10 @@ fun MyaApp(vista: ViaggiViewModel) {
     val ambito = rememberCoroutineScope()
 
     var scheda by rememberSaveable { mutableStateOf(Scheda.VIAGGIO) }
-    var tappaScelta by remember { mutableStateOf<Tappa?>(null) }
+    // Si tiene l'**id** e non la tappa: dopo un check-in l'elenco si ricarica e
+    // gli oggetti sono nuovi, mentre l'id resta. Tenendo la tappa, la scheda
+    // mostrerebbe ancora "da fare" su una tappa appena spuntata.
+    var tappaAperta by rememberSaveable { mutableStateOf<String?>(null) }
     var notaAperta by remember { mutableStateOf(false) }
     var aggiungiAperto by remember { mutableStateOf(false) }
     var coordinateGps by remember { mutableStateOf<Coordinate?>(null) }
@@ -198,7 +199,17 @@ fun MyaApp(vista: ViaggiViewModel) {
     }
 
     val aperto = stato.aperto
-    BackHandler(enabled = aperto != null) { vista.chiudi() }
+
+    // La tappa aperta si risolve dall'elenco vivo, cosi' la scheda segue le
+    // modifiche; se sparisce — viaggio chiuso, tappa eliminata — si torna
+    // all'elenco invece di restare su una schermata orfana.
+    val tappaScelta = tappaAperta?.let { id -> stato.tappe.firstOrNull { it.id == id } }
+
+    // Indietro chiude prima la scheda e poi il viaggio: sono due livelli, e
+    // saltarne uno farebbe uscire dal viaggio da dentro una tappa.
+    BackHandler(enabled = aperto != null || tappaScelta != null) {
+        if (tappaScelta != null) tappaAperta = null else vista.chiudi()
+    }
 
     // L'Uri della cartella scelta, letto dalle impostazioni. Puo' essere
     // scritto nel file e non piu' accessibile: dopo una reinstallazione il
@@ -210,10 +221,14 @@ fun MyaApp(vista: ViaggiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(aperto?.nome ?: stringResource(R.string.app_name)) },
+                title = {
+                    Text(tappaScelta?.nome ?: aperto?.nome ?: stringResource(R.string.app_name))
+                },
                 navigationIcon = {
                     if (aperto != null) {
-                        IconButton(onClick = vista::chiudi) {
+                        IconButton(
+                            onClick = { if (tappaScelta != null) tappaAperta = null else vista.chiudi() },
+                        ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_indietro),
                                 contentDescription = stringResource(R.string.azione_indietro),
@@ -239,8 +254,11 @@ fun MyaApp(vista: ViaggiViewModel) {
                 NavigationBar {
                     Scheda.entries.forEach { voce ->
                         NavigationBarItem(
-                            selected = scheda == voce,
-                            onClick = { scheda = voce },
+                            // La barra resta anche dentro una scheda di tappa, e
+                            // toccare una linguetta ne esce: nascondere le schede
+                            // li' dentro sarebbe un vicolo con una sola uscita.
+                            selected = scheda == voce && tappaScelta == null,
+                            onClick = { tappaAperta = null; scheda = voce },
                             icon = {
                                 Icon(
                                     painter = painterResource(voce.icona),
@@ -264,6 +282,10 @@ fun MyaApp(vista: ViaggiViewModel) {
                         Icon(painter = painterResource(R.drawable.ic_importa), contentDescription = null)
                     },
                 )
+
+                // Dentro una tappa il pulsante non c'entra: aggiungerne una da
+                // li' vorrebbe dire aggiungerla dove?
+                tappaScelta != null -> Unit
 
                 scheda == Scheda.VIAGGIO -> ExtendedFloatingActionButton(
                     onClick = { aggiungiAperto = true },
@@ -292,6 +314,34 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onElimina = vista::elimina,
                 )
 
+                // La scheda di una tappa sta sopra a tutte le schede: si e'
+                // arrivati qui da una tappa, e si torna indietro da dove si e'
+                // venuti.
+                tappaScelta != null -> SchedaTappaContent(
+                    tappe = stato.tappe,
+                    inizialeId = tappaScelta.id,
+                    poi = stato.poi,
+                    tratte = stato.tratte,
+                    meteo = stato.meteo,
+                    dossier = stato.dossier,
+                    aiConfigurata = vista.aiConfigurata(),
+                    inCorso = stato.inCorso,
+                    onCheckin = { tappa -> conPosizione { vista.checkin(tappa) } },
+                    onAlterna = vista::alternaSalto,
+                    onMappa = { tappa ->
+                        apriNellaMappa(contesto, tappa.lat, tappa.lon, tappa.nome)
+                    },
+                    onChiedi = vista::chiediDiTappa,
+                    onDossier = { salvato ->
+                        ambito.launch {
+                            testoDossier = vista.testoDossier(salvato.file)
+                            dossierAperto = salvato
+                        }
+                    },
+                    onScarica = vista::aggiornaDintorni,
+                    onTappaCambiata = { tappa -> tappaAperta = tappa.id },
+                )
+
                 scheda == Scheda.VIAGGIO -> TappeContent(
                     tappe = stato.tappe,
                     corrente = stato.corrente,
@@ -308,7 +358,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onNota = { notaAperta = true },
                     onLitri = { rifornimentoAperto = true },
                     onSpesa = { spesaAperta = true },
-                    onTappa = { tappaScelta = it },
+                    onTappa = { tappaAperta = it.id },
                 )
 
                 scheda == Scheda.DIARIO -> DiarioContent(
@@ -335,7 +385,9 @@ fun MyaApp(vista: ViaggiViewModel) {
                     aiConfigurata = vista.aiConfigurata(),
                     inCorso = stato.inCorso,
                     onScarica = vista::aggiornaDintorni,
-                    onApri = { vicino -> apriNellaMappa(contesto, vicino) },
+                    onApri = { vicino ->
+                        apriNellaMappa(contesto, vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
+                    },
                     onChiedi = vista::chiedi,
                     onDossier = { salvato ->
                         ambito.launch {
@@ -357,15 +409,6 @@ fun MyaApp(vista: ViaggiViewModel) {
                 )
             }
         }
-    }
-
-    tappaScelta?.let { tappa ->
-        AzioniTappaDialog(
-            tappa = tappa,
-            onCheckin = { conPosizione { vista.checkin(tappa) } },
-            onAlterna = { vista.alternaSalto(tappa) },
-            onChiudi = { tappaScelta = null },
-        )
     }
 
     if (notaAperta) {
@@ -531,13 +574,18 @@ fun MyaApp(vista: ViaggiViewModel) {
  * probabilmente gia' installati. Due righe invece di un gigabyte di grafo
  * stradale.
  */
-private fun apriNellaMappa(contesto: android.content.Context, vicino: PoiVicino) {
-    val lat = String.format(java.util.Locale.ROOT, "%.6f", vicino.poi.lat)
-    val lon = String.format(java.util.Locale.ROOT, "%.6f", vicino.poi.lon)
-    val etichetta = Uri.encode(vicino.poi.etichetta())
+private fun apriNellaMappa(
+    contesto: android.content.Context,
+    lat: Double,
+    lon: Double,
+    nome: String,
+) {
+    val gradiLat = String.format(java.util.Locale.ROOT, "%.6f", lat)
+    val gradiLon = String.format(java.util.Locale.ROOT, "%.6f", lon)
+    val etichetta = Uri.encode(nome)
     val intento = android.content.Intent(
         android.content.Intent.ACTION_VIEW,
-        Uri.parse("geo:$lat,$lon?q=$lat,$lon($etichetta)"),
+        Uri.parse("geo:$gradiLat,$gradiLon?q=$gradiLat,$gradiLon($etichetta)"),
     )
     // Se non c'e' nessuna app di mappe non si fa niente, invece di cadere.
     if (intento.resolveActivity(contesto.packageManager) != null) contesto.startActivity(intento)

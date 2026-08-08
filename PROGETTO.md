@@ -169,6 +169,8 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Vedere distanza e tempo di guida verso la prossima tappa | 6 |
 | Aprire una tappa nell'app di mappe installata, per la navigazione vera | 2 |
 | Tenere più viaggi, e riaprire quelli passati in sola consultazione | 1 |
+| Aprire la **scheda di una tappa**: descrizione completa, meteo del suo giorno, dintorni di quel posto, e scorrimento laterale alla tappa dopo | 10 |
+| Chiedere a un modello dei dintorni **di quella tappa**, e ritrovare la risposta arrivandoci | 10 |
 
 ### 4.2 Diario di bordo
 
@@ -331,6 +333,13 @@ contenitore, non nelle singole schermate.
 **Viaggio** è la schermata d'apertura: dove sei, dove vai, l'itinerario, e le quattro
 azioni rapide. **Diario** sono le giornate. **Numeri** sono consumi, autonomia e spese.
 **Esplora** è la ricerca nei dintorni.
+
+Un tocco su una tappa apre **la sua scheda**, che sta sopra le quattro schede: la
+descrizione per intero dall'itinerario, il meteo del **suo** giorno, cosa c'è nei suoi
+dintorni, da dove ci si arriva e quanta strada c'è, e un pulsante che chiede al modello di
+quel posto. Si scorre di lato per la tappa successiva — un itinerario si legge in fila, e
+tornare all'elenco per aprire la tappa dopo sarebbero due tocchi per quello che fa un dito.
+Tutto tranne il pulsante funziona senza rete: sono dati che l'app ha già.
 
 ### Il metro di paragone sono i due tocchi
 
