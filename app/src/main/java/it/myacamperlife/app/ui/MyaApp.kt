@@ -45,6 +45,9 @@ import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.Sistema
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Coordinate
+import it.myacamperlife.app.dominio.Dossier
+import it.myacamperlife.app.dominio.GuaioAi
+import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Spesa
@@ -57,8 +60,10 @@ import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
 import it.myacamperlife.app.ui.viaggi.AzioniTappaDialog
 import it.myacamperlife.app.ui.viaggi.BriefingDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
+import it.myacamperlife.app.ui.viaggi.DossierDialog
 import it.myacamperlife.app.ui.viaggi.ElencoViaggiContent
 import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
+import it.myacamperlife.app.ui.viaggi.ModelliDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
 import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
 import it.myacamperlife.app.ui.viaggi.SpesaDialog
@@ -106,6 +111,9 @@ fun MyaApp(vista: ViaggiViewModel) {
     var scontrinoInAttesa by remember { mutableStateOf<File?>(null) }
     var scontrino by remember { mutableStateOf<File?>(null) }
     var briefingAperto by remember { mutableStateOf(false) }
+    var modelliAperti by remember { mutableStateOf(false) }
+    var dossierAperto by remember { mutableStateOf<Dossier?>(null) }
+    var testoDossier by remember { mutableStateOf<String?>(null) }
     var briefing by remember { mutableStateOf<Briefing?>(null) }
 
     val scegliFile = rememberLauncherForActivityResult(
@@ -303,7 +311,13 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onTappa = { tappaScelta = it },
                 )
 
-                scheda == Scheda.DIARIO -> DiarioContent(voci = stato.voci, giorni = stato.giorni)
+                scheda == Scheda.DIARIO -> DiarioContent(
+                    voci = stato.voci,
+                    giorni = stato.giorni,
+                    prosaPossibile = vista.aiConfigurata(),
+                    onProsa = vista::riscriviGiornata,
+                    onCronaca = vista::rigeneraDiario,
+                )
 
                 scheda == Scheda.NUMERI -> NumeriContent(
                     consumo = stato.consumo,
@@ -317,8 +331,19 @@ fun MyaApp(vista: ViaggiViewModel) {
                     perCategoria = stato.perCategoria,
                     risultati = stato::vicini,
                     haScorta = stato.poi.isNotEmpty(),
+                    dossier = stato.dossier,
+                    aiConfigurata = vista.aiConfigurata(),
+                    inCorso = stato.inCorso,
                     onScarica = vista::aggiornaDintorni,
                     onApri = { vicino -> apriNellaMappa(contesto, vicino) },
+                    onChiedi = vista::chiedi,
+                    onDossier = { salvato ->
+                        ambito.launch {
+                            testoDossier = vista.testoDossier(salvato.file)
+                            dossierAperto = salvato
+                        }
+                    },
+                    onImpostaAi = { modelliAperti = true },
                 )
             }
 
@@ -445,7 +470,27 @@ fun MyaApp(vista: ViaggiViewModel) {
             },
             onBatteria = { Sistema.apriBatteria(contesto) },
             onAvvioAutomatico = { Sistema.apriAvvioAutomatico(contesto) },
+            onModelli = { modelliAperti = true },
             onChiudi = { impostazioniAperte = false },
+        )
+    }
+
+    if (modelliAperti) {
+        ModelliDialog(
+            impostazioni = stato.impostazioni,
+            chiaviDisponibili = vista.chiaviDisponibili(),
+            coda = vista::codaChiave,
+            onChiave = vista::salvaChiave,
+            onSalva = vista::salvaImpostazioni,
+            onChiudi = { modelliAperti = false },
+        )
+    }
+
+    dossierAperto?.let { salvato ->
+        DossierDialog(
+            titolo = salvato.titolo(),
+            testo = testoDossier,
+            onChiudi = { dossierAperto = null; testoDossier = null },
         )
     }
 
@@ -545,4 +590,19 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
         stringResource(R.string.specchio_fatto, avviso.file)
     ViaggiViewModel.Avviso.SpecchioFallito -> stringResource(R.string.specchio_fallito)
     ViaggiViewModel.Avviso.SpecchioSpento -> stringResource(R.string.specchio_spento)
+    ViaggiViewModel.Avviso.AiDiRiserva -> stringResource(R.string.ai_di_riserva)
+    ViaggiViewModel.Avviso.DiarioRiscritto -> stringResource(R.string.diario_riscritto)
+    is ViaggiViewModel.Avviso.AiFallita -> when (val guaio = avviso.guaio) {
+        GuaioAi.SenzaChiave -> stringResource(R.string.ai_senza_chiave)
+        GuaioAi.SenzaRete -> stringResource(R.string.ai_senza_rete)
+        is GuaioAi.Vuota -> stringResource(R.string.ai_vuota, guaio.modello.nome)
+        // Il messaggio del servizio si mostra com'e': una chiave scaduta, un
+        // modello ritirato e una quota finita hanno tre rimedi diversi.
+        is GuaioAi.Rifiutata -> stringResource(
+            R.string.ai_rifiutata,
+            guaio.modello.nome,
+            guaio.codice,
+            guaio.messaggio ?: "",
+        )
+    }
 }

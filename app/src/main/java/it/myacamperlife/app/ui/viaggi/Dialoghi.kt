@@ -46,9 +46,11 @@ import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Coordinate
+import it.myacamperlife.app.dominio.Esplora
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Modalita
+import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Momento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.StatoTappa
@@ -623,6 +625,7 @@ fun ImpostazioniDialog(
     onPermessoNotifiche: () -> Unit,
     onBatteria: () -> Unit,
     onAvvioAutomatico: () -> Unit,
+    onModelli: () -> Unit,
     onChiudi: () -> Unit,
 ) {
     var km by remember { mutableStateOf(impostazioni.kmConUnPieno?.toString().orEmpty()) }
@@ -739,6 +742,21 @@ fun ImpostazioniDialog(
                 )
                 TextButton(onClick = { onChiudi(); onAggiornaScorta() }, enabled = scortaDisponibile) {
                     Text(stringResource(R.string.impostazioni_aggiorna_scorta))
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    stringResource(R.string.impostazioni_modelli),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(R.string.impostazioni_modelli_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { onChiudi(); onModelli() }) {
+                    Text(stringResource(R.string.impostazioni_apri_modelli))
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1100,4 +1118,211 @@ fun etichettaModalita(modalita: Modalita): Int = when (modalita) {
     Modalita.CONTANTI -> R.string.modalita_contanti
     Modalita.POS -> R.string.modalita_pos
     Modalita.CARTA -> R.string.modalita_carta
+}
+
+/**
+ * Una risposta salvata, come sta su file.
+ *
+ * Si mostra il Markdown grezzo e non reso: sarebbe una libreria in piu' per
+ * fare il grassetto, e quel testo lo si legge una volta per decidere dove
+ * dormire. La stessa cosa vale per il diario, che si legge dalle tabelle.
+ */
+@Composable
+fun DossierDialog(titolo: String, testo: String?, onChiudi: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(titolo, maxLines = 2) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    text = testo ?: stringResource(R.string.dossier_perso),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_chiudi)) }
+        },
+    )
+}
+
+/**
+ * I due modelli: chiavi, identificativi, e il prompt di Esplora.
+ *
+ * **Le chiavi si mostrano per le ultime quattro cifre.** Mostrarle intere in una
+ * schermata di impostazioni e' un invito a fotografarle per sbaglio insieme al
+ * resto; queste quattro bastano a sapere se c'e' quella giusta.
+ *
+ * **L'identificativo del modello si puo' correggere.** I nomi dei modelli vengono
+ * ritirati ogni pochi mesi: se fosse compilato dentro, un ritiro renderebbe
+ * l'app muta finche' non se ne pubblica una nuova.
+ */
+@Composable
+fun ModelliDialog(
+    impostazioni: Impostazioni,
+    chiaviDisponibili: Boolean,
+    coda: (Modello) -> String?,
+    onChiave: (Modello, String?) -> Unit,
+    onSalva: (Impostazioni) -> Unit,
+    onChiudi: () -> Unit,
+) {
+    var principale by remember { mutableStateOf(impostazioni.modelloPrincipale) }
+    var nomeGemini by remember { mutableStateOf(impostazioni.modelloGemini) }
+    var nomeGrok by remember { mutableStateOf(impostazioni.modelloGrok) }
+    var prompt by remember { mutableStateOf(impostazioni.promptEsplora) }
+    var chiaveGemini by remember { mutableStateOf("") }
+    var chiaveGrok by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(stringResource(R.string.modelli_titolo)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                if (!chiaviDisponibili) {
+                    Text(
+                        stringResource(R.string.modelli_senza_cassaforte),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
+                Text(
+                    stringResource(R.string.modelli_principale),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                SceltaPrincipale(principale) { principale = it }
+                Text(
+                    stringResource(R.string.modelli_principale_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                RigaModello(
+                    modello = Modello.GEMINI,
+                    nome = nomeGemini,
+                    chiave = chiaveGemini,
+                    coda = coda(Modello.GEMINI),
+                    onNome = { nomeGemini = it },
+                    onChiave = { chiaveGemini = it },
+                    onDimentica = { onChiave(Modello.GEMINI, null); chiaveGemini = "" },
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                RigaModello(
+                    modello = Modello.GROK,
+                    nome = nomeGrok,
+                    chiave = chiaveGrok,
+                    coda = coda(Modello.GROK),
+                    onNome = { nomeGrok = it },
+                    onChiave = { chiaveGrok = it },
+                    onDimentica = { onChiave(Modello.GROK, null); chiaveGrok = "" },
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    stringResource(R.string.modelli_prompt),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    placeholder = { Text(stringResource(R.string.modelli_prompt_vuoto)) },
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(R.string.modelli_prompt_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { prompt = Esplora.PROMPT_DI_RIPOSO }) {
+                    Text(stringResource(R.string.modelli_prompt_copia))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onChiudi()
+                    // Le chiavi vanno nella cassaforte, non nelle impostazioni:
+                    // `impostazioni.json` viene rispecchiato su un cloud.
+                    chiaveGemini.trim().takeUnless { it.isEmpty() }
+                        ?.let { onChiave(Modello.GEMINI, it) }
+                    chiaveGrok.trim().takeUnless { it.isEmpty() }
+                        ?.let { onChiave(Modello.GROK, it) }
+                    onSalva(
+                        impostazioni.copy(
+                            principale = principale.codice,
+                            modelloGemini = nomeGemini.trim(),
+                            modelloGrok = nomeGrok.trim(),
+                            promptEsplora = prompt.trim(),
+                        ),
+                    )
+                },
+            ) { Text(stringResource(R.string.azione_salva)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SceltaPrincipale(scelta: Modello, onScelta: (Modello) -> Unit) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        Modello.entries.forEachIndexed { indice, voce ->
+            SegmentedButton(
+                selected = voce == scelta,
+                onClick = { onScelta(voce) },
+                shape = SegmentedButtonDefaults.itemShape(indice, Modello.entries.size),
+            ) { Text(voce.nome) }
+        }
+    }
+}
+
+@Composable
+private fun RigaModello(
+    modello: Modello,
+    nome: String,
+    chiave: String,
+    coda: String?,
+    onNome: (String) -> Unit,
+    onChiave: (String) -> Unit,
+    onDimentica: () -> Unit,
+) {
+    Text(modello.nome, style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = nome,
+        onValueChange = onNome,
+        label = { Text(stringResource(R.string.modelli_identificativo)) },
+        placeholder = { Text(modello.modelloDiRiposo) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = chiave,
+        onValueChange = onChiave,
+        label = { Text(stringResource(R.string.modelli_chiave)) },
+        placeholder = {
+            Text(
+                if (coda == null) stringResource(R.string.modelli_chiave_assente)
+                else stringResource(R.string.modelli_chiave_presente, coda),
+            )
+        },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    if (coda != null) {
+        TextButton(onClick = onDimentica) {
+            Text(stringResource(R.string.modelli_dimentica))
+        }
+    }
 }

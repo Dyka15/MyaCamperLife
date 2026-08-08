@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -32,7 +34,13 @@ import java.util.Locale
  * cancellato, questa schermata continuerebbe a funzionare.
  */
 @Composable
-fun DiarioContent(voci: List<Voce>, giorni: List<LocalDate>) {
+fun DiarioContent(
+    voci: List<Voce>,
+    giorni: List<LocalDate>,
+    prosaPossibile: Boolean,
+    onProsa: (LocalDate) -> Unit,
+    onCronaca: () -> Unit,
+) {
     if (voci.isEmpty()) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
@@ -51,18 +59,33 @@ fun DiarioContent(voci: List<Voce>, giorni: List<LocalDate>) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
     ) {
         giorni.forEach { giorno ->
             val delGiorno = voci.filter { it.istante.toLocalDate() == giorno }
 
             item(key = "testa-$giorno") {
-                Text(
-                    text = giorno.format(GIORNO),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 4.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = giorno.format(GIORNO),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // La prosa riscrive **solo la sezione di `diario.md`**: gli
+                    // eventi restano nelle tabelle, ed e' per questo che si puo'
+                    // offrire senza timori.
+                    if (prosaPossibile) {
+                        TextButton(onClick = { onProsa(giorno) }) {
+                            Text(stringResource(R.string.diario_in_prosa))
+                        }
+                    }
+                }
                 HorizontalDivider()
             }
 
@@ -70,6 +93,21 @@ fun DiarioContent(voci: List<Voce>, giorni: List<LocalDate>) {
             // genere darebbero una chiave duplicata, e LazyColumn cade.
             items(delGiorno) { voce ->
                 RigaVoce(voce)
+            }
+        }
+
+        if (prosaPossibile) {
+            item {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    TextButton(onClick = onCronaca) {
+                        Text(stringResource(R.string.diario_torna_cronaca))
+                    }
+                    Text(
+                        stringResource(R.string.diario_prosa_spiegazione),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

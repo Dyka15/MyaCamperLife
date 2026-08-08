@@ -159,3 +159,26 @@ object LuoghiTabella {
         return Luogo(nome = nome, lat = lat, lon = lon, abitanti = riga.intero(ABITANTI))
     }
 }
+
+/**
+ * Le colonne di `dossier.csv`: l'indice delle risposte del modello.
+ *
+ * Il testo sta nei `.md` dentro `dossier/`, non qui: una risposta e' mezza
+ * pagina di prosa con dei link, e infilarla in una cella di CSV la renderebbe
+ * illeggibile in tutti e due i posti. Questa tabella dice **cosa hai chiesto,
+ * quando e dove**, e in quale file sta la risposta.
+ */
+object DossierTabella {
+    const val NOME_FILE = "dossier.csv"
+    const val CARTELLA = "dossier"
+
+    const val ISTANTE = Csv.ISTANTE
+    const val DOMANDA = "domanda"
+    const val TAPPA = "tappa"
+    const val MODELLO = "modello"
+    const val FILE = "file"
+
+    val COLONNE = listOf(
+        Csv.ID, Csv.TS, Csv.CANCELLATO, ISTANTE, DOMANDA, TAPPA, MODELLO, FILE,
+    )
+}

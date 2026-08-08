@@ -40,6 +40,56 @@ object Rete {
         massimoCaratteri: Int = MASSIMO_CARATTERI,
     ): String? = chiama(indirizzo, corpo, massimoCaratteri)
 
+    /**
+     * Una POST che riporta **anche l'errore**.
+     *
+     * Le altre chiamate dell'app possono ridurre ogni guaio a `null`: senza
+     * meteo il briefing esce comunque. Qui no — una chiave scaduta, un
+     * identificativo di modello ritirato e una quota finita sono tre situazioni
+     * con tre rimedi diversi, e distinguerle richiede leggere quello che il
+     * servizio ha risposto.
+     */
+    suspend fun postaConEsito(
+        indirizzo: String,
+        corpo: String,
+        intestazioni: Map<String, String> = emptyMap(),
+        massimoCaratteri: Int = MASSIMO_CARATTERI,
+    ): EsitoHttp = withContext(Dispatchers.IO) {
+        var connessione: HttpURLConnection? = null
+        try {
+            connessione = (URL(indirizzo).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = ATTESA_CONNESSIONE
+                readTimeout = ATTESA_LETTURA_LUNGA
+                instanceFollowRedirects = true
+                doOutput = true
+                setRequestProperty("User-Agent", AGENTE)
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                intestazioni.forEach { (nome, valore) -> setRequestProperty(nome, valore) }
+            }
+            connessione.outputStream.use { it.write(corpo.toByteArray(Charsets.UTF_8)) }
+
+            val codice = connessione.responseCode
+            if (codice in 200..299) {
+                val letto = leggi(connessione, massimoCaratteri)
+                if (letto == null) EsitoHttp.Muto else EsitoHttp.Riuscito(letto)
+            } else {
+                // Il corpo dell'errore e' dove sta il messaggio utile.
+                val errore = runCatching {
+                    connessione.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                }.getOrNull()
+                EsitoHttp.Rifiutato(codice, errore?.take(2_000))
+            }
+        } catch (e: IOException) {
+            EsitoHttp.Muto
+        } catch (e: SecurityException) {
+            EsitoHttp.Muto
+        } finally {
+            connessione?.disconnect()
+        }
+    }
+
     private suspend fun chiama(
         indirizzo: String,
         corpo: String?,
@@ -124,8 +174,8 @@ object Rete {
 
     /**
      * Overpass elabora la query prima di rispondere, e una query larga ci mette
-     * un minuto. Non e' un'attesa che blocca qualcosa: succede in sottofondo
-     * mentre l'app resta usabile.
+     * un minuto; una risposta ragionata di un modello anche. Non e' un'attesa
+     * che blocca qualcosa: succede in sottofondo mentre l'app resta usabile.
      */
     private const val ATTESA_LETTURA_LUNGA = 120_000
 
@@ -140,4 +190,13 @@ object Rete {
      * tetto generoso e comunque limitato.
      */
     const val MASSIMO_DINTORNI = 6_000_000
+}
+
+/** L'esito di una chiamata che deve poter riferire l'errore. */
+sealed interface EsitoHttp {
+    data class Riuscito(val corpo: String) : EsitoHttp
+    data class Rifiutato(val codice: Int, val corpo: String?) : EsitoHttp
+
+    /** Niente rete, timeout, risposta vuota o troncata dal tetto. */
+    data object Muto : EsitoHttp
 }

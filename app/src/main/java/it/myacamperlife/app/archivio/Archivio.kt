@@ -6,6 +6,8 @@ import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dintorno
+import it.myacamperlife.app.dominio.Dossier
+import it.myacamperlife.app.dominio.Esplora
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
@@ -21,6 +23,7 @@ import it.myacamperlife.app.dominio.PuntoMeteo
 import it.myacamperlife.app.dominio.PuntoTratta
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.RispostaModello
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StatoTappa
@@ -683,6 +686,71 @@ class Archivio(private val radice: File) {
         raccogli(tabellaSpese(slug).vive(), SpeseTabella.LAT, SpeseTabella.LON)
     }.sortedBy { it.istante }
 
+    // --- i dossier: le risposte del modello -----------------------------------
+
+    fun tabellaDossier(slug: String): Tabella =
+        Tabella(File(cartellaViaggio(slug), DossierTabella.NOME_FILE), DossierTabella.COLONNE)
+
+    fun cartellaDossier(slug: String): File =
+        File(cartellaViaggio(slug), DossierTabella.CARTELLA).apply { mkdirs() }
+
+    /**
+     * Salva una risposta del modello: il testo in un `.md`, una riga d'indice
+     * nel CSV.
+     *
+     * **Il dossier e' la ragione per cui questa funzione esiste.** Una risposta
+     * letta e chiusa e' persa; scritta su file si ritrova arrivando sul posto,
+     * tre giorni dopo, senza campo. E' il pezzo che rende utile una funzione
+     * altrimenti solo online.
+     */
+    fun salvaDossier(
+        slug: String,
+        domanda: String,
+        contesto: String,
+        risposta: RispostaModello,
+        posizione: Posizione? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): String {
+        val nome = Esplora.nomeFile(adesso, domanda)
+        File(cartellaDossier(slug), nome)
+            .writeText(Esplora.dossier(domanda, contesto, risposta, adesso), Charsets.UTF_8)
+
+        tabellaDossier(slug).accoda(
+            mapOf(
+                Csv.ID to nuovoId(),
+                Csv.TS to ts(adesso),
+                DossierTabella.ISTANTE to ts(adesso),
+                DossierTabella.DOMANDA to Csv.testo(domanda),
+                DossierTabella.TAPPA to Csv.testo(dove(slug, posizione)),
+                DossierTabella.MODELLO to risposta.modello.codice,
+                DossierTabella.FILE to nome,
+            ),
+        )
+        return nome
+    }
+
+    /** I dossier salvati, dal piu' recente. */
+    fun dossier(slug: String): List<Dossier> = tabellaDossier(slug)
+        .vive()
+        .mapNotNull { riga ->
+            val nome = riga.testo(DossierTabella.FILE) ?: return@mapNotNull null
+            Dossier(
+                id = riga.id ?: return@mapNotNull null,
+                istante = riga.quando ?: return@mapNotNull null,
+                domanda = riga.testo(DossierTabella.DOMANDA) ?: "",
+                tappa = riga.testo(DossierTabella.TAPPA),
+                modello = riga.testo(DossierTabella.MODELLO),
+                file = nome,
+            )
+        }
+        .sortedByDescending { it.istante }
+
+    /** Il testo di un dossier, o `null` se il file non c'e' piu'. */
+    fun testoDossier(slug: String, nome: String): String? {
+        val file = File(cartellaDossier(slug), nome)
+        return if (file.exists()) file.readText(Charsets.UTF_8) else null
+    }
+
     // --- briefing serale -----------------------------------------------------
 
     /**
@@ -763,6 +831,24 @@ class Archivio(private val radice: File) {
         diario(slug).aggiorna(
             giorno = giorno,
             voci = VociDelGiorno.delGiorno(tutte, giorno),
+            luogo = luogoDelGiorno(tutte, giorno) ?: luogo(slug),
+            titolo = leggiViaggio(slug)?.nome,
+        )
+    }
+
+    /**
+     * Sostituisce la sezione di un giorno con la prosa scritta dal modello.
+     *
+     * **Gli eventi restano nei CSV.** Questo tocca solo `diario.md`, che e' una
+     * vista: [rigeneraDiario] riporta tutto a cronaca, ed e' precisamente il
+     * motivo per cui quella funzione esiste da prima che servisse. Una prosa che
+     * non piace si butta senza perdere niente.
+     */
+    fun scriviProsa(slug: String, giorno: LocalDate, prosa: String) {
+        val tutte = voci(slug)
+        diario(slug).scriviProsa(
+            giorno = giorno,
+            prosa = prosa,
             luogo = luogoDelGiorno(tutte, giorno) ?: luogo(slug),
             titolo = leggiViaggio(slug)?.nome,
         )
@@ -948,6 +1034,20 @@ class Archivio(private val radice: File) {
             appendLine("| `lat`, `lon` | Il centro abitato |")
             appendLine("| `abitanti` | Serve a scegliere fra due nomi ugualmente vicini: il paese vince sulla frazione |")
             appendLine()
+            appendLine("## dossier.csv")
+            appendLine()
+            appendLine("L'indice delle risposte del modello. Il testo sta nei `.md` dentro")
+            appendLine("`dossier/`: una risposta e' mezza pagina di prosa, e dentro una cella di")
+            appendLine("foglio di calcolo non ci si legge. Sono pagine da rileggere, non un")
+            appendLine("registro: cancellarle non perde nessun fatto del viaggio.")
+            appendLine()
+            appendLine("| Colonna | Significato |")
+            appendLine("|---|---|")
+            appendLine("| `domanda` | Quello che hai chiesto |")
+            appendLine("| `tappa` | Dove eri quando l'hai chiesto |")
+            appendLine("| `modello` | Chi ha risposto: `gemini` oppure `grok` |")
+            appendLine("| `file` | Il nome del file in `dossier/`. Dentro ci sono anche le fonti e il contesto che l'app aveva passato al modello |")
+            appendLine()
             appendLine("## scorta/meteo.json")
             appendLine()
             appendLine("Le previsioni scaricate da Open-Meteo, con `scaricatoIl` che ne dice")
@@ -961,6 +1061,10 @@ class Archivio(private val radice: File) {
             appendLine("| `kmConUnPieno` | Quanti chilometri fa il mezzo con un serbatoio pieno. Serve alla stima dell'autonomia |")
             appendLine("| `briefingAttivo` | Se il riepilogo della sera deve arrivare |")
             appendLine("| `oraBriefing` | L'ora del riepilogo, 0-23. Di riposo le 19 |")
+            appendLine("| `cartellaSpecchio` | L'Uri della cartella in cui l'app ricopia l'archivio. Il permesso su quella cartella non e' qui: vive nell'installazione, e dopo una reinstallazione la cartella va riscelta |")
+            appendLine("| `principale` | Quale modello si prova per primo: `gemini` oppure `grok`. L'altro fa da riserva |")
+            appendLine("| `modelloGemini`, `modelloGrok` | Gli identificativi dei modelli. Sono qui e non compilati dentro perche' i nomi vengono ritirati ogni pochi mesi: si correggono leggendo l'errore che il servizio ha restituito |")
+            appendLine("| `promptEsplora` | Il prompt di sistema di Esplora. Vuoto vuol dire «usa quello di serie» |")
             appendLine()
             appendLine("Le chiavi API non stanno qui: vivono nell'archivio cifrato dell'app.")
             appendLine()

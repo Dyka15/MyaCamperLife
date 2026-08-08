@@ -1,5 +1,7 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.Esplora
+import it.myacamperlife.app.dominio.Modello
 import kotlinx.serialization.Serializable
 
 /**
@@ -42,7 +44,39 @@ data class Impostazioni(
      * va riscelta.
      */
     val cartellaSpecchio: String? = null,
+
+    /**
+     * Quale modello si prova per primo. L'altro fa da riserva.
+     */
+    val principale: String = "gemini",
+
+    /**
+     * Gli identificativi dei modelli, uno per fornitore.
+     *
+     * **Sono impostazioni e non costanti** perche' i nomi dei modelli vengono
+     * ritirati ogni pochi mesi: compilati dentro, un ritiro renderebbe l'app
+     * muta finche' non se ne pubblica una nuova. Qui si correggono in dieci
+     * secondi, leggendo l'errore che il servizio ha restituito.
+     */
+    val modelloGemini: String = "gemini-flash-latest",
+    val modelloGrok: String = "grok-4-fast",
+
+    /**
+     * Il prompt di sistema di Esplora. Vuoto significa "usa quello di riposo",
+     * cosi' migliorandolo in una versione nuova chi non l'ha toccato lo riceve.
+     */
+    val promptEsplora: String = "",
 ) {
+    val modelloPrincipale: Modello get() = Modello.da(principale) ?: Modello.GEMINI
+
+    /** L'identificativo del modello per un fornitore, col ripiego. */
+    fun modello(modello: Modello): String = when (modello) {
+        Modello.GEMINI -> modelloGemini
+        Modello.GROK -> modelloGrok
+    }.trim().ifEmpty { modello.modelloDiRiposo }
+
+    /** Il prompt di Esplora: il tuo se c'e', altrimenti quello di riposo. */
+    fun prompt(): String = promptEsplora.trim().ifEmpty { Esplora.PROMPT_DI_RIPOSO }
     /** L'ora riportata dentro il quadrante, comunque sia scritta nel file. */
     val ora: Int get() = oraBriefing.coerceIn(0, 23)
 }

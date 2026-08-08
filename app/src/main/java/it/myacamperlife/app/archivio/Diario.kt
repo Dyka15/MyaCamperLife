@@ -19,10 +19,42 @@ import java.time.OffsetDateTime
  */
 class Diario(private val file: File) {
 
+    private companion object {
+        /**
+         * La riga che marca una giornata riscritta da un modello.
+         *
+         * Non e' un disclaimer di cortesia: un diario e' un documento, e chi lo
+         * rilegge deve poter distinguere quello che e' stato registrato da
+         * quello che ci e' stato scritto sopra.
+         */
+        const val FIRMA = "_Riscritta in prosa da un modello, dagli eventi registrati._"
+    }
+
     /** Riscrive la sezione di [giorno], lasciando intatto il resto del file. */
     fun aggiorna(giorno: LocalDate, voci: List<Voce>, luogo: String?, titolo: String?) {
         val esistente = if (file.exists()) file.readText(Charsets.UTF_8) else preambolo(titolo)
         val sezione = Cronaca.sezione(giorno, voci, luogo)
+        scriviAtomico(DiarioMd.sostituisci(esistente, giorno, sezione))
+    }
+
+    /**
+     * Sostituisce la sezione di [giorno] con la prosa di un modello.
+     *
+     * L'intestazione resta quella di sempre — data ISO davanti, luogo dietro —
+     * perche' e' quella che permette di ritrovare e riscrivere la sezione. Sotto
+     * la prosa si aggiunge una riga che dice **da dove viene**: fra sei mesi,
+     * rileggendo, la differenza fra quello che e' stato registrato e quello che
+     * un modello ha scritto sopra deve restare visibile.
+     */
+    fun scriviProsa(giorno: LocalDate, prosa: String, luogo: String?, titolo: String?) {
+        val esistente = if (file.exists()) file.readText(Charsets.UTF_8) else preambolo(titolo)
+        val sezione = buildString {
+            appendLine(Cronaca.intestazione(giorno, luogo))
+            appendLine()
+            appendLine(prosa.trim())
+            appendLine()
+            appendLine(FIRMA)
+        }
         scriviAtomico(DiarioMd.sostituisci(esistente, giorno, sezione))
     }
 

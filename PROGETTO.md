@@ -56,6 +56,8 @@ Cosa entra nell'app, da dove, e con quale gesto.
 | **Km con un pieno** | Un solo numero, nelle impostazioni | Una volta |
 | **Cartella di archivio** | Scelta una volta con il selettore di sistema | Al primo avvio |
 | **Chiave del modello** | Incollata nelle impostazioni. Una seconda, per la riserva, solo se la si vuole | Una volta, se si vogliono le funzioni AI |
+| **Identificativo del modello** | Un campo di testo nelle impostazioni, uno per fornitore | Quando un modello viene ritirato |
+| **Prompt di Esplora** | Un campo di testo nelle impostazioni. Vuoto significa «quello di serie» | Se quello di serie non piace |
 
 ### Dal dispositivo
 
@@ -97,7 +99,9 @@ foglio di calcolo senza conversioni.
 | `viaggi/<viaggio>/foto.csv` | Nome file, didascalia, coordinate |
 | `viaggi/<viaggio>/foto/*.jpg` | Le foto, nominate `foto_AAAAMMGG_HHMMSS[_localita].jpg` come oggi |
 | `viaggi/<viaggio>/diario.md` | **Il diario del viaggio, un unico file** |
-| `impostazioni.json` | I km con un pieno, il flag del briefing, il modello scelto |
+| `viaggi/<viaggio>/dossier.csv` | L'indice delle risposte del modello: domanda, tappa, chi ha risposto |
+| `viaggi/<viaggio>/dossier/*.md` | Le risposte per esteso, con le fonti e il contesto che l'app aveva passato |
+| `impostazioni.json` | I km con un pieno, il flag del briefing, i modelli scelti, il prompt di Esplora |
 | `FORMATI.md` | Le colonne di ogni file, perché un CSV non si spiega da sé |
 
 Le chiavi API **non stanno qui**: vivono nell'archivio cifrato dell'app. La cartella di
@@ -144,8 +148,8 @@ Numeri che nel sistema attuale non esistono, perché un foglio non li calcola da
 
 | Output | Dove finisce |
 |---|---|
-| **Dossier di tappa** | La risposta di Esplora, salvata come file: resta leggibile offline quando si arriva |
-| **Giornata in prosa** | Sostituisce la sezione del giorno in `diario.md` |
+| **Dossier di tappa** | La risposta di Esplora, salvata come file: resta leggibile offline quando si arriva. Dentro ci sono anche le fonti, la domanda per esteso e **il contesto che l'app aveva passato** — fra sei mesi, davanti a una risposta rivelatasi sbagliata, la domanda vera è *cosa sapeva l'app quando l'ha chiesto* |
+| **Giornata in prosa** | Sostituisce la sezione del giorno in `diario.md`, con sotto una riga che dice da dove viene il testo. Gli eventi restano nei CSV, quindi «rigenera il diario» riporta la giornata a cronaca |
 
 ---
 
@@ -267,6 +271,13 @@ Sono configurati **due modelli**, con ruoli diversi:
 Si parte sul **piano gratuito**: un Gemini di fascia Flash, che ha una quota giornaliera
 gratuita e include 5.000 richieste di ricerca al mese. Per un'app usata in vacanza quel
 tetto non si vede.
+
+**Gli identificativi dei modelli si cambiano dalle impostazioni**, e non sono compilati
+dentro l'app: `gemini-flash-latest` e `grok-4-fast` sono i valori di partenza, non una
+scelta definitiva. I nomi dei modelli vengono ritirati ogni pochi mesi, e un ritiro non
+deve rendere l'app muta fino al prossimo aggiornamento: quando succede, la schermata mostra
+**l'errore del servizio così com'è** e l'identificativo si corregge in dieci secondi. Per
+la stessa ragione il prompt di Esplora è un'impostazione e non una costante.
 
 xAI non ha un equivalente gratuito stabile, quindi all'inizio **la riserva è prevista ma
 spenta**: la si accende inserendo la chiave, quando ci sarà motivo di pagarla. Finché manca,
@@ -411,3 +422,8 @@ file.
 Alla fine si spengono n8n, il token del bot, le Data Table e il webhook. Resta il
 telefono, una cartella di file, e le chiamate di rete per le cose che richiedono qualcuno
 all'altro capo.
+
+**Dove siamo adesso.** Tutte le fasi sono realizzate, quindi il bot si può spegnere. Con
+un'avvertenza sull'ordine: le due chiamate ai modelli non sono ancora mai partite per
+davvero, quindi conviene provare una domanda in Esplora e una giornata in prosa **prima**
+di spegnere i workflow, non dopo. Tutto il resto dell'app non dipende da quelle chiamate.

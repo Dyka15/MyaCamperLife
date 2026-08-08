@@ -72,6 +72,10 @@ dependencies {
     // trenta kilobyte.
     implementation(libs.androidx.documentfile)
 
+    // Le chiavi API dei modelli, cifrate col Keystore. Non possono stare
+    // in impostazioni.json: quel file viene rispecchiato su un cloud.
+    implementation(libs.androidx.security.crypto)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)

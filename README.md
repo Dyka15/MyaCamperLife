@@ -25,9 +25,9 @@ dove la connessione non c'è.
 
 ## Stato
 
-**Fasi 1–7 e 9 di 9 realizzate.** L'app registra una giornata di viaggio, calcola i consumi
-del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — meteo e
-chilometri compresi. **Nessuna schermata aspetta la rete:** quello che serve si prende in
+**Tutte e nove le fasi realizzate.** L'app registra una giornata di viaggio, calcola i
+consumi del mezzo, tiene il conto delle spese e la sera dice cosa aspettarsi domani — meteo
+e chilometri compresi. **Nessuna schermata aspetta la rete:** quello che serve si prende in
 anticipo.
 
 Itinerario:
@@ -114,9 +114,10 @@ se l'ultimo check-in era a Orvieto. Fra due nomi ugualmente vicini vince il paes
 grande — «3 km da Orvieto» dice qualcosa, «3 km da Sugano» no.
 
 Sotto: `tappe.csv`, `spostamenti.csv`, `note.csv`, `foto.csv`, `rifornimenti.csv`,
-`spese.csv`, `scorta/tratte.csv`, `scorta/poi.csv`, `scorta/luoghi.csv`,
-`scorta/meteo.json`, `impostazioni.json` e `FORMATI.md` che spiega le colonne. I permessi
-sono la posizione, le notifiche e la rete, e nessuna lettura dipende dall'ultimo.
+`spese.csv`, `dossier.csv` con i `.md` in `dossier/`, `scorta/tratte.csv`,
+`scorta/poi.csv`, `scorta/luoghi.csv`, `scorta/meteo.json`, `impostazioni.json` e
+`FORMATI.md` che spiega le colonne. I permessi sono la posizione, le notifiche e la rete, e
+nessuna lettura dipende dall'ultimo.
 
 **La cartella dei file** — il pezzo che rende vero il terzo principio:
 
@@ -137,7 +138,31 @@ Aggiungere una tappa:
   e si incollano insieme. Virgola o punto decimale, separate da virgola, spazio o punto e
   virgola, con le lettere del quadrante se ci sono. Sotto compare quello che l'app ha capito
 
-Resta la fase 8: il client AI.
+**Chiedere a un modello** — l'unica parte che ha bisogno di rete, e l'unica che non finge
+di poterne fare a meno:
+
+- una domanda libera in Esplora («dove dormiamo stanotte?»), con davanti il contesto che
+  l'app ha già misurato: dove sei, che tempo farà, cosa c'è nei dintorni, la prossima tappa
+- la risposta si salva come **dossier** in `dossier/`: un file Markdown con la risposta, le
+  fonti, la domanda e il contesto. Da lì si rilegge **senza rete**, che è tutto il punto —
+  si chiede dove c'è campo e si rilegge dove arrivi
+- le **giornate di diario si riscrivono in prosa**, dalla cronaca registrata e solo da
+  quella. Sotto resta una riga che dice da dove viene il testo: un diario è un documento, e
+  quello che ci ha scritto un modello deve restare distinguibile
+- **due modelli, principale e riserva**: Gemini e Grok. Se il principale rifiuta — quota
+  finita, chiave scaduta, nome del modello ritirato — si prova l'altro, e l'app dice che ha
+  risposto la riserva
+- **gli identificativi dei modelli sono impostazioni**, non costanti compilate: i nomi
+  vengono ritirati ogni pochi mesi, e un ritiro non deve zittire l'app fino al prossimo APK.
+  Anche **il prompt** è un'impostazione: quello di serie è un punto di partenza, si riscrive
+  viaggiando
+- le **chiavi non stanno in `impostazioni.json`**, che viene copiato in una cartella magari
+  sincronizzata su un cloud. Stanno in `EncryptedSharedPreferences`, restano sul telefono, e
+  nelle impostazioni si vedono solo le ultime quattro cifre
+- quando l'errore viene dal servizio si mostra **quello che ha detto il servizio**: una
+  chiave sbagliata, una quota finita e un modello inesistente hanno tre rimedi diversi
+
+**Tutte e nove le fasi sono realizzate.**
 
 ## Documenti
 

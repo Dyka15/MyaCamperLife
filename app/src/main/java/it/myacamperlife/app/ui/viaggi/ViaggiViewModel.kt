@@ -9,18 +9,24 @@ import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.archivio.Posizione
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Viaggio
+import it.myacamperlife.app.archivio.VociDelGiorno
 import it.myacamperlife.app.dominio.Autonomia
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Categoria
 import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Coordinate
+import it.myacamperlife.app.dominio.Cronaca
 import it.myacamperlife.app.dominio.Dintorni
+import it.myacamperlife.app.dominio.Dossier
+import it.myacamperlife.app.dominio.Esplora
+import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Itinerario
 import it.myacamperlife.app.dominio.Modalita
+import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.NomeFoto
 import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.Poi
@@ -32,6 +38,8 @@ import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
 import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
+import it.myacamperlife.app.rete.Assistente
+import it.myacamperlife.app.rete.EsitoAi
 import it.myacamperlife.app.rete.Geocodifica
 import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.rete.Scorte
@@ -87,6 +95,8 @@ class ViaggiViewModel(
      * ha toccato — `null` se non ha potuto.
      */
     private val esportaTutto: (suspend () -> Int?)? = null,
+    /** Il client dei modelli: principale e riserva. */
+    private val assistente: Assistente? = null,
 ) : ViewModel() {
 
     data class Stato(
@@ -102,6 +112,7 @@ class ViaggiViewModel(
         val autonomia: Autonomia? = null,
         val tratte: Tratte = Tratte(),
         val poi: List<Poi> = emptyList(),
+        val dossier: List<Dossier> = emptyList(),
         /** Da dove si cerca nei dintorni: l'ultima posizione nota. */
         val quiVicino: Coordinate? = null,
         val impostazioni: Impostazioni = Impostazioni(),
@@ -168,6 +179,9 @@ class ViaggiViewModel(
         data class SpecchioFatto(val file: Int) : Avviso
         data object SpecchioFallito : Avviso
         data object SpecchioSpento : Avviso
+        data class AiFallita(val guaio: GuaioAi) : Avviso
+        data object AiDiRiserva : Avviso
+        data object DiarioRiscritto : Avviso
     }
 
     private val _stato = MutableStateFlow(Stato())
@@ -222,6 +236,7 @@ class ViaggiViewModel(
                 impostazioni = impostazioni,
                 tratte = archivio.tratte(slug),
                 poi = archivio.poi(slug),
+                dossier = archivio.dossier(slug),
                 quiVicino = archivio.dovePunto(slug),
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
             )
@@ -239,6 +254,7 @@ class ViaggiViewModel(
                 impostazioni = dati.impostazioni,
                 tratte = dati.tratte,
                 poi = dati.poi,
+                dossier = dati.dossier,
                 quiVicino = dati.quiVicino,
                 ultimoKm = dati.ultimoKm,
             )
@@ -256,6 +272,7 @@ class ViaggiViewModel(
         val impostazioni: Impostazioni,
         val tratte: Tratte,
         val poi: List<Poi>,
+        val dossier: List<Dossier>,
         val quiVicino: Coordinate?,
         val ultimoKm: Int?,
     )
@@ -543,6 +560,144 @@ class ViaggiViewModel(
      */
     suspend fun cercaIndirizzo(testo: String): RicercaIndirizzo? =
         geocodifica?.cerca(testo, _stato.value.aperto?.slug)
+
+    // --- il modello -----------------------------------------------------------
+
+    fun aiConfigurata(): Boolean =
+        assistente?.configurato(_stato.value.impostazioni.modelloPrincipale) == true ||
+            assistente?.configurato(
+                Modello.entries.first { it != _stato.value.impostazioni.modelloPrincipale },
+            ) == true
+
+    fun chiaviDisponibili(): Boolean = assistente?.chiaviDisponibili() == true
+
+    fun codaChiave(modello: Modello): String? = assistente?.coda(modello)
+
+    fun salvaChiave(modello: Modello, chiave: String?) {
+        assistente?.salvaChiave(modello, chiave)
+        _stato.update { it.copy(avviso = Avviso.ImpostazioniSalvate) }
+    }
+
+    /**
+     * Chiede al modello, e **salva la risposta su file**.
+     *
+     * Il dossier e' il pezzo che rende utile una funzione altrimenti solo
+     * online: una risposta letta e chiusa e' persa, scritta su file si ritrova
+     * arrivando sul posto tre giorni dopo, senza campo.
+     */
+    fun chiedi(domanda: String) = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        val assistente = assistente ?: return@launch
+        val stato = _stato.value
+
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+
+        val posizione = stato.quiVicino
+        val contesto = withContext(Dispatchers.IO) {
+            Esplora.contesto(
+                dove = archivio.doveDetto(viaggio.slug, posizione?.let { Posizione(it.lat, it.lon) }),
+                posizione = posizione,
+                oggi = LocalDate.now(),
+                meteo = posizione?.let { qui ->
+                    archivio.meteo(viaggio.slug)?.per(qui.lat, qui.lon, LocalDate.now())
+                },
+                vicini = stato.vicini(null).take(Esplora.VICINI_NEL_CONTESTO),
+                prossima = stato.prossima,
+            )
+        }
+
+        val esito = assistente.chiedi(
+            sistema = stato.impostazioni.prompt(),
+            domanda = Esplora.domanda(contesto, domanda),
+            impostazioni = stato.impostazioni,
+        )
+
+        when (esito) {
+            is EsitoAi.Risposta -> {
+                withContext(Dispatchers.IO) {
+                    archivio.salvaDossier(
+                        slug = viaggio.slug,
+                        domanda = domanda,
+                        contesto = contesto,
+                        risposta = esito.risposta,
+                        posizione = posizione?.let { Posizione(it.lat, it.lon) },
+                    )
+                }
+                aggiornaViaggio(viaggio)
+                _stato.update {
+                    it.copy(
+                        inCorso = false,
+                        avviso = if (esito.diRiserva) Avviso.AiDiRiserva else null,
+                    )
+                }
+                rispecchia()
+            }
+
+            is EsitoAi.Guaio -> _stato.update {
+                it.copy(inCorso = false, avviso = Avviso.AiFallita(esito.guaio))
+            }
+        }
+    }
+
+    /** Il testo di un dossier salvato. */
+    suspend fun testoDossier(nome: String): String? {
+        val slug = _stato.value.aperto?.slug ?: return null
+        return withContext(Dispatchers.IO) { archivio.testoDossier(slug, nome) }
+    }
+
+    /**
+     * Riscrive in prosa la giornata di diario di un giorno.
+     *
+     * **Gli eventi restano nei CSV**: il modello riscrive solo la sezione di
+     * `diario.md`, che e' una vista. Se la prosa non piace, "rigenera il diario"
+     * la riporta a cronaca — e' il motivo per cui quella funzione esiste.
+     *
+     * Niente ricerca web: la cronaca e' tutta nel prompt, e lasciarlo cercare
+     * sarebbe un invito ad aggiungere dettagli che quel giorno non c'erano.
+     */
+    fun riscriviGiornata(giorno: LocalDate) = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        val assistente = assistente ?: return@launch
+        val stato = _stato.value
+
+        val cronaca = withContext(Dispatchers.IO) {
+            val voci = archivio.voci(viaggio.slug)
+            Cronaca.sezione(giorno, VociDelGiorno.delGiorno(voci, giorno))
+        }
+
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+
+        val esito = assistente.chiedi(
+            sistema = Esplora.PROMPT_DIARIO,
+            domanda = cronaca,
+            impostazioni = stato.impostazioni,
+            conRicerca = false,
+        )
+
+        when (esito) {
+            is EsitoAi.Risposta -> {
+                withContext(Dispatchers.IO) {
+                    archivio.scriviProsa(viaggio.slug, giorno, esito.risposta.testo)
+                }
+                aggiornaViaggio(viaggio)
+                _stato.update { it.copy(inCorso = false, avviso = Avviso.DiarioRiscritto) }
+                rispecchia()
+            }
+
+            is EsitoAi.Guaio -> _stato.update {
+                it.copy(inCorso = false, avviso = Avviso.AiFallita(esito.guaio))
+            }
+        }
+    }
+
+    /** Riporta il diario a cronaca, cancellando la prosa. */
+    fun rigeneraDiario() = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        withContext(Dispatchers.IO) { archivio.rigeneraDiario(viaggio.slug) }
+        aggiornaViaggio(viaggio)
+        _stato.update { it.copy(avviso = Avviso.DiarioRiscritto) }
+        rispecchia()
+    }
 
     /**
      * Il riepilogo che arriverebbe stasera, calcolato adesso.

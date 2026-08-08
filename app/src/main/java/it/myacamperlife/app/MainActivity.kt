@@ -14,6 +14,7 @@ import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Specchio
 import it.myacamperlife.app.archivio.SpecchioLavoro
 import it.myacamperlife.app.avvisi.SvegliaBriefing
+import it.myacamperlife.app.rete.Assistente
 import it.myacamperlife.app.rete.Geocodifica
 import it.myacamperlife.app.rete.Scorte
 import it.myacamperlife.app.ui.MyaApp
@@ -46,6 +47,7 @@ class MainActivity : ComponentActivity() {
                     ),
                     rispecchia = { SpecchioLavoro.programma(applicationContext) },
                     esportaTutto = { esportaArchivio() },
+                    assistente = Assistente(applicationContext),
                 )
             }
         }

@@ -242,4 +242,43 @@
     <string name="specchio_fatto">%1$d file nella cartella</string>
     <string name="specchio_fallito">Non ho potuto scrivere nella cartella. Risceglila dalle impostazioni.</string>
     <string name="specchio_spento">Non copio più fuori dall\'app</string>
+
+    <!-- Esplora con il modello -->
+    <string name="esplora_chiedi">Chiedi</string>
+    <string name="esplora_chiedi_esempio">Dove possiamo dormire stanotte con il camper, tranquilli e vicino al lago?</string>
+    <string name="esplora_chiedi_azione">Chiedi al modello</string>
+    <string name="esplora_chiedi_spiegazione">Serve la rete. La risposta viene salvata e si rilegge anche offline.</string>
+    <string name="esplora_ai_da_configurare">Per le domande libere serve la chiave di un modello.</string>
+    <string name="esplora_ai_configura">Configura i modelli</string>
+    <string name="esplora_risposte">Risposte salvate</string>
+    <string name="dossier_perso">Il file della risposta non c\'è più.</string>
+
+    <!-- I modelli -->
+    <string name="impostazioni_modelli">Modelli</string>
+    <string name="impostazioni_modelli_spiegazione">Chiavi, identificativi e il prompt di Esplora. Le chiavi non finiscono nella cartella dei file.</string>
+    <string name="impostazioni_apri_modelli">Configura i modelli</string>
+    <string name="modelli_titolo">Modelli</string>
+    <string name="modelli_principale">Quale si prova per primo</string>
+    <string name="modelli_principale_spiegazione">L\'altro fa da riserva: si prova quando il primo rifiuta, per quota finita o modello ritirato.</string>
+    <string name="modelli_identificativo">Identificativo del modello</string>
+    <string name="modelli_chiave">Chiave API</string>
+    <string name="modelli_chiave_assente">nessuna chiave</string>
+    <string name="modelli_chiave_presente">configurata, finisce con %1$s</string>
+    <string name="modelli_dimentica">Dimentica la chiave</string>
+    <string name="modelli_prompt">Il prompt di Esplora</string>
+    <string name="modelli_prompt_vuoto">Vuoto: si usa quello predefinito</string>
+    <string name="modelli_prompt_spiegazione">Lascialo vuoto per usare quello dell\'app, che migliora con gli aggiornamenti. Scrivendone uno tuo, vale il tuo.</string>
+    <string name="modelli_prompt_copia">Parti da quello predefinito</string>
+    <string name="modelli_senza_cassaforte">Su questo telefono non riesco a cifrare le chiavi: non le salvo affatto.</string>
+    <string name="ai_di_riserva">Ha risposto il modello di riserva</string>
+    <string name="ai_senza_chiave">Nessuna chiave configurata.</string>
+    <string name="ai_senza_rete">Senza rete non posso chiedere. L\'elenco dei dintorni funziona comunque.</string>
+    <string name="ai_vuota">%1$s ha risposto senza testo.</string>
+    <string name="ai_rifiutata">%1$s ha rifiutato (%2$d): %3$s</string>
+
+    <!-- Il diario in prosa -->
+    <string name="diario_in_prosa">In prosa</string>
+    <string name="diario_torna_cronaca">Riporta tutto a cronaca</string>
+    <string name="diario_prosa_spiegazione">La prosa riscrive solo diario.md. Gli eventi restano nei CSV, quindi si può sempre tornare indietro.</string>
+    <string name="diario_riscritto">Diario aggiornato</string>
 </resources>

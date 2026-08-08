@@ -653,6 +653,45 @@ una coda segna le giornate ancora da narrare — si smaltiscono in blocco quando
 il wifi. **Questa coda è più comoda dell'originale**: oggi la pagina di diario si genera
 un giorno per volta, quando il bot risponde.
 
+### Com'è andata (fase 8, realizzata)
+
+Il client è quello previsto: un solo `Assistente`, due usi, il fallback come un secondo
+tentativo e non come un secondo sottosistema. Quello che è cambiato rispetto al piano, e
+perché:
+
+- **Il prompt non è stato trasportato da n8n.** Al momento di scriverlo l'accesso a n8n non
+  c'era, quindi il prompt di serie è stato scritto da zero (`Esplora.PROMPT_DI_RIPOSO`)
+  partendo dai difetti concreti di questo genere di risposta: elenchi di dieci cose, posti
+  senza distanza, aree di sosta inventate, indicazioni stradali che le mappe fanno meglio.
+  Resta un valore di riposo: `promptEsplora` nelle impostazioni lo sostituisce, quindi il
+  testo originale si può incollare quando torna disponibile, senza ricompilare.
+- **Anche gli identificativi dei modelli sono impostazioni**, non costanti. Il piano diceva
+  di fissare la versione «al momento di scrivere il client»; fissarla in una costante
+  compilata avrebbe solo spostato il problema al primo ritiro. Di riposo
+  `gemini-flash-latest` e `grok-4-fast`, correggibili in dieci secondi leggendo l'errore.
+- **L'errore del servizio si mostra così com'è.** È l'unica chiamata dell'app che non riduce
+  ogni guaio a `null`: una chiave sbagliata, una quota finita e un modello ritirato hanno
+  tre rimedi diversi, e sceglierlo richiede leggere quello che il servizio ha risposto. Da
+  qui `Rete.postaConEsito` e `EsitoHttp`, accanto alle chiamate mute che bastano al meteo.
+- **La coda delle giornate da narrare non è stata fatta.** Senza rete il pulsante dice
+  «manca la rete» e la giornata resta cronaca; la si riscrive quando c'è campo. Nessun dato
+  si perde — la cronaca è già completa nei CSV, la prosa è una vista — ma è meno di quanto
+  il piano promettesse, e vale scriverlo invece di lasciarlo credere.
+- **Le chiavi non stanno in `impostazioni.json`.** Quel file viene ricopiato nella cartella
+  scelta dall'utente, che può essere sincronizzata su un cloud: una chiave in chiaro lì
+  dentro sarebbe un errore difficile da accorgersi. Stanno in `EncryptedSharedPreferences`
+  (`archivio/Chiavi.kt`), e nelle impostazioni si vedono solo le ultime quattro cifre. Per
+  la stessa ragione la chiave Gemini viaggia nell'intestazione `x-goog-api-key` e non
+  nell'indirizzo: un Uri finisce nei log e nella cronologia di un proxy.
+
+**Quello che non è stato verificato, e conviene dirlo.** Le due chiamate HTTPS non sono mai
+partite: l'ambiente in cui l'app è stata scritta ha tutti gli host esterni bloccati, e
+nessuna chiave era disponibile. Sono verificati per test la costruzione delle richieste e
+la lettura di risposte registrate — comprese le due forme in cui Grok restituisce le
+citazioni — ma **la prima chiamata vera la farà l'utente**. È anche il motivo per cui
+l'errore del servizio si mostra alla lettera: se il nome di un modello è sbagliato o una
+chiave è scaduta, la schermata lo dice invece di limitarsi a non funzionare.
+
 ### Il rapporto fra app e modello
 
 Vale metterlo per iscritto perché condiziona il progetto: **l'app non compete con il
@@ -804,6 +843,12 @@ Nota di scoping: **n8n si può spegnere alla fine della fase 8**, non prima. Fin
 momento il bot resta la via per Esplora e per la prosa del diario, e non dà fastidio a
 nessuno: legge e scrive su Sheets, l'app sui suoi file.
 
+**Aggiornamento a fase 8 chiusa.** Tutte e nove le fasi sono realizzate, quindi n8n si può
+spegnere — con un'avvertenza sull'ordine: le due chiamate ai modelli non sono mai partite
+per davvero (ambiente senza rete verso l'esterno, nessuna chiave), quindi conviene provare
+una domanda in Esplora e una giornata in prosa **prima** di spegnere i workflow, non dopo.
+Tutto il resto dell'app non dipende da quelle chiamate.
+
 Sul repository, la scelta è già fatta: questo. MyaCamperLife e Cicala non condividono
 dominio né ciclo di rilascio, quindi non condividono codice; condividono conoscenze — lo
 schema `AlarmManager` + `BootReceiver` + watchdog, l'onboarding HyperOS, il setup Gradle
@@ -843,8 +888,8 @@ memoria: fra sei mesi la domanda "perché non fa X" avrà una risposta scritta.
 | **Copertura POI** | **Italia dentro l'APK, altre regioni scaricabili.** La ricerca locale funziona sempre dove si viaggia di più; l'estero si prepara da casa, nello stesso momento in cui si carica l'itinerario |
 | **Foto in galleria** | **No, un posto solo.** In cambio va detto in interfaccia che senza una cartella sincronizzata non c'è backup |
 | **Km fuori itinerario** | **Si usano tutti i punti registrati**, non solo i check-in: posizioni salvate e coordinate delle foto entrano nella somma. Vedi 4.6 |
-| **Prompt di Esplora** | **Si trasporta da n8n.** Il testo del nodo Gemini arriverà prima della fase 8: è materiale atteso, non da riscrivere |
-| **Taglia dei modelli** | **Piano gratuito, Gemini di fascia Flash.** Versione esatta da fissare alla fase 8; riserva Grok configurabile ma spenta finché non serve. Vedi 6.2 |
+| **Prompt di Esplora** | ~~Si trasporta da n8n.~~ **Scritto da zero e reso impostazione.** Alla fase 8 l'accesso a n8n non c'era; il testo originale si incolla nelle impostazioni quando torna disponibile. Vedi 6.2 |
+| **Taglia dei modelli** | **Piano gratuito, Gemini di fascia Flash**, `gemini-flash-latest`, riserva `grok-4-fast`. Ma l'identificativo è **un'impostazione e non una costante**: i nomi vengono ritirati, e un ritiro non deve zittire l'app fino al prossimo APK. Vedi 6.2 |
 | **`applicationId`** | `it.myacamperlife.app` — non collide con nulla. Rilevante solo se un giorno l'APK va sul Play Store |
 
 ### Quello che si decide usando, non progettando
