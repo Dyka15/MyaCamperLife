@@ -43,16 +43,21 @@ object Rete {
     /**
      * Una POST che riporta **anche l'errore**.
      *
-     * Le altre chiamate dell'app possono ridurre ogni guaio a `null`: senza
-     * meteo il briefing esce comunque. Qui no — una chiave scaduta, un
-     * identificativo di modello ritirato e una quota finita sono tre situazioni
-     * con tre rimedi diversi, e distinguerle richiede leggere quello che il
-     * servizio ha risposto.
+     * Le chiamate mute dell'app possono ridurre ogni guaio a `null`: senza meteo
+     * il briefing esce comunque. Qui no. Una chiave scaduta, un identificativo di
+     * modello ritirato e una quota finita sono tre situazioni con tre rimedi
+     * diversi; su Overpass un 429 vuol dire "riprova fra un minuto" e un 504
+     * vuol dire "hai chiesto troppo". Distinguerle richiede leggere quello che il
+     * servizio ha risposto, e mostrarlo.
+     *
+     * @param tipo il `Content-Type` del corpo. I modelli vogliono JSON, Overpass
+     *   vuole la sua query come testo.
      */
     suspend fun postaConEsito(
         indirizzo: String,
         corpo: String,
         intestazioni: Map<String, String> = emptyMap(),
+        tipo: String = JSON,
         massimoCaratteri: Int = MASSIMO_CARATTERI,
     ): EsitoHttp = withContext(Dispatchers.IO) {
         var connessione: HttpURLConnection? = null
@@ -65,7 +70,7 @@ object Rete {
                 doOutput = true
                 setRequestProperty("User-Agent", AGENTE)
                 setRequestProperty("Accept", "application/json")
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Content-Type", tipo)
                 intestazioni.forEach { (nome, valore) -> setRequestProperty(nome, valore) }
             }
             connessione.outputStream.use { it.write(corpo.toByteArray(Charsets.UTF_8)) }
@@ -165,6 +170,11 @@ object Rete {
     }
 
     private const val AGENTE = "MyaCamperLife/0.1 (app personale offline-first)"
+
+    const val JSON = "application/json; charset=utf-8"
+
+    /** Overpass vuole la query nel corpo, e la query e' testo. */
+    const val TESTO = "text/plain; charset=utf-8"
 
     /** Dieci secondi per connettersi: sotto un ripetitore stanco ne servono tre. */
     private const val ATTESA_CONNESSIONE = 10_000

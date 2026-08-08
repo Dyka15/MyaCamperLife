@@ -7,8 +7,25 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Il risultato di una chiamata a Overpass: i dintorni del viaggio. */
-data class Dintorno(val poi: List<Poi>, val luoghi: List<Luogo>)
+/**
+ * Il risultato di una chiamata a Overpass: i dintorni del viaggio.
+ *
+ * @param elementi quanti oggetti conteneva la risposta, prima di scartare
+ *   quelli inutilizzabili. Serve a distinguere **due fallimenti diversi**: una
+ *   zona dove non c'e' niente risponde con zero elementi, una risposta che non
+ *   sappiamo leggere ne porta trecento e ne tiene zero. Il primo caso e' una
+ *   risposta, il secondo e' un difetto, e per mesi si sono somigliati.
+ */
+data class Dintorno(
+    val poi: List<Poi>,
+    val luoghi: List<Luogo>,
+    val elementi: Int = 0,
+) {
+    val vuoto: Boolean get() = poi.isEmpty() && luoghi.isEmpty()
+
+    /** Ha risposto, ma di quello che ha risposto non abbiamo salvato niente. */
+    val illeggibile: Boolean get() = vuoto && elementi > 0
+}
 
 /**
  * Costruisce e legge la richiesta dei dintorni.
@@ -33,9 +50,20 @@ object Overpass {
     /**
      * Il corpo della richiesta, in Overpass QL.
      *
-     * `out center tags` e non `out geom`: un campeggio in OSM e' un poligono, e
-     * a noi serve il suo centro, non il suo perimetro. La geometria la disegna
-     * l'app di mappe.
+     * **`out center;` e nient'altro.** Tre parole che vanno spiegate, perche'
+     * sbagliarle rende la richiesta muta senza che nessuno protesti:
+     *
+     * - non `out geom`: un campeggio in OSM e' un poligono, e a noi serve il suo
+     *   centro, non il suo perimetro. La geometria la disegna l'app di mappe
+     * - non `out center tags`, che e' quello che c'era prima ed era **il motivo
+     *   per cui i dintorni non arrivavano mai**. In Overpass `tags` non e' un
+     *   aggiunta ma un livello di verbosita', e significa "identificativi e tag,
+     *   **senza geometria**": i nodi tornavano senza `lat`/`lon`, `center` non
+     *   glieli restituiva, e [leggi] li scartava tutti. Zero punti di interesse
+     *   e zero toponimi, con la sola faccia di un "non aggiornato"
+     * - `center` da solo basta: la verbosita' di riposo e' `body`, che porta le
+     *   coordinate dei nodi **e** i tag di tutto, e `center` aggiunge il centro a
+     *   vie e relazioni. E' esattamente quello che [leggi] va a cercare
      */
     fun query(punti: List<Coordinate>, raggioMetri: Int = RAGGIO_METRI, timeout: Int = TIMEOUT): String {
         require(punti.isNotEmpty()) { "senza punti non c'e' un intorno" }
@@ -58,7 +86,7 @@ object Overpass {
             appendLine("(")
             righe.forEach { appendLine(it) }
             appendLine(");")
-            appendLine("out center tags;")
+            appendLine("out center;")
         }
     }
 
@@ -73,6 +101,10 @@ object Overpass {
         val radice = runCatching { json.parseToJsonElement(corpo) as? JsonObject }.getOrNull()
             ?: return Dintorno(emptyList(), emptyList())
         val elementi = (radice["elements"] as? JsonArray).orEmpty()
+        // Il tetto e' la dimensione della risposta, non il numero di risultati:
+        // e' quello che permette di dire "ha risposto ma non ho saputo leggerlo"
+        // invece di "non ho trovato niente".
+        val quanti = elementi.size
 
         val poi = mutableListOf<Poi>()
         val luoghi = mutableListOf<Luogo>()
@@ -108,6 +140,7 @@ object Overpass {
             // arrotondata li riconosce come uno.
             poi = poi.distinctBy { "${arrotonda(it.lat)},${arrotonda(it.lon)},${it.categoria}" },
             luoghi = luoghi.distinctBy { "${it.nome},${arrotonda(it.lat)}" },
+            elementi = quanti,
         )
     }
 

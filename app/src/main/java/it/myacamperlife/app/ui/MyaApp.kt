@@ -43,6 +43,7 @@ import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Specchio
 import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.Sistema
+import it.myacamperlife.app.rete.EsitoDintorni
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dossier
@@ -502,6 +503,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                 else chiediNotifiche.launch(Avvisi.PERMESSI)
             },
             onAggiornaScorta = vista::aggiornaScorta,
+            onScaricaDintorni = vista::aggiornaDintorni,
             scortaDisponibile = stato.aperto != null,
             cartella = cartellaScelta?.let { Specchio.nome(contesto, it) },
             cartellaAccessibile = cartellaScelta?.let { Specchio.accessibile(contesto, it) } ?: false,
@@ -631,7 +633,29 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
     ViaggiViewModel.Avviso.ScortaAggiornata -> stringResource(R.string.scorta_aggiornata)
     ViaggiViewModel.Avviso.ScortaNonAggiornata -> stringResource(R.string.scorta_non_aggiornata)
-    ViaggiViewModel.Avviso.DintorniAggiornati -> stringResource(R.string.dintorni_aggiornati)
+    is ViaggiViewModel.Avviso.DintorniAggiornati ->
+        stringResource(R.string.dintorni_aggiornati, avviso.poi, avviso.luoghi)
+
+    // Ogni motivo ha il suo rimedio, e il rimedio sta nel messaggio: aspettare,
+    // chiedere meno, o segnalare un difetto. "Non aggiornato" non ne suggeriva
+    // nessuno.
+    is ViaggiViewModel.Avviso.DintorniFalliti -> when (val esito = avviso.esito) {
+        EsitoDintorni.SenzaRete -> stringResource(R.string.dintorni_senza_rete)
+        EsitoDintorni.SenzaTappe -> stringResource(R.string.dintorni_senza_tappe)
+        EsitoDintorni.Vuoto -> stringResource(R.string.dintorni_vuoto)
+        is EsitoDintorni.Illeggibile ->
+            stringResource(R.string.dintorni_illeggibile, esito.elementi)
+        is EsitoDintorni.Rifiutato -> when (esito.codice) {
+            429 -> stringResource(R.string.dintorni_troppe_richieste)
+            504 -> stringResource(R.string.dintorni_troppo_grande)
+            else -> stringResource(
+                R.string.dintorni_rifiutati,
+                esito.codice,
+                esito.messaggio ?: "",
+            )
+        }
+        is EsitoDintorni.Riuscito -> stringResource(R.string.dintorni_aggiornati, esito.poi, esito.luoghi)
+    }
     is ViaggiViewModel.Avviso.SpecchioScelto ->
         stringResource(R.string.specchio_scelto, avviso.cartella)
     is ViaggiViewModel.Avviso.SpecchioFatto ->

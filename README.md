@@ -111,8 +111,15 @@ La scorta — l'unica parte che tocca la rete, e la tocca **prima**:
   chilometri di domani nel riepilogo sono quelli veri
 - senza tratte si ripiega sulla linea d'aria **dicendolo**, e l'avviso di rifornimento usa
   un margine più largo perché sa di stare guardando un numero più incerto
-- «Aggiorna adesso» nelle impostazioni, per quando sai di stare per entrare in una zona
-  senza campo
+- nelle impostazioni, «Aggiorna meteo e distanze» per quando sai di stare per entrare in una
+  zona senza campo, e **«Scarica i dintorni» a parte** — è la richiesta più pesante che l'app
+  fa, e i punti di interesse non cambiano di sera in sera
+- **quando la richiesta dei dintorni fallisce, dice perché.** È l'unica scorta senza
+  ripiego: senza meteo esce la previsione vecchia, senza tratte la linea d'aria, senza
+  dintorni resta una schermata vuota. Quindi 429 diventa «aspetta un minuto, è un servizio
+  gratuito», 504 «richiesta troppo grande», e il caso «ha risposto ma non ho saputo
+  leggerlo» si chiama così: è un difetto dell'app, e va detto invece di travestirlo da
+  mancanza di campo
 
 Esplora — cosa c'è nei dintorni, **senza rete**:
 

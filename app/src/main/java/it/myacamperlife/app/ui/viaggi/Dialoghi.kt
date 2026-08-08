@@ -574,6 +574,7 @@ fun ImpostazioniDialog(
     onSalva: (Impostazioni) -> Unit,
     onProvaBriefing: () -> Unit,
     onAggiornaScorta: () -> Unit,
+    onScaricaDintorni: () -> Unit,
     onPermessoNotifiche: () -> Unit,
     onBatteria: () -> Unit,
     onAvvioAutomatico: () -> Unit,
@@ -694,6 +695,14 @@ fun ImpostazioniDialog(
                 )
                 TextButton(onClick = { onChiudi(); onAggiornaScorta() }, enabled = scortaDisponibile) {
                     Text(stringResource(R.string.impostazioni_aggiorna_scorta))
+                }
+                // I dintorni hanno un pulsante a parte, e non per simmetria: e'
+                // la richiesta piu' pesante che l'app fa, e il server di
+                // OpenStreetMap e' una cortesia. Rifarla ogni volta che si
+                // aggiorna il meteo sarebbe strapazzarlo per niente — i punti di
+                // interesse non cambiano di sera in sera.
+                TextButton(onClick = { onChiudi(); onScaricaDintorni() }, enabled = scortaDisponibile) {
+                    Text(stringResource(R.string.impostazioni_scarica_dintorni))
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

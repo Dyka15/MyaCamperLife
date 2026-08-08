@@ -545,6 +545,46 @@ Il formato dei file è CSV come tutto il resto, quindi la variante con l'estratt
 resta possibile in seguito **senza cambiare una riga del codice che legge**: basterebbe
 riempire `scorta/poi.csv` e `scorta/luoghi.csv` da un'altra parte.
 
+### Il difetto che è vissuto quattro fasi
+
+La richiesta dei dintorni **non ha mai funzionato**, dalla fase 7 alla 10. Chiudeva con
+`out center tags;`, e in Overpass `tags` non è un'aggiunta ma un **livello di verbosità** che
+*toglie* la geometria. Ogni nodo tornava senza `lat`/`lon` — quindi tutti i distributori, le
+fontane, i supermercati e **tutti i toponimi** — e il lettore li scartava, giustamente: un
+risultato senza posizione non si può né ordinare per distanza né aprire in una mappa. Zero
+punti, zero luoghi, e la sola faccia di un «scorta non aggiornata».
+
+Tre cose lo hanno tenuto in piedi, e vanno scritte perché sono ripetibili:
+
+- **il test asseriva la stringa sbagliata.**
+  `assertTrue(query.contains("out center tags;"))` non verificava niente: ricopiava l'errore
+  e lo faceva sembrare controllato. È il quarto test difettoso di questo progetto, ed è il
+  primo che è costato una funzione invece di mezz'ora
+- **l'ambiente in cui il codice è stato scritto non raggiunge `overpass-api.de`**, quindi la
+  query non è mai partita per davvero nemmeno una volta. Vale per Overpass come per i
+  modelli: quello che non parte non è verificato, e va scritto
+- **il fallimento si riduceva a `false`.** Rete assente, servizio occupato, query sbagliata
+  e zona deserta finivano tutti nello stesso messaggio, che non suggerisce nessun rimedio e
+  soprattutto non distingue **un difetto nostro** da **un problema di rete**
+
+Il rimedio sta su tutti e tre i piani. La query chiude con `out center;`: la verbosità di
+riposo, `body`, porta le coordinate dei nodi e i tag di tutto, e `center` aggiunge il centro
+a vie e relazioni — esattamente quello che il lettore cerca. Il test adesso **vieta**
+`out tags` invece di prescriverlo. E la richiesta riferisce il motivo: 429 «aspetta un
+minuto, è un servizio gratuito», 504 «richiesta troppo grande», e il caso nuovo — *ha
+risposto con trecento elementi e ne abbiamo salvati zero* — si chiama per nome, perché è la
+firma esatta di questo difetto e non deve più poter passare per mancanza di campo.
+
+È l'unica scorta che riporta l'errore, e non per simmetria: meteo e tratte hanno un ripiego
+— la previsione vecchia, la linea d'aria — i dintorni no. Se non arrivano, Esplora e le
+schede delle tappe restano vuote, e chi guarda deve poter sapere perché.
+
+**E nelle impostazioni il pulsante non c'era affatto.** «Aggiorna adesso» chiedeva meteo e
+tratte, mai i dintorni: da lì la funzione non era rotta, era assente. Ora sono due pulsanti
+distinti, e restano distinti di proposito — rifare la richiesta più pesante ogni volta che si
+aggiorna il meteo vorrebbe dire strapazzare un servizio di cortesia per niente, dato che i
+punti di interesse non cambiano di sera in sera.
+
 ---
 
 ## 6. Le funzioni generative
@@ -905,7 +945,7 @@ memoria: fra sei mesi la domanda "perché non fa X" avrà una risposta scritta.
 | Punto | Deciso |
 |---|---|
 | **Traccia GPS** | **No.** Con essa cadono il servizio in primo piano, la notifica permanente, il permesso di posizione in background e la parte più fastidiosa del problema HyperOS |
-| **Copertura POI** | **Italia dentro l'APK, altre regioni scaricabili.** La ricerca locale funziona sempre dove si viaggia di più; l'estero si prepara da casa, nello stesso momento in cui si carica l'itinerario |
+| **Copertura POI** | ~~Italia dentro l'APK, altre regioni scaricabili.~~ **Una richiesta a Overpass per viaggio**, in un corridoio intorno all'itinerario: funziona uguale in Italia e all'estero, e non costa venti megabyte di APK. Si prepara da casa insieme a meteo e tratte. Vedi 5.3 |
 | **Foto in galleria** | **No, un posto solo.** In cambio va detto in interfaccia che senza una cartella sincronizzata non c'è backup |
 | **Km fuori itinerario** | **Si usano tutti i punti registrati**, non solo i check-in: posizioni salvate e coordinate delle foto entrano nella somma. Vedi 4.6 |
 | **Prompt di Esplora** | ~~Si trasporta da n8n.~~ **Scritto da zero e reso impostazione.** Alla fase 8 l'accesso a n8n non c'era; il testo originale si incolla nelle impostazioni quando torna disponibile. Vedi 6.2 |

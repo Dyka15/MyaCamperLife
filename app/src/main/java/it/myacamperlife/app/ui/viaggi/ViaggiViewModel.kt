@@ -43,6 +43,7 @@ import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.rete.Assistente
 import it.myacamperlife.app.rete.EsitoAi
+import it.myacamperlife.app.rete.EsitoDintorni
 import it.myacamperlife.app.rete.Geocodifica
 import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.rete.Scorte
@@ -205,7 +206,8 @@ class ViaggiViewModel(
         data object ImpostazioniSalvate : Avviso
         data object ScortaAggiornata : Avviso
         data object ScortaNonAggiornata : Avviso
-        data object DintorniAggiornati : Avviso
+        data class DintorniAggiornati(val poi: Int, val luoghi: Int) : Avviso
+        data class DintorniFalliti(val esito: EsitoDintorni) : Avviso
         data class SpecchioScelto(val cartella: String) : Avviso
         data class SpecchioFatto(val file: Int) : Avviso
         data object SpecchioFallito : Avviso
@@ -352,7 +354,10 @@ class ViaggiViewModel(
         esito.viaggio?.let { viaggio ->
             val scorte = scorte ?: return@let
             val tratte = scorte.aggiornaTratte(viaggio.slug)
-            val dintorni = scorte.aggiornaDintorni(viaggio.slug)
+            // All'import il fallimento non si mostra: l'avviso dell'import
+            // appena riuscito e' piu' importante, e i dintorni si riscaricano
+            // con un pulsante che invece lo dice.
+            val dintorni = scorte.aggiornaDintorni(viaggio.slug) is EsitoDintorni.Riuscito
             if (tratte || dintorni) aggiornaViaggio(viaggio)
         }
     }
@@ -526,12 +531,18 @@ class ViaggiViewModel(
         val scorte = scorte ?: return@launch
         _stato.update { it.copy(inCorso = true, avviso = null) }
 
-        val fatto = scorte.aggiornaDintorni(viaggio.slug)
+        val esito = scorte.aggiornaDintorni(viaggio.slug)
         aggiornaViaggio(viaggio)
         _stato.update {
             it.copy(
                 inCorso = false,
-                avviso = if (fatto) Avviso.DintorniAggiornati else Avviso.ScortaNonAggiornata,
+                avviso = when (esito) {
+                    is EsitoDintorni.Riuscito -> Avviso.DintorniAggiornati(esito.poi, esito.luoghi)
+                    // Un fallimento si dice per quello che e': su questa
+                    // richiesta non c'e' ripiego, e "non aggiornato" lascerebbe
+                    // l'utente davanti a due schermate vuote senza un perche'.
+                    else -> Avviso.DintorniFalliti(esito)
+                },
             )
         }
     }

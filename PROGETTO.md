@@ -74,8 +74,8 @@ Nessuno di questi input è necessario al funzionamento: sono scorta.
 |---|---|---|---|
 | **Previsioni meteo** | Open-Meteo, senza chiave | **Ogni sera alle 19:00**, se c'è connessione: da domani in avanti | Briefing serale, dossier di tappa |
 | **Distanze e tempi di guida** | OSRM | All'import dell'itinerario, e quando si aggiunge una tappa | "Prossima tappa: 34 km, 45 min", e i km previsti per domani |
-| **Punti di interesse** | Estratto OpenStreetMap. L'Italia è dentro l'app; le altre regioni si scaricano | Italia sempre presente, estero su richiesta dalle impostazioni | Aree di sosta, carico/scarico, distributori, supermercati |
-| **Toponimi** | Dataset GeoNames, allegato o scaricato una volta | All'installazione | Dare un nome alla posizione senza rete |
+| **Punti di interesse** | OpenStreetMap via Overpass, in un corridoio di quindici chilometri intorno all'itinerario | Una volta per viaggio, all'import o col pulsante nelle impostazioni | Aree di sosta, campeggi, carico/scarico, acqua, distributori, supermercati, cose da vedere |
+| **Toponimi** | La stessa richiesta: i paesi lungo il percorso arrivano insieme ai punti di interesse | Una volta per viaggio | Dare un nome alla posizione senza rete |
 | **Risposte del modello** | API Gemini sul piano gratuito, con Grok di riserva facoltativa | Su richiesta | Esplora, diario in prosa |
 
 Non c'è import di dati preesistenti: si parte dal viaggio in corso.
@@ -255,8 +255,25 @@ rete.
 | Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |
-| Compattare i file quando le correzioni si accumulano | 9 |
-| Scaricare i punti di interesse di una regione estera, prima di partire | 7 |
+| Aggiornare meteo e distanze adesso, prima di entrare in una zona senza campo | 6 |
+| Scaricare i dintorni: un pulsante a parte, perché è la richiesta più pesante | 7 |
+| Compattare i file quando le correzioni si accumulano | **da fare** |
+
+**Cosa è dichiarato qui e non c'è ancora.** Vale scriverlo dentro il documento invece di
+lasciarlo scoprire usando l'app:
+
+- **compattare i file.** La funzione che riscrive una tabella tenendo solo l'ultima versione
+  di ogni riga esiste ed è verificata, ma nessun pulsante la chiama
+- **correggere o cancellare una voce registrata.** La colonna `cancellato` c'è in ogni
+  tabella e la lettura la rispetta, ma nessuna schermata la scrive: un rifornimento con il
+  chilometraggio sbagliato oggi si aggiusta solo aprendo il CSV
+- **rivedere le foto dentro l'app.** Nel diario compare il nome del file, non l'immagine; lo
+  stesso per la foto di uno scontrino
+- **filtrare e cercare nel testo delle note** (4.2): c'è solo lo scorrimento per giorno
+- **la coda delle giornate da narrare senza rete** (5): il pulsante dice che manca la rete e
+  la giornata resta cronaca
+- **la dettatura di una nota** (4.2) si appoggia al microfono della tastiera, e non è codice
+  di questa app
 
 ---
 

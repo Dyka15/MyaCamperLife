@@ -26,8 +26,19 @@ class OverpassTest {
         assertTrue(query, query.contains("\"amenity\"=\"sanitary_dump_station\""))
         assertTrue(query, query.contains("\"shop\"=\"supermarket\""))
         assertTrue(query, query.contains("\"place\"~\"^(city|town|village|hamlet)$\""))
+    }
+
+    @Test
+    fun `l'uscita e' center e basta, perche' tags toglie le coordinate`() {
+        val query = Overpass.query(punti)
         // Il centro e non la geometria: di un poligono ci serve il punto.
-        assertTrue(query, query.contains("out center tags;"))
+        assertTrue(query, query.contains("out center;"))
+        // **Il bug che ha reso muti i dintorni per quattro fasi.** In Overpass
+        // `tags` non aggiunge i tag, e' un livello di verbosita' che *toglie* la
+        // geometria: i nodi tornavano senza lat/lon e venivano scartati tutti.
+        // La verbosita' di riposo, `body`, porta coordinate e tag insieme.
+        assertTrue(query, !query.contains("out tags"))
+        assertTrue(query, !query.contains("center tags"))
     }
 
     @Test
@@ -151,5 +162,49 @@ class OverpassTest {
             {"elements": [{"type": "node", "id": 1, "lat": 42.6, "lon": 11.9, "tags": {"place": "village"}}]}
         """.trimIndent()
         assertTrue(Overpass.leggi(senzaNome).luoghi.isEmpty())
+    }
+
+    // --- distinguere "non c'e' niente" da "non ho saputo leggerlo" -------------
+
+    @Test
+    fun `una zona deserta e' vuota, e non e' un difetto`() {
+        val dintorno = Overpass.leggi("""{"elements": []}""")
+        assertTrue(dintorno.vuoto)
+        assertEquals(0, dintorno.elementi)
+        assertTrue(!dintorno.illeggibile)
+    }
+
+    @Test
+    fun `una risposta senza coordinate si riconosce come illeggibile`() {
+        // E' **esattamente** la forma che tornava con `out center tags`: gli
+        // elementi ci sono, i tag ci sono, le coordinate no. Prima passava per
+        // "non c'e' campo" e l'errore ha vissuto quattro fasi; adesso si nomina.
+        val senzaCoordinate = """
+            {"elements": [
+              {"type": "node", "id": 1, "tags": {"amenity": "fuel", "name": "Eni"}},
+              {"type": "node", "id": 2, "tags": {"place": "town", "name": "Orvieto"}},
+              {"type": "node", "id": 3, "tags": {"shop": "supermarket", "name": "Coop"}}
+            ]}
+        """.trimIndent()
+        val dintorno = Overpass.leggi(senzaCoordinate)
+        assertTrue(dintorno.vuoto)
+        assertEquals(3, dintorno.elementi)
+        assertTrue(dintorno.illeggibile)
+    }
+
+    @Test
+    fun `una risposta buona non e' illeggibile e conta i suoi elementi`() {
+        val dintorno = Overpass.leggi(risposta)
+        assertEquals(6, dintorno.elementi)
+        assertTrue(!dintorno.vuoto)
+        assertTrue(!dintorno.illeggibile)
+    }
+
+    @Test
+    fun `una risposta rotta non e' illeggibile, e' muta`() {
+        // Nessun elemento da cui dedurre un difetto: qui il problema e' la rete
+        // o il servizio, e va detto come tale.
+        assertTrue(!Overpass.leggi("<html>504 Gateway Timeout</html>").illeggibile)
+        assertTrue(!Overpass.leggi("").illeggibile)
     }
 }

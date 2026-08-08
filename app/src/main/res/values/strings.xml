@@ -194,8 +194,9 @@
     <!-- La scorta: rete presa in anticipo -->
     <string name="prossima_distanza">%1$d km · %2$s di guida</string>
     <string name="impostazioni_scorta">La scorta</string>
-    <string name="impostazioni_scorta_spiegazione">Meteo e distanze su strada si scaricano in anticipo e si usano offline. Aggiornali prima di entrare in una zona senza campo.</string>
-    <string name="impostazioni_aggiorna_scorta">Aggiorna adesso</string>
+    <string name="impostazioni_scorta_spiegazione">Meteo e distanze su strada si scaricano in anticipo e si usano offline. Aggiornali prima di entrare in una zona senza campo. I dintorni hanno un pulsante a parte: è la richiesta più pesante, e i punti di interesse non cambiano di sera in sera.</string>
+    <string name="impostazioni_aggiorna_scorta">Aggiorna meteo e distanze</string>
+    <string name="impostazioni_scarica_dintorni">Scarica i dintorni</string>
     <string name="scorta_aggiornata">Scorta aggiornata</string>
     <string name="scorta_non_aggiornata">Niente da aggiornare: senza rete si usa quella che c\'è.</string>
 
@@ -206,7 +207,14 @@
     <string name="esplora_scarica">Scarica i dintorni</string>
     <string name="esplora_riscarica">Riscarica i dintorni</string>
     <string name="esplora_niente_qui">Niente di questo genere nel raggio di venti chilometri.</string>
-    <string name="dintorni_aggiornati">Dintorni scaricati</string>
+    <string name="dintorni_aggiornati">Dintorni scaricati: %1$d punti, %2$d località</string>
+    <string name="dintorni_senza_rete">Niente campo, o OpenStreetMap non ha risposto in tempo. Riprova dove c\'è rete.</string>
+    <string name="dintorni_senza_tappe">Nessuna tappa da fare su cui cercare: i dintorni si scaricano intorno all\'itinerario.</string>
+    <string name="dintorni_vuoto">OpenStreetMap non ha niente di segnato lungo questo itinerario.</string>
+    <string name="dintorni_illeggibile">Ha risposto con %1$d elementi ma non ho saputo leggerli: è un difetto dell\'app, non un problema di rete.</string>
+    <string name="dintorni_troppe_richieste">OpenStreetMap è occupato: aspetta un minuto e riprova. È un servizio gratuito, e ha ragione lui.</string>
+    <string name="dintorni_troppo_grande">Richiesta troppo grande per il server: succede con itinerari molto lunghi. Riprova, o spunta qualche tappa già fatta.</string>
+    <string name="dintorni_rifiutati">OpenStreetMap ha rifiutato (%1$d). %2$s</string>
 
     <!-- Quando e' accaduto -->
     <string name="quando_data">Data</string>

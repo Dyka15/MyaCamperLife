@@ -110,22 +110,81 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
     suspend fun aggiornaDintorni(
         slug: String,
         adesso: OffsetDateTime = OffsetDateTime.now(),
-    ): Boolean = withContext(Dispatchers.IO) {
-        if (!Rete.disponibile(context)) return@withContext false
+    ): EsitoDintorni = withContext(Dispatchers.IO) {
+        if (!Rete.disponibile(context)) return@withContext EsitoDintorni.SenzaRete
 
         val punti = archivio.puntiDintorni(slug)
-        if (punti.isEmpty()) return@withContext false
+        if (punti.isEmpty()) return@withContext EsitoDintorni.SenzaTappe
 
-        val corpo = Rete.posta(
+        val esito = Rete.postaConEsito(
             indirizzo = Overpass.SERVIZIO,
             corpo = Overpass.query(punti),
+            tipo = Rete.TESTO,
             massimoCaratteri = Rete.MASSIMO_DINTORNI,
-        ) ?: return@withContext false
+        )
+
+        val corpo = when (esito) {
+            is EsitoHttp.Riuscito -> esito.corpo
+            // Overpass e' un servizio di cortesia e lo dice quando lo si
+            // strapazza: 429 vuol dire aspetta, 504 vuol dire hai chiesto
+            // troppo, 400 vuol dire che la query e' sbagliata — cioe' un difetto
+            // nostro. Tre rimedi diversi, e nessuno indovinabile da "non
+            // aggiornato".
+            is EsitoHttp.Rifiutato ->
+                return@withContext EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
+            EsitoHttp.Muto -> return@withContext EsitoDintorni.SenzaRete
+        }
 
         val dintorno = Overpass.leggi(corpo)
-        if (dintorno.poi.isEmpty() && dintorno.luoghi.isEmpty()) return@withContext false
+        // Trecento elementi arrivati e zero salvati non e' una zona deserta: e'
+        // una risposta che non sappiamo leggere. Distinguerlo qui e' il motivo
+        // per cui un `out` sbagliato non potra' piu' passare per "non c'e' campo".
+        if (dintorno.illeggibile) {
+            return@withContext EsitoDintorni.Illeggibile(dintorno.elementi)
+        }
+        if (dintorno.vuoto) return@withContext EsitoDintorni.Vuoto
 
         archivio.salvaDintorni(slug, dintorno, adesso)
-        true
+        EsitoDintorni.Riuscito(dintorno.poi.size, dintorno.luoghi.size)
     }
+
+    /**
+     * La prima riga utile del corpo d'errore.
+     *
+     * Overpass risponde con una pagina HTML che contiene, in mezzo al resto, la
+     * riga che spiega davvero cosa non va. Mostrarla intera in un messaggio non
+     * si puo'; buttarla via lascia l'utente a indovinare.
+     */
+    private fun messaggio(corpo: String?): String? = corpo
+        ?.replace(Regex("<[^>]*>"), " ")
+        ?.replace(Regex("\\s+"), " ")
+        ?.trim()
+        ?.takeUnless { it.isEmpty() }
+        ?.take(200)
+}
+
+/**
+ * Com'e' andata la richiesta dei dintorni.
+ *
+ * E' l'unica scorta che riferisce l'errore, e non per simmetria: meteo e tratte
+ * hanno un ripiego — la previsione vecchia, la linea d'aria — mentre i dintorni
+ * non ce l'hanno. Se non arrivano, Esplora e le schede delle tappe restano
+ * vuote, e l'utente deve poter sapere **perche'**.
+ */
+sealed interface EsitoDintorni {
+    data class Riuscito(val poi: Int, val luoghi: Int) : EsitoDintorni
+
+    /** Ha risposto che li' non c'e' niente. E' una risposta. */
+    data object Vuoto : EsitoDintorni
+
+    /** Ha risposto, e non abbiamo saputo leggere la risposta. E' un difetto. */
+    data class Illeggibile(val elementi: Int) : EsitoDintorni
+
+    data class Rifiutato(val codice: Int, val messaggio: String?) : EsitoDintorni
+
+    /** Niente campo, timeout, o risposta oltre il tetto. */
+    data object SenzaRete : EsitoDintorni
+
+    /** Nessuna tappa su cui centrare la richiesta. */
+    data object SenzaTappe : EsitoDintorni
 }
