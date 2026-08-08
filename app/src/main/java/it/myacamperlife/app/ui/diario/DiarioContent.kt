@@ -1,5 +1,6 @@
 package it.myacamperlife.app.ui.diario
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -40,6 +41,7 @@ fun DiarioContent(
     prosaPossibile: Boolean,
     onProsa: (LocalDate) -> Unit,
     onCronaca: () -> Unit,
+    onVoce: (Voce) -> Unit,
 ) {
     if (voci.isEmpty()) {
         Column(modifier = Modifier.padding(24.dp)) {
@@ -92,7 +94,7 @@ fun DiarioContent(
             // Senza chiave: due voci nello stesso secondo e dello stesso
             // genere darebbero una chiave duplicata, e LazyColumn cade.
             items(delGiorno) { voce ->
-                RigaVoce(voce)
+                RigaVoce(voce, onTocco = { onVoce(voce) })
             }
         }
 
@@ -114,10 +116,13 @@ fun DiarioContent(
 }
 
 @Composable
-private fun RigaVoce(voce: Voce) {
+private fun RigaVoce(voce: Voce, onTocco: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // Un tocco apre cosa si puo' farne: correggere, o cancellare. E'
+            // l'unico posto da cui si torna su un evento gia' registrato.
+            .clickable(onClick = onTocco)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text(

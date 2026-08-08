@@ -574,6 +574,200 @@ class Archivio(private val radice: File) {
         return spesa
     }
 
+    // --- correggere e cancellare ----------------------------------------------
+
+    /*
+     * Il formato e' stato scritto per questo dal primo giorno — `id`, `ts`,
+     * `cancellato`, "vince l'ultima" — e per nove fasi nessuna schermata ha
+     * saputo usarlo: un rifornimento col chilometraggio sbagliato si aggiustava
+     * solo aprendo il CSV. Queste funzioni sono la parte mancante, e non
+     * introducono nessun meccanismo nuovo.
+     *
+     * **Niente riscrive niente.** Correggere accoda una riga con lo stesso `id`,
+     * cancellare accoda una lapide. Il file cresce, e va bene: e' il prezzo di
+     * un archivio in cui una correzione non puo' distruggere l'originale, e
+     * "compatta" lo rimette in ordine quando la vista da foglio di calcolo si fa
+     * confusa.
+     */
+
+    /**
+     * Cancella una voce accodando una lapide.
+     *
+     * @return `false` se quell'`id` non esiste piu': cancellare due volte non e'
+     *   un errore da segnalare, ma non e' nemmeno un successo da annunciare.
+     */
+    fun cancellaVoce(
+        slug: String,
+        genere: Genere,
+        id: String,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Boolean {
+        val tabella = tabellaDi(slug, genere)
+        val riga = tabella.vive().firstOrNull { it.id == id } ?: return false
+        val giorno = riga.quando?.toLocalDate()
+
+        tabella.accoda(
+            mapOf(
+                Csv.ID to id,
+                Csv.TS to ts(dopoDi(riga, adesso)),
+                Csv.CANCELLATO to Csv.booleano(true),
+            ),
+        )
+
+        giorno?.let { aggiornaDiario(slug, it) }
+        return true
+    }
+
+    /** Corregge il testo di una nota. */
+    fun correggiNota(
+        slug: String,
+        id: String,
+        testo: String,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Boolean {
+        val pulito = Csv.testo(testo)
+        if (pulito.isEmpty()) return false
+        return correggi(slug, Genere.NOTA, id, adesso, mapOf(NoteTabella.TESTO to pulito))
+    }
+
+    /** Corregge la didascalia di una foto. La foto resta dov'e'. */
+    fun correggiDidascalia(
+        slug: String,
+        id: String,
+        didascalia: String?,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Boolean = correggi(
+        slug, Genere.FOTO, id, adesso,
+        mapOf(FotoTabella.DIDASCALIA to Csv.testo(didascalia)),
+    )
+
+    /**
+     * Corregge un rifornimento: il caso per cui tutto questo serve.
+     *
+     * I litri si riscrivono ricalcolandoli, come alla registrazione: la verita'
+     * sono importo e prezzo, la colonna e' una comodita' per il foglio di
+     * calcolo, e lasciarla al valore vecchio la renderebbe una bugia.
+     */
+    fun correggiRifornimento(
+        slug: String,
+        id: String,
+        km: Int,
+        euro: Double,
+        prezzoLitro: Double,
+        pieno: Boolean,
+        istante: OffsetDateTime,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Boolean {
+        val litri = Carburante.litri(euro, prezzoLitro) ?: return false
+        return correggi(
+            slug, Genere.RIFORNIMENTO, id, adesso,
+            mapOf(
+                RifornimentiTabella.ISTANTE to ts(istante),
+                RifornimentiTabella.KM to km.toString(),
+                RifornimentiTabella.EURO to Csv.numero(euro),
+                RifornimentiTabella.PREZZO_LITRO to Csv.numero(prezzoLitro, 3),
+                RifornimentiTabella.LITRI to Csv.numero(litri, 2),
+                RifornimentiTabella.PIENO to Csv.booleano(pieno),
+            ),
+        )
+    }
+
+    /** Corregge una spesa. Lo scontrino allegato resta quello. */
+    fun correggiSpesa(
+        slug: String,
+        id: String,
+        categoria: Categoria,
+        importo: Double,
+        modalita: Modalita,
+        descrizione: String?,
+        valuta: String,
+        cambio: Double?,
+        istante: OffsetDateTime,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Boolean {
+        val sigla = valuta.trim().uppercase().ifEmpty { Spesa.EURO }
+        val estera = sigla != Spesa.EURO
+        val euro = if (estera) importo * (cambio ?: 1.0) else importo
+        return correggi(
+            slug, Genere.SPESA, id, adesso,
+            mapOf(
+                SpeseTabella.ISTANTE to ts(istante),
+                SpeseTabella.CATEGORIA to categoria.codice,
+                SpeseTabella.DESCRIZIONE to Csv.testo(descrizione),
+                SpeseTabella.IMPORTO to Csv.numero(importo),
+                SpeseTabella.VALUTA to sigla,
+                SpeseTabella.CAMBIO to (cambio?.takeIf { estera }?.let { Csv.numero(it, 4) } ?: ""),
+                SpeseTabella.EURO to Csv.numero(euro),
+                SpeseTabella.MODALITA to modalita.codice,
+            ),
+        )
+    }
+
+    /**
+     * Il cuore di tutte le correzioni: **si parte dalla riga viva** e ci si
+     * sovrascrive solo quello che e' cambiato.
+     *
+     * E' l'unico modo corretto, e la ragione sta in "vince l'ultima": la riga
+     * nuova sostituisce la vecchia **per intero**, quindi accodarne una con soli
+     * i campi corretti cancellerebbe tutto il resto — la tappa, le coordinate, lo
+     * scontrino allegato. Partendo dalla riga esistente il chiamante puo'
+     * elencare solo quello che gli interessa senza dover ricordare il resto.
+     *
+     * Il diario si rigenera per **due** giorni quando l'istante cambia: quello da
+     * cui la voce esce e quello in cui entra. Rigenerarne uno solo lascerebbe la
+     * voce scritta in due giornate.
+     */
+    private fun correggi(
+        slug: String,
+        genere: Genere,
+        id: String,
+        adesso: OffsetDateTime,
+        cambi: Map<String, String>,
+    ): Boolean {
+        val tabella = tabellaDi(slug, genere)
+        val riga = tabella.vive().firstOrNull { it.id == id } ?: return false
+        val prima = riga.quando?.toLocalDate()
+
+        tabella.accoda(riga.mappa() + cambi + mapOf(Csv.TS to ts(dopoDi(riga, adesso))))
+
+        val dopo = tabella.vive().firstOrNull { it.id == id }?.quando?.toLocalDate()
+        setOfNotNull(prima, dopo).forEach { aggiornaDiario(slug, it) }
+        return true
+    }
+
+    /**
+     * Un istante di scrittura **certamente successivo** a quello della riga che
+     * si sta superando.
+     *
+     * Serve perche' "vince l'ultima" guarda il `ts`: una lapide con un `ts` piu'
+     * vecchio della riga che dovrebbe uccidere viene scartata, e la cancellazione
+     * non cancella **riferendo di essere riuscita**. E' un guasto silenzioso, ed
+     * e' il genere che si scopre mesi dopo.
+     *
+     * Capita per davvero: l'orologio di un telefono torna indietro dopo una
+     * sincronizzazione, e in viaggio si cambia fuso. Quando l'orologio e' avanti
+     * — cioe' quasi sempre — questa funzione restituisce [adesso] e non tocca
+     * niente; solo quando e' indietro sposta la scrittura di un millesimo oltre
+     * la riga precedente. Non e' una data che qualcuno legge: `ts` dice *quando
+     * la riga e' stata scritta*, e quando il fatto e' accaduto lo dice `istante`.
+     */
+    private fun dopoDi(riga: Riga, adesso: OffsetDateTime): OffsetDateTime {
+        val precedente = runCatching { OffsetDateTime.parse(riga.ts) }.getOrNull() ?: return adesso
+        return if (adesso.isAfter(precedente)) adesso else precedente.plusNanos(1_000_000)
+    }
+
+    private fun tabellaDi(slug: String, genere: Genere): Tabella = when (genere) {
+        Genere.ARRIVO, Genere.POSIZIONE -> tabellaSpostamenti(slug)
+        Genere.NOTA -> tabellaNote(slug)
+        Genere.FOTO -> tabellaFoto(slug)
+        Genere.RIFORNIMENTO -> tabellaRifornimenti(slug)
+        Genere.SPESA -> tabellaSpese(slug)
+    }
+
+    /** La riga viva di una voce, per riempire la form di correzione. */
+    fun voce(slug: String, genere: Genere, id: String): Riga? =
+        tabellaDi(slug, genere).vive().firstOrNull { it.id == id }
+
     // --- consumi e autonomia -------------------------------------------------
 
     /**

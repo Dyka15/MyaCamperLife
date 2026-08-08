@@ -261,6 +261,21 @@
     <string name="esplora_risposte">Risposte salvate</string>
     <string name="dossier_perso">Il file della risposta non c\'è più.</string>
 
+    <!-- Tornare su una voce già registrata -->
+    <string name="voce_titolo">Questa voce</string>
+    <string name="voce_cancella_titolo">Cancellare questa voce?</string>
+    <string name="voce_cancella_spiegazione">La riga resta scritta nel file con una marca di cancellazione, ma dall\'app non si rimette più.</string>
+    <string name="voce_cancella_foto">La foto non viene toccata: resta nella cartella del viaggio.</string>
+    <string name="voce_cancella_arrivo">Il check-in sulla tappa resta: lo stato di una tappa si cambia dalla sua scheda.</string>
+    <string name="voce_correggi_nota">Correggi la nota</string>
+    <string name="voce_correggi_didascalia">Correggi la didascalia</string>
+    <string name="azione_correggi">Correggi</string>
+    <string name="azione_cancella">Cancella</string>
+    <string name="voce_corretta">Corretta</string>
+    <string name="voce_cancellata">Cancellata</string>
+    <string name="rifornimento_correggi">Correggi il rifornimento</string>
+    <string name="spesa_correggi">Correggi la spesa</string>
+
     <!-- La scheda di una tappa -->
     <string name="scheda_descrizione">Dall\'itinerario</string>
     <string name="scheda_meteo">Che tempo farà</string>

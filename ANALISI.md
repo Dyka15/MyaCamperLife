@@ -846,6 +846,7 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **8** | Client AI: Gemini con Grok di riserva, Esplora a due strati, giornate in prosa | l'ultima cosa che restava su Telegram |
 | **9** | Specchio nella cartella scelta (SAF), coordinate in un campo, ricerca di un indirizzo | apri `spese.csv` in un foglio di calcolo |
 | **10** | Scheda di una tappa: descrizione, meteo del suo giorno, dintorni di quel posto, domanda al modello su quella tappa, scorrimento laterale | tocchi Bolsena tre giorni prima e sai cosa ti aspetta |
+| **11** | Correggere e cancellare una voce registrata, dal diario | sbagli il chilometraggio di un pieno e lo aggiusti senza aprire il CSV |
 
 **La fase 9 è stata anticipata prima della 8.** Finché i file stanno solo nell'area privata
 dell'app, il terzo principio — *i file sono il prodotto* — è vero nel codice e falso in

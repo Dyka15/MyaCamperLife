@@ -48,11 +48,14 @@ import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Esplora
 import it.myacamperlife.app.dominio.Categoria
+import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Momento
+import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Spesa
+import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.rete.Provenienza
 import it.myacamperlife.app.rete.RicercaIndirizzo
@@ -61,6 +64,142 @@ import java.io.File
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+
+/**
+ * Cosa si puo' fare a una voce di diario gia' registrata.
+ *
+ * **Il formato lo prevedeva dal primo giorno** — `id`, `ts`, `cancellato`,
+ * "vince l'ultima" — e per nove fasi nessuna schermata glielo chiedeva: un
+ * rifornimento col chilometraggio sbagliato si aggiustava solo aprendo il CSV.
+ * Questo dialogo e' quella parte mancante.
+ *
+ * Cancellare **chiede conferma**, correggere no: una correzione si corregge
+ * ancora, una cancellazione dall'app non si annulla — la riga resta nel file, ma
+ * per rimetterla in piedi bisognerebbe aprirlo, e non e' un'operazione da
+ * proporre come rimedio in un messaggio.
+ */
+@Composable
+fun AzioniVoceDialog(
+    voce: Voce,
+    onCorreggi: () -> Unit,
+    onCancella: () -> Unit,
+    onChiudi: () -> Unit,
+) {
+    var conferma by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = {
+            Text(
+                stringResource(
+                    if (conferma) R.string.voce_cancella_titolo else R.string.voce_titolo,
+                ),
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = voce.testo.ifBlank { stringResource(R.string.voce_senza_testo) },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = voce.istante.format(VOCE_QUANDO),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (conferma) {
+                    Text(
+                        stringResource(R.string.voce_cancella_spiegazione),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    // Le due asimmetrie che sorprenderebbero, dette prima e non
+                    // dopo: un file di foto non si tocca, e un check-in non si
+                    // annulla cancellando la sua riga di diario.
+                    if (voce.genere == Genere.FOTO) {
+                        Text(
+                            stringResource(R.string.voce_cancella_foto),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (voce.genere == Genere.ARRIVO) {
+                        Text(
+                            stringResource(R.string.voce_cancella_arrivo),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (conferma) {
+                TextButton(onClick = { onChiudi(); onCancella() }) {
+                    Text(stringResource(R.string.azione_cancella))
+                }
+            } else if (voce.correggibile) {
+                TextButton(onClick = { onChiudi(); onCorreggi() }) {
+                    Text(stringResource(R.string.azione_correggi))
+                }
+            }
+        },
+        dismissButton = {
+            Row {
+                if (!conferma && voce.cancellabile) {
+                    TextButton(onClick = { conferma = true }) {
+                        Text(stringResource(R.string.azione_cancella))
+                    }
+                }
+                TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_chiudi)) }
+            }
+        },
+    )
+}
+
+private val VOCE_QUANDO: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE d MMMM, HH:mm", java.util.Locale.ITALIAN)
+
+/**
+ * Un campo di testo e via: corregge una nota o la didascalia di una foto.
+ *
+ * Sta a parte da [NotaDialog] e [DidascaliaDialog] perche' correggere non e'
+ * registrare: il titolo dice "correggi", il campo arriva pieno, e non c'e' un
+ * pulsante "scarta" — la foto esiste gia'.
+ */
+@Composable
+fun TestoDialog(
+    titolo: Int,
+    etichetta: Int,
+    iniziale: String,
+    facoltativo: Boolean,
+    onSalva: (String) -> Unit,
+    onChiudi: () -> Unit,
+) {
+    var testo by remember { mutableStateOf(iniziale) }
+
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(stringResource(titolo)) },
+        text = {
+            OutlinedTextField(
+                value = testo,
+                onValueChange = { testo = it },
+                label = { Text(stringResource(etichetta)) },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = facoltativo || testo.isNotBlank(),
+                onClick = { onChiudi(); onSalva(testo) },
+            ) { Text(stringResource(R.string.azione_salva)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
 
 /** Una nota di viaggio. Un campo, due tocchi. */
 @Composable
@@ -372,6 +511,8 @@ private fun RigaIndirizzo(indirizzo: Indirizzo, onTocco: () -> Unit) {
 fun RifornimentoDialog(
     ultimoKm: Int?,
     adesso: OffsetDateTime,
+    /** I valori da correggere, o `null` per un rifornimento nuovo. */
+    iniziale: Rifornimento? = null,
     onSalva: (
         km: Int,
         euro: Double,
@@ -381,12 +522,19 @@ fun RifornimentoDialog(
     ) -> Unit,
     onChiudi: () -> Unit,
 ) {
-    var km by remember { mutableStateOf(ultimoKm?.toString().orEmpty()) }
-    var euro by remember { mutableStateOf("") }
-    var prezzo by remember { mutableStateOf("") }
-    var pieno by remember { mutableStateOf(true) }
-    var data by remember { mutableStateOf(Momento.scriviData(adesso)) }
-    var ora by remember { mutableStateOf(Momento.scriviOra(adesso)) }
+    // Correggendo, il chilometraggio proposto e' **quello della riga**, non
+    // l'ultimo registrato: l'ultimo potrebbe essere proprio quello sbagliato che
+    // si sta venendo a correggere.
+    var km by remember {
+        mutableStateOf((iniziale?.km ?: ultimoKm)?.toString().orEmpty())
+    }
+    var euro by remember { mutableStateOf(iniziale?.euro?.let { Csv.numero(it) }.orEmpty()) }
+    var prezzo by remember {
+        mutableStateOf(iniziale?.prezzoLitro?.let { Csv.numero(it, 3) }.orEmpty())
+    }
+    var pieno by remember { mutableStateOf(iniziale?.pieno ?: true) }
+    var data by remember { mutableStateOf(Momento.scriviData(iniziale?.istante ?: adesso)) }
+    var ora by remember { mutableStateOf(Momento.scriviOra(iniziale?.istante ?: adesso)) }
 
     val chilometri = Csv.leggiIntero(km)
     val importo = Csv.leggiNumero(euro)
@@ -401,7 +549,14 @@ fun RifornimentoDialog(
 
     AlertDialog(
         onDismissRequest = onChiudi,
-        title = { Text(stringResource(R.string.rifornimento_titolo)) },
+        title = {
+            Text(
+                stringResource(
+                    if (iniziale == null) R.string.rifornimento_titolo
+                    else R.string.rifornimento_correggi,
+                ),
+            )
+        },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -870,7 +1025,10 @@ fun SpesaDialog(
     cambioSuggerito: Double?,
     scontrino: File?,
     adesso: OffsetDateTime,
-    onScontrino: () -> Unit,
+    /** La spesa da correggere, o `null` per una spesa nuova. */
+    iniziale: Spesa? = null,
+    /** Nullo correggendo: lo scontrino si fotografa solo registrando. */
+    onScontrino: (() -> Unit)?,
     onSalva: (
         categoria: Categoria,
         importo: Double,
@@ -882,17 +1040,21 @@ fun SpesaDialog(
     ) -> Unit,
     onChiudi: () -> Unit,
 ) {
-    var categoria by remember { mutableStateOf(Categoria.SOSTA) }
-    var modalita by remember { mutableStateOf(Modalita.CONTANTI) }
-    var importo by remember { mutableStateOf("") }
-    var descrizione by remember { mutableStateOf("") }
-    var valuta by remember { mutableStateOf(valutaSuggerita) }
+    var categoria by remember { mutableStateOf(iniziale?.categoria ?: Categoria.SOSTA) }
+    var modalita by remember { mutableStateOf(iniziale?.modalita ?: Modalita.CONTANTI) }
+    var importo by remember { mutableStateOf(iniziale?.let { Csv.numero(it.importo) }.orEmpty()) }
+    var descrizione by remember { mutableStateOf(iniziale?.descrizione.orEmpty()) }
+    var valuta by remember { mutableStateOf(iniziale?.valuta ?: valutaSuggerita) }
     var cambio by remember {
-        mutableStateOf(cambioSuggerito?.let { Csv.numero(it, 4) }.orEmpty())
+        mutableStateOf((iniziale?.cambio ?: cambioSuggerito)?.let { Csv.numero(it, 4) }.orEmpty())
     }
-    var estera by remember { mutableStateOf(!valutaSuggerita.equals(Spesa.EURO, true)) }
-    var data by remember { mutableStateOf(Momento.scriviData(adesso)) }
-    var ora by remember { mutableStateOf(Momento.scriviOra(adesso)) }
+    // Correggendo, "estera" viene dalla spesa e non dall'ultima usata nel
+    // viaggio: si sta guardando questa, non le altre.
+    var estera by remember {
+        mutableStateOf(iniziale?.estera ?: !valutaSuggerita.equals(Spesa.EURO, true))
+    }
+    var data by remember { mutableStateOf(Momento.scriviData(iniziale?.istante ?: adesso)) }
+    var ora by remember { mutableStateOf(Momento.scriviOra(iniziale?.istante ?: adesso)) }
 
     val quanto = Csv.leggiNumero(importo)
     val tasso = Csv.leggiNumero(cambio)
@@ -909,7 +1071,13 @@ fun SpesaDialog(
 
     AlertDialog(
         onDismissRequest = onChiudi,
-        title = { Text(stringResource(R.string.spesa_titolo)) },
+        title = {
+            Text(
+                stringResource(
+                    if (iniziale == null) R.string.spesa_titolo else R.string.spesa_correggi,
+                ),
+            )
+        },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -987,22 +1155,27 @@ fun SpesaDialog(
                     )
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                // Lo scontrino si fotografa solo registrando: correggendo, un
+                // pulsante che non fa niente e' peggio di nessun pulsante, e
+                // quello allegato resta comunque attaccato alla spesa.
+                if (onScontrino != null) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                TextButton(onClick = onScontrino) {
-                    Text(
-                        stringResource(
-                            if (scontrino == null) R.string.spesa_scontrino_scatta
-                            else R.string.spesa_scontrino_rifai,
-                        ),
-                    )
-                }
-                if (scontrino != null) {
-                    Text(
-                        scontrino.name,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    TextButton(onClick = onScontrino) {
+                        Text(
+                            stringResource(
+                                if (scontrino == null) R.string.spesa_scontrino_scatta
+                                else R.string.spesa_scontrino_rifai,
+                            ),
+                        )
+                    }
+                    if (scontrino != null) {
+                        Text(
+                            scontrino.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         },

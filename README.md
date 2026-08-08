@@ -61,6 +61,10 @@ Diario:
   d'apertura
 - le foto si chiamano `foto_AAAAMMGG_HHMMSS_Localita.jpg`, come già oggi
 - scrive `diario.md`: un file per viaggio, una sezione per giorno, aggiornata a ogni evento
+- **un tocco su una voce la corregge o la cancella.** Il chilometraggio di un pieno, la data
+  di una spesa, il testo di una nota: si aggiustano dall'app, non aprendo il CSV. Correggere
+  accoda una riga con lo stesso identificativo, cancellare accoda una lapide — **l'originale
+  resta scritto nel file**, che è il motivo per cui offrire questa funzione non fa paura
 
 Numeri:
 

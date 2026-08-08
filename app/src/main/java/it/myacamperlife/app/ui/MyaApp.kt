@@ -47,6 +47,8 @@ import it.myacamperlife.app.rete.EsitoDintorni
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dossier
+import it.myacamperlife.app.dominio.Genere
+import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Itinerario
@@ -56,6 +58,7 @@ import it.myacamperlife.app.ui.diario.DiarioContent
 import it.myacamperlife.app.ui.esplora.EsploraContent
 import it.myacamperlife.app.ui.numeri.NumeriContent
 import it.myacamperlife.app.ui.viaggi.AggiungiTappaDialog
+import it.myacamperlife.app.ui.viaggi.AzioniVoceDialog
 import it.myacamperlife.app.ui.viaggi.BriefingDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
 import it.myacamperlife.app.ui.viaggi.DossierDialog
@@ -67,6 +70,7 @@ import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
 import it.myacamperlife.app.ui.viaggi.SchedaTappaContent
 import it.myacamperlife.app.ui.viaggi.SpesaDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
+import it.myacamperlife.app.ui.viaggi.TestoDialog
 import it.myacamperlife.app.ui.viaggi.ViaggiViewModel
 import java.io.File
 import java.time.OffsetDateTime
@@ -117,6 +121,11 @@ fun MyaApp(vista: ViaggiViewModel) {
     var dossierAperto by remember { mutableStateOf<Dossier?>(null) }
     var testoDossier by remember { mutableStateOf<String?>(null) }
     var briefing by remember { mutableStateOf<Briefing?>(null) }
+
+    // Tornare su una voce gia' registrata: prima cosa se ne puo' fare, poi la
+    // form giusta per il suo genere.
+    var voceScelta by remember { mutableStateOf<Voce?>(null) }
+    var voceDaCorreggere by remember { mutableStateOf<Voce?>(null) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -368,6 +377,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     prosaPossibile = vista.aiConfigurata(),
                     onProsa = vista::riscriviGiornata,
                     onCronaca = vista::rigeneraDiario,
+                    onVoce = { voceScelta = it },
                 )
 
                 scheda == Scheda.NUMERI -> NumeriContent(
@@ -417,6 +427,87 @@ fun MyaApp(vista: ViaggiViewModel) {
             onSalva = vista::registraNota,
             onChiudi = { notaAperta = false },
         )
+    }
+
+    voceScelta?.let { voce ->
+        AzioniVoceDialog(
+            voce = voce,
+            onCorreggi = { voceDaCorreggere = voce },
+            onCancella = { vista.cancellaVoce(voce) },
+            onChiudi = { voceScelta = null },
+        )
+    }
+
+    // Ogni genere ha la sua form, e sono le stesse della registrazione: una
+    // spesa si corregge dove la si scrive, non in una schermata gemella che
+    // andrebbe tenuta allineata a mano.
+    voceDaCorreggere?.let { voce ->
+        // Niente chiamate a "chiudi" da qui dentro: cambiare stato **durante** la
+        // composizione e' il modo per farla ricominciare da sola. Quando non c'e'
+        // niente da mostrare non si mostra niente, e il prossimo tocco sovrascrive.
+        val id = voce.id ?: return@let
+        val chiudi = { voceDaCorreggere = null }
+
+        when (voce.genere) {
+            Genere.NOTA -> TestoDialog(
+                titolo = R.string.voce_correggi_nota,
+                etichetta = R.string.nota_campo,
+                iniziale = voce.testo,
+                facoltativo = false,
+                onSalva = { testo -> vista.correggiNota(id, testo) },
+                onChiudi = chiudi,
+            )
+
+            Genere.FOTO -> TestoDialog(
+                titolo = R.string.voce_correggi_didascalia,
+                etichetta = R.string.foto_didascalia,
+                iniziale = voce.testo,
+                facoltativo = true,
+                onSalva = { testo ->
+                    vista.correggiDidascalia(id, testo.takeIf { it.isNotBlank() })
+                },
+                onChiudi = chiudi,
+            )
+
+            Genere.RIFORNIMENTO -> stato.rifornimenti.firstOrNull { it.id == id }?.let { quello ->
+                RifornimentoDialog(
+                    ultimoKm = stato.ultimoKm,
+                    adesso = remember { OffsetDateTime.now() },
+                    iniziale = quello,
+                    onSalva = { km, euro, prezzo, pieno, istante ->
+                        vista.correggiRifornimento(id, km, euro, prezzo, pieno, istante)
+                    },
+                    onChiudi = chiudi,
+                )
+            }
+
+            Genere.SPESA -> stato.spese.firstOrNull { it.id == id }?.let { quella ->
+                SpesaDialog(
+                    valutaSuggerita = quella.valuta,
+                    cambioSuggerito = quella.cambio,
+                    // Lo scontrino non si ricambia correggendo: e' un file, e
+                    // sostituirlo e' un'altra operazione. Quello allegato resta —
+                    // la correzione non lo perde — e la form non offre un pulsante
+                    // che non farebbe niente.
+                    scontrino = null,
+                    adesso = remember { OffsetDateTime.now() },
+                    iniziale = quella,
+                    onScontrino = null,
+                    onSalva = { categoria, importo, modalita, descrizione, valuta, cambio, istante ->
+                        vista.correggiSpesa(
+                            id, categoria, importo, modalita, descrizione, valuta, cambio, istante,
+                        )
+                        // SpesaDialog non si chiude da se' al salvataggio —
+                        // registrando, chiudere scarterebbe la foto dello
+                        // scontrino — quindi qui chiude chi salva.
+                        chiudi()
+                    },
+                    onChiudi = chiudi,
+                )
+            }
+
+            Genere.ARRIVO, Genere.POSIZIONE -> Unit
+        }
     }
 
     fotoScattata?.let { file ->
@@ -627,6 +718,8 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.PermessoPosizioneNegato -> stringResource(R.string.posizione_negata)
     is ViaggiViewModel.Avviso.TappaAggiunta -> stringResource(R.string.tappa_aggiunta, avviso.nome)
     ViaggiViewModel.Avviso.NotaRegistrata -> stringResource(R.string.nota_registrata)
+    ViaggiViewModel.Avviso.VoceCorretta -> stringResource(R.string.voce_corretta)
+    ViaggiViewModel.Avviso.VoceCancellata -> stringResource(R.string.voce_cancellata)
     ViaggiViewModel.Avviso.FotoRegistrata -> stringResource(R.string.foto_registrata)
     ViaggiViewModel.Avviso.RifornimentoRegistrato -> stringResource(R.string.rifornimento_registrato)
     ViaggiViewModel.Avviso.SpesaRegistrata -> stringResource(R.string.spesa_registrata)

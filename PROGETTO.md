@@ -183,6 +183,8 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Scrivere la giornata in `diario.md`: cronaca ordinata di tappe, posizioni, note, foto, rifornimenti e spese | 2 |
 | Far riscrivere una giornata in prosa dal modello, quando c'è rete | 8 |
 | Sfogliare le giornate passate, filtrare, cercare nel testo delle note | 2 |
+| **Correggere** una voce già registrata: il testo di una nota, la didascalia di una foto, i numeri e la data di un rifornimento o di una spesa | 11 |
+| **Cancellare** una voce: si accoda una lapide, la riga originale resta nel file | 11 |
 
 ### 4.3 Rifornimenti, consumi e autonomia
 
@@ -264,9 +266,6 @@ lasciarlo scoprire usando l'app:
 
 - **compattare i file.** La funzione che riscrive una tabella tenendo solo l'ultima versione
   di ogni riga esiste ed è verificata, ma nessun pulsante la chiama
-- **correggere o cancellare una voce registrata.** La colonna `cancellato` c'è in ogni
-  tabella e la lettura la rispetta, ma nessuna schermata la scrive: un rifornimento con il
-  chilometraggio sbagliato oggi si aggiusta solo aprendo il CSV
 - **rivedere le foto dentro l'app.** Nel diario compare il nome del file, non l'immagine; lo
   stesso per la foto di uno scontrino
 - **filtrare e cercare nel testo delle note** (4.2): c'è solo lo scorrimento per giorno
@@ -409,7 +408,7 @@ Valgono in ogni schermata, e sono il criterio con cui giudicare se una cosa è f
 | **Nessuna schermata dipende dalla rete per esistere** | Un errore di connessione non produce mai una pagina vuota: produce un dato più vecchio, o lo strato locale da solo |
 | **L'età di un dato si dichiara** | "Meteo di ieri sera alle 19" e non un meteo senza data. Un numero vecchio spacciato per fresco è peggio di un numero assente |
 | **Una stima si chiama stima** | L'autonomia residua è dedotta dalle tappe fatte, non misurata. La distanza in linea d'aria non è la distanza su strada. Va scritto accanto al numero |
-| **Correggere non distrugge** | Le modifiche si accodano, non riscrivono. Un file troncato a metà per un telefono che si spegne non deve poter esistere |
+| **Correggere non distrugge** | Le modifiche si accodano, non riscrivono: correggere una voce aggiunge una riga con lo stesso identificativo, cancellarla aggiunge una lapide, e l'originale resta leggibile nel file. Un file troncato a metà per un telefono che si spegne non deve poter esistere |
 | **Si sa chi ha risposto** | Quando parla un modello, si vede quale dei due |
 | **Niente conta più delle azioni rapide** | Vedi sezione 6 |
 

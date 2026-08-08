@@ -32,6 +32,7 @@ import it.myacamperlife.app.dominio.NomeFoto
 import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.PoiVicino
+import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Schede
 import it.myacamperlife.app.dominio.SchedaTappa
 import it.myacamperlife.app.dominio.Spesa
@@ -41,6 +42,7 @@ import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
 import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
+import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.rete.Assistente
 import it.myacamperlife.app.rete.EsitoAi
 import it.myacamperlife.app.rete.EsitoDintorni
@@ -113,6 +115,11 @@ class ViaggiViewModel(
         val consumo: Consumo = Consumo(emptyList()),
         val conto: Conto = Spese.conta(emptyList()),
         val spese: List<Spesa> = emptyList(),
+        /**
+         * I rifornimenti registrati: servono a riempire la form quando se ne
+         * corregge uno, e sono gia' letti per calcolare il consumo.
+         */
+        val rifornimenti: List<Rifornimento> = emptyList(),
         val autonomia: Autonomia? = null,
         val tratte: Tratte = Tratte(),
         val poi: List<Poi> = emptyList(),
@@ -200,6 +207,8 @@ class ViaggiViewModel(
         data object PermessoPosizioneNegato : Avviso
         data class TappaAggiunta(val nome: String) : Avviso
         data object NotaRegistrata : Avviso
+        data object VoceCorretta : Avviso
+        data object VoceCancellata : Avviso
         data object FotoRegistrata : Avviso
         data object RifornimentoRegistrato : Avviso
         data object SpesaRegistrata : Avviso
@@ -261,6 +270,7 @@ class ViaggiViewModel(
                 consumo = Consumi.calcola(rifornimenti),
                 conto = archivio.conto(slug),
                 spese = archivio.spese(slug),
+                rifornimenti = rifornimenti,
                 autonomia = StimaAutonomia.calcola(
                     kmConUnPieno = impostazioni.kmConUnPieno,
                     rifornimenti = rifornimenti,
@@ -284,6 +294,7 @@ class ViaggiViewModel(
                 consumo = dati.consumo,
                 conto = dati.conto,
                 spese = dati.spese,
+                rifornimenti = dati.rifornimenti,
                 autonomia = dati.autonomia,
                 impostazioni = dati.impostazioni,
                 tratte = dati.tratte,
@@ -303,6 +314,7 @@ class ViaggiViewModel(
         val consumo: Consumo,
         val conto: Conto,
         val spese: List<Spesa>,
+        val rifornimenti: List<Rifornimento>,
         val autonomia: Autonomia?,
         val impostazioni: Impostazioni,
         val tratte: Tratte,
@@ -386,6 +398,61 @@ class ViaggiViewModel(
         // ferma venti secondi ad aspettare un fix satellitare.
         archivio.registraNota(slug, testo, posizioni.ultimaNota())
         Avviso.NotaRegistrata
+    }
+
+    // --- tornare su quello che si e' registrato -------------------------------
+
+    /**
+     * Cancella una voce di diario.
+     *
+     * Nessuna riga viene distrutta: si accoda una lapide, e l'originale resta nel
+     * file per chi lo apre. E' il formato che lo permette, ed e' la ragione per
+     * cui offrire questa funzione non fa paura.
+     */
+    fun cancellaVoce(voce: Voce) = operazione { slug ->
+        val id = voce.id ?: return@operazione null
+        if (archivio.cancellaVoce(slug, voce.genere, id)) Avviso.VoceCancellata else null
+    }
+
+    fun correggiNota(id: String, testo: String) = operazione { slug ->
+        if (archivio.correggiNota(slug, id, testo)) Avviso.VoceCorretta else null
+    }
+
+    fun correggiDidascalia(id: String, didascalia: String?) = operazione { slug ->
+        if (archivio.correggiDidascalia(slug, id, didascalia)) Avviso.VoceCorretta else null
+    }
+
+    fun correggiRifornimento(
+        id: String,
+        km: Int,
+        euro: Double,
+        prezzoLitro: Double,
+        pieno: Boolean,
+        istante: OffsetDateTime,
+    ) = operazione { slug ->
+        val fatto = archivio.correggiRifornimento(
+            slug = slug, id = id, km = km, euro = euro, prezzoLitro = prezzoLitro,
+            pieno = pieno, istante = istante,
+        )
+        if (fatto) Avviso.VoceCorretta else null
+    }
+
+    fun correggiSpesa(
+        id: String,
+        categoria: Categoria,
+        importo: Double,
+        modalita: Modalita,
+        descrizione: String?,
+        valuta: String,
+        cambio: Double?,
+        istante: OffsetDateTime,
+    ) = operazione { slug ->
+        val fatto = archivio.correggiSpesa(
+            slug = slug, id = id, categoria = categoria, importo = importo,
+            modalita = modalita, descrizione = descrizione, valuta = valuta,
+            cambio = cambio, istante = istante,
+        )
+        if (fatto) Avviso.VoceCorretta else null
     }
 
     fun aggiungiTappa(nome: String, lat: Double, lon: Double, giorno: String?, primaDi: String?) =

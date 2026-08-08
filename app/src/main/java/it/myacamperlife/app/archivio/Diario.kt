@@ -104,13 +104,14 @@ object VociDelGiorno {
                     testo = riga.testo(SpostamentiTabella.TAPPA)
                         ?: riga.testo(SpostamentiTabella.NOTA)
                         ?: "",
+                    id = riga.id,
                 ),
             )
         }
         note.forEach { riga ->
             val istante = istante(riga) ?: return@forEach
             val testo = riga.testo(NoteTabella.TESTO) ?: return@forEach
-            add(Voce(istante, Genere.NOTA, testo))
+            add(Voce(istante, Genere.NOTA, testo, id = riga.id))
         }
         foto.forEach { riga ->
             val istante = istante(riga) ?: return@forEach
@@ -120,12 +121,13 @@ object VociDelGiorno {
                     genere = Genere.FOTO,
                     testo = riga.testo(FotoTabella.DIDASCALIA).orEmpty(),
                     allegato = riga.testo(FotoTabella.FILE),
+                    id = riga.id,
                 ),
             )
         }
         rifornimenti.forEach { riga ->
             val istante = istante(riga) ?: return@forEach
-            add(Voce(istante, Genere.RIFORNIMENTO, descrizioneRifornimento(riga)))
+            add(Voce(istante, Genere.RIFORNIMENTO, descrizioneRifornimento(riga), id = riga.id))
         }
         spese.forEach { riga ->
             val istante = istante(riga) ?: return@forEach
@@ -135,6 +137,7 @@ object VociDelGiorno {
                     genere = Genere.SPESA,
                     testo = descrizioneSpesa(riga),
                     allegato = riga.testo(SpeseTabella.SCONTRINO),
+                    id = riga.id,
                 ),
             )
         }

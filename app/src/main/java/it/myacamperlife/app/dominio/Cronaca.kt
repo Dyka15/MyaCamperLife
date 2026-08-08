@@ -5,14 +5,39 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Una cosa accaduta, come finisce nel diario. */
+/**
+ * Una cosa accaduta, come finisce nel diario.
+ *
+ * @param id l'identificativo della riga da cui viene, quando si sa. Il diario
+ *   non lo stampa — una cronaca non porta identificativi — ma senza di esso una
+ *   voce e' un pezzo di testo su cui non si puo' tornare: e' l'`id` che permette
+ *   di correggerla o di cancellarla, accodando una riga con lo stesso.
+ */
 data class Voce(
     val istante: OffsetDateTime,
     val genere: Genere,
     val testo: String,
     /** Il nome del file, per le foto. */
     val allegato: String? = null,
-)
+    val id: String? = null,
+) {
+    /**
+     * Su cosa si puo' tornare.
+     *
+     * Arrivi e posizioni si cancellano ma non si correggono: il loro contenuto
+     * **e' il fatto stesso** — sei arrivato, eri li' — e riscriverlo non vorrebbe
+     * dire niente. Lo stato di una tappa si cambia dalla sua scheda, che e' il
+     * posto dove quel gesto ha un senso.
+     */
+    val correggibile: Boolean
+        get() = id != null && genere in CORREGGIBILI
+
+    val cancellabile: Boolean get() = id != null
+
+    private companion object {
+        val CORREGGIBILI = setOf(Genere.NOTA, Genere.FOTO, Genere.RIFORNIMENTO, Genere.SPESA)
+    }
+}
 
 enum class Genere { ARRIVO, POSIZIONE, NOTA, FOTO, RIFORNIMENTO, SPESA }
 
