@@ -261,6 +261,19 @@
     <string name="esplora_risposte">Risposte salvate</string>
     <string name="dossier_perso">Il file della risposta non c\'è più.</string>
 
+    <!-- La cartella: assegnarla e sincronizzarla -->
+    <string name="invito_cartella_titolo">Scegli dove tenere i file</string>
+    <string name="invito_cartella_spiegazione">È la prima cosa da fare. L\'app scrive CSV e Markdown in una cartella del telefono: da lì li apri in un foglio di calcolo e, se scegli una cartella sincronizzata, il backup lo ottieni gratis. E se in quella cartella c\'è già un archivio di questa app — da una installazione precedente o da un altro telefono — i suoi viaggi entrano subito qui.</string>
+    <string name="impostazioni_sincronizza">Sincronizza</string>
+    <string name="impostazioni_sincronizza_spiegazione">Sincronizza legge la cartella e ne fa entrare quello che qui manca, poi ricopia tutto fuori. Copia tutto scrive soltanto.</string>
+    <string name="cartella_fusa_viaggi">Dalla cartella: %1$d viaggi nuovi</string>
+    <string name="cartella_fusa_righe">Dalla cartella: %1$d voci nuove</string>
+    <string name="cartella_fusa_viaggi_righe">Dalla cartella: %1$d viaggi e %2$d voci nuove</string>
+    <string name="cartella_fusa_allegati">, %1$d file</string>
+    <string name="cartella_fusa_impostazioni">, impostazioni recuperate</string>
+    <string name="cartella_fusa_niente">Nella cartella non c\'era niente da recuperare</string>
+    <string name="cartella_fusa_falliti">. %1$d file non letti</string>
+
     <!-- Le foto dentro l'app -->
     <string name="foto_descrizione">Foto del viaggio</string>
     <string name="foto_persa_breve">manca</string>

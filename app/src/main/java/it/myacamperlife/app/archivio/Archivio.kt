@@ -1012,6 +1012,17 @@ class Archivio(private val radice: File) {
             .getOrDefault(Impostazioni())
     }
 
+    /**
+     * Le impostazioni scritte in un testo JSON, o `null` se non si leggono.
+     *
+     * Serve alla fusione, che le riceve da un albero SAF come stringa e non come
+     * file: il decodificatore sta qui perche' e' qui che vive `json`, e perche'
+     * la tolleranza — un file scritto da una versione piu' vecchia si legge
+     * comunque — e' una regola dell'archivio.
+     */
+    fun leggiImpostazioni(testo: String): Impostazioni? =
+        runCatching { json.decodeFromString<Impostazioni>(testo) }.getOrNull()
+
     fun salvaImpostazioni(impostazioni: Impostazioni) {
         radice.mkdirs()
         File(radice, NOME_IMPOSTAZIONI).writeText(json.encodeToString(impostazioni), Charsets.UTF_8)
@@ -1282,8 +1293,15 @@ class Archivio(private val radice: File) {
             appendLine("La copia di lavoro sta nell'area privata dell'app, dove funziona sempre e")
             appendLine("nessun gestore file arriva. Se dalle impostazioni scegli una cartella,")
             appendLine("l'app ci **ricopia** tutto: quella e' la copia che puoi aprire, spostare")
-            appendLine("e sincronizzare su un cloud. Modificarla non cambia niente dentro l'app —")
-            appendLine("la copia va nell'altro senso.")
+            appendLine("e sincronizzare su un cloud.")
+            appendLine()
+            appendLine("Normalmente la copia va in un verso solo, da dentro a fuori: modificare")
+            appendLine("questi file non cambia niente dentro l'app. C'e' **una** eccezione, e si")
+            appendLine("chiede a mano: assegnare la cartella, o \"Sincronizza\" nelle impostazioni,")
+            appendLine("legge quello che c'e' qui e lo fa entrare. Serve dopo una reinstallazione o")
+            appendLine("venendo da un altro telefono, e segue le regole del formato: per ogni `id`")
+            appendLine("vince la riga col `ts` piu' recente, le righe cancellate restano")
+            appendLine("cancellate, e le foto che l'app ha gia' non vengono sovrascritte.")
         }
         File(radice, "FORMATI.md").writeText(testo, Charsets.UTF_8)
     }

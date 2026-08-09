@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import it.myacamperlife.app.archivio.Archivio
 import it.myacamperlife.app.archivio.Documenti
+import it.myacamperlife.app.archivio.EsitoFusione
 import it.myacamperlife.app.archivio.Impostazioni
 import it.myacamperlife.app.archivio.Posizione
 import it.myacamperlife.app.archivio.Posizioni
@@ -101,6 +102,14 @@ class ViaggiViewModel(
      * ha toccato — `null` se non ha potuto.
      */
     private val esportaTutto: (suspend () -> Int?)? = null,
+    /**
+     * Fonde nell'archivio quello che c'e' gia' nella cartella scelta.
+     *
+     * Arriva da fuori come l'esportazione, e per la stessa ragione: leggere un
+     * albero SAF ha bisogno di un `Context`, e questa classe deve restare
+     * costruibile in un test.
+     */
+    private val fondiDallaCartella: (suspend () -> EsitoFusione?)? = null,
     /** Il client dei modelli: principale e riserva. */
     private val assistente: Assistente? = null,
 ) : ViewModel() {
@@ -219,6 +228,7 @@ class ViaggiViewModel(
         data class DintorniFalliti(val esito: EsitoDintorni) : Avviso
         data class SpecchioScelto(val cartella: String) : Avviso
         data class SpecchioFatto(val file: Int) : Avviso
+        data class CartellaFusa(val esito: EsitoFusione) : Avviso
         data object SpecchioFallito : Avviso
         data object SpecchioSpento : Avviso
         data class AiFallita(val guaio: GuaioAi) : Avviso
@@ -641,16 +651,58 @@ class ViaggiViewModel(
      * una cartella e si aspetta di trovarci i file, non di scoprirli fra dieci
      * minuti.
      */
+    /**
+     * Assegna la cartella, e **prima di tutto legge quello che c'e' dentro**.
+     *
+     * L'ordine e' l'unica cosa che conta qui. Fino alla fase 12 questa funzione
+     * esportava e basta: dopo una reinstallazione l'app ripartiva vuota, e il
+     * primo specchio sovrascriveva le impostazioni nella cartella con quelle di
+     * riposo. Adesso si fonde e poi si esporta, cosi' quello che c'e' nella
+     * cartella entra invece di essere seppellito.
+     */
     fun scegliCartella(uri: String, nome: String?) = viewModelScope.launch {
         val nuove = _stato.value.impostazioni.copy(cartellaSpecchio = uri)
         withContext(Dispatchers.IO) { archivio.salvaImpostazioni(nuove) }
         _stato.update {
+            it.copy(impostazioni = nuove, avviso = Avviso.SpecchioScelto(nome ?: uri))
+        }
+        sincronizza()
+    }
+
+    /**
+     * Fonde la cartella nell'archivio, poi riporta fuori il risultato.
+     *
+     * I due versi in fila, e in quest'ordine: leggere prima significa che una
+     * riga che sta solo nella cartella entra; esportare dopo significa che la
+     * cartella finisce per contenere l'unione delle due. Fatta una volta, il
+     * verso torna quello di sempre — dentro e' l'autorita', fuori e' la copia.
+     */
+    fun sincronizza() = viewModelScope.launch {
+        val fondi = fondiDallaCartella
+        if (fondi == null) {
+            esporta()
+            return@launch
+        }
+
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+        val fusione = withContext(Dispatchers.IO) { fondi() }
+        // L'archivio puo' essere cambiato sotto: viaggi nuovi, righe nuove,
+        // impostazioni adottate. Si ricarica tutto prima di dire com'e' andata.
+        ricarica()
+
+        val copiati = esportaTutto?.let { withContext(Dispatchers.IO) { it() } }
+
+        _stato.update {
             it.copy(
-                impostazioni = nuove,
-                avviso = Avviso.SpecchioScelto(nome ?: uri),
+                inCorso = false,
+                avviso = when {
+                    fusione == null -> Avviso.SpecchioFallito
+                    fusione.qualcosa -> Avviso.CartellaFusa(fusione)
+                    copiati == null -> Avviso.SpecchioFallito
+                    else -> Avviso.SpecchioFatto(copiati)
+                },
             )
         }
-        esporta()
     }
 
     /** Smette di rispecchiare. I file gia' copiati restano dove sono. */

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,14 +40,15 @@ import java.util.Locale
 @Composable
 fun ElencoViaggiContent(
     viaggi: List<Viaggio>,
+    /**
+     * Vero quando non c'e' una cartella su cui l'app possa scrivere: mai
+     * scelta, o scelta da un'installazione che non c'e' piu'.
+     */
+    cartellaDaScegliere: Boolean,
     onApri: (Viaggio) -> Unit,
     onElimina: (Viaggio) -> Unit,
+    onScegliCartella: () -> Unit,
 ) {
-    if (viaggi.isEmpty()) {
-        NessunViaggio()
-        return
-    }
-
     var daEliminare by remember { mutableStateOf<Viaggio?>(null) }
 
     LazyColumn(
@@ -54,6 +56,18 @@ fun ElencoViaggiContent(
         contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 96.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // L'invito sta in cima all'elenco e non in un dialogo: un dialogo
+        // all'avvio si chiude per riflesso, e questa e' la prima cosa da fare
+        // dopo un'installazione — se nella cartella c'e' gia' un archivio, e'
+        // anche il solo modo di ritrovarlo.
+        if (cartellaDaScegliere) {
+            item(key = "invito-cartella") { InvitoCartella(onScegliCartella) }
+        }
+
+        if (viaggi.isEmpty()) {
+            item(key = "nessun-viaggio") { NessunViaggio() }
+        }
+
         items(viaggi, key = { it.slug }) { viaggio ->
             Card(
                 modifier = Modifier
@@ -142,3 +156,36 @@ private fun dataLeggibile(iso: String): String = runCatching {
 
 private val FORMATO: DateTimeFormatter =
     DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
+
+/**
+ * L'invito ad assegnare una cartella.
+ *
+ * **Dice la cosa che conta e che prima non si sapeva:** se in quella cartella
+ * c'e' gia' un archivio, i suoi viaggi entrano nell'app invece di restare
+ * invisibili. Fino alla fase 12 assegnare una cartella copiava solo verso fuori,
+ * e chi reinstallava l'app ripartiva da zero con i propri file sotto il naso.
+ */
+@Composable
+private fun InvitoCartella(onScegli: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.invito_cartella_titolo),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.invito_cartella_spiegazione),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            TextButton(onClick = onScegli, modifier = Modifier.padding(top = 8.dp)) {
+                Text(stringResource(R.string.impostazioni_scegli_cartella))
+            }
+        }
+    }
+}

@@ -324,8 +324,14 @@ fun MyaApp(vista: ViaggiViewModel) {
 
                 aperto == null -> ElencoViaggiContent(
                     viaggi = stato.viaggi,
+                    // Manca una cartella usabile: mai scelta, o scelta da
+                    // un'installazione che non c'e' piu'. In entrambi i casi il
+                    // rimedio e' lo stesso, e la fusione fa il resto.
+                    cartellaDaScegliere = cartellaScelta == null ||
+                        !Specchio.accessibile(contesto, cartellaScelta),
                     onApri = { viaggio -> scheda = Scheda.VIAGGIO; vista.apri(viaggio) },
                     onElimina = vista::elimina,
+                    onScegliCartella = { scegliCartella.launch(null) },
                 )
 
                 // La scheda di una tappa sta sopra a tutte le schede: si e'
@@ -617,6 +623,7 @@ fun MyaApp(vista: ViaggiViewModel) {
             cartellaAccessibile = cartellaScelta?.let { Specchio.accessibile(contesto, it) } ?: false,
             onScegliCartella = { scegliCartella.launch(null) },
             onEsporta = vista::esporta,
+            onSincronizza = vista::sincronizza,
             onSpegniCartella = {
                 cartellaScelta?.let { Specchio.dimentica(contesto, it) }
                 vista.spegniCartella()
@@ -790,6 +797,37 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
         stringResource(R.string.specchio_scelto, avviso.cartella)
     is ViaggiViewModel.Avviso.SpecchioFatto ->
         stringResource(R.string.specchio_fatto, avviso.file)
+
+    // Cosa e' entrato, con i numeri: "sincronizzato" non dice se ha trovato un
+    // viaggio intero o niente, e dopo una reinstallazione e' proprio quello che
+    // si vuole sapere.
+    is ViaggiViewModel.Avviso.CartellaFusa -> {
+        val esito = avviso.esito
+        val testa = when {
+            esito.viaggiNuovi > 0 && esito.righeNuove > 0 -> stringResource(
+                R.string.cartella_fusa_viaggi_righe, esito.viaggiNuovi, esito.righeNuove,
+            )
+            esito.viaggiNuovi > 0 -> stringResource(R.string.cartella_fusa_viaggi, esito.viaggiNuovi)
+            esito.righeNuove > 0 -> stringResource(R.string.cartella_fusa_righe, esito.righeNuove)
+            else -> stringResource(R.string.cartella_fusa_niente)
+        }
+        val allegati = if (esito.allegati > 0) {
+            stringResource(R.string.cartella_fusa_allegati, esito.allegati)
+        } else {
+            ""
+        }
+        val impostazioni = if (esito.impostazioni) {
+            stringResource(R.string.cartella_fusa_impostazioni)
+        } else {
+            ""
+        }
+        val falliti = if (esito.falliti > 0) {
+            stringResource(R.string.cartella_fusa_falliti, esito.falliti)
+        } else {
+            ""
+        }
+        "$testa$allegati$impostazioni$falliti"
+    }
     ViaggiViewModel.Avviso.SpecchioFallito -> stringResource(R.string.specchio_fallito)
     ViaggiViewModel.Avviso.SpecchioSpento -> stringResource(R.string.specchio_spento)
     ViaggiViewModel.Avviso.AiDiRiserva -> stringResource(R.string.ai_di_riserva)

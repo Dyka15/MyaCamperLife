@@ -154,6 +154,14 @@ nessuna lettura dipende dall'ultimo.
 
 **La cartella dei file** — il pezzo che rende vero il terzo principio:
 
+- **è la prima cosa che l'app chiede**, e se in quella cartella c'è già un archivio di
+  questa app — da un'installazione precedente o da un altro telefono — **i suoi viaggi
+  entrano subito**. Reinstalli e ritrovi tutto: era il buco più serio, perché finora
+  assegnare una cartella copiava solo verso fuori e ci scriveva sopra
+- la fusione è la promessa che il formato fa dal primo giorno: le tabelle si uniscono
+  concatenando le righe e tenendo l'ultima versione di ogni identificativo. Una riga
+  cancellata **resta cancellata** — le lapidi si conservano, altrimenti tornerebbe in vita a
+  ogni sincronizzazione — e una foto che c'è già non viene mai sovrascritta
 - dalle impostazioni scegli una cartella con il selettore di sistema: `Documenti/Mya`, o
   una cartella già sincronizzata su un cloud, e da lì il backup lo ottieni gratis
 - ogni scrittura ne innesca una **copia differita**: la registrazione resta un append

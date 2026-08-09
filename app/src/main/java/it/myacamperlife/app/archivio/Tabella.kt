@@ -95,15 +95,7 @@ class Tabella(val file: File, val colonne: List<String>) {
     }
 
     /** Tutte le righe come stanno nel file, comprese quelle superate. */
-    fun righe(): List<Riga> {
-        val linee = linee()
-        if (linee.isEmpty()) return emptyList()
-        val intestazione = Csv.dividi(linee.first()).map { it.trim() }
-        return linee.drop(1).map { linea ->
-            val campi = Csv.dividi(linea)
-            Riga(intestazione.mapIndexed { i, nome -> nome to campi.getOrElse(i) { "" } }.toMap())
-        }
-    }
+    fun righe(): List<Riga> = righeDa(linee())
 
     /** Le righe che contano: l'ultima versione di ciascun `id`, senza lapidi. */
     fun vive(): List<Riga> = risolvi(righe())
@@ -121,6 +113,36 @@ class Tabella(val file: File, val colonne: List<String>) {
             scrittore.append(Csv.componi(intestazione)).append('\n')
             vive.forEach { riga ->
                 scrittore.append(Csv.componi(intestazione.map { riga.mappa()[it].orEmpty() })).append('\n')
+            }
+        }
+    }
+
+    /**
+     * Riscrive il file con esattamente queste righe.
+     *
+     * E' l'unica scrittura non incrementale oltre a [compatta], e serve alla
+     * fusione: dopo aver unito due copie il risultato non e' "quello di prima
+     * piu' qualcosa", quindi accodare non basterebbe. Passa dal rinomina atomico
+     * come le altre, cosi' non esiste l'istante in cui il file e' a meta'.
+     *
+     * L'intestazione e' quella effettiva — file piu' colonne nuove del codice —
+     * perche' le righe che arrivano dall'altra copia possono avere colonne che
+     * questo file non aveva ancora.
+     */
+    fun riscrivi(righe: List<Riga>) {
+        file.parentFile?.mkdirs()
+        val dalFile = intestazioneEffettiva()
+        // Anche le colonne che compaiono solo nelle righe che arrivano da fuori:
+        // una copia scritta da una versione piu' nuova dell'app ne ha di piu', e
+        // buttarle vorrebbe dire perdere dati nel momento in cui li si importa.
+        val portate = righe.flatMap { it.mappa().keys }.distinct()
+        val intestazione = dalFile + portate.filterNot { it in dalFile }
+
+        scriviAtomico { scrittore ->
+            scrittore.append(Csv.componi(intestazione)).append('\n')
+            righe.forEach { riga ->
+                scrittore.append(Csv.componi(intestazione.map { riga.mappa()[it].orEmpty() }))
+                    .append('\n')
             }
         }
     }
@@ -212,6 +234,30 @@ class Tabella(val file: File, val colonne: List<String>) {
 
     companion object {
         /**
+         * Le righe di un CSV, dal suo testo.
+         *
+         * Sta qui e non nell'istanza perche' la fusione deve poter leggere le
+         * righe di una copia che **non e' un file su questo disco**: arriva da un
+         * albero SAF come una stringa, e la sua intestazione e' la propria — non
+         * quella del file dell'app, che puo' avere colonne diverse.
+         */
+        fun righeDa(testo: String): List<Riga> = righeDa(
+            // Anche il ritorno a capo di Windows: un CSV che ha fatto un giro su
+            // un computer si porta dietro il `\r`, e lasciarlo attaccato
+            // all'ultimo campo di ogni riga sporcherebbe tutto in silenzio.
+            testo.split('\n').map { it.removeSuffix("\r") }.filter { it.isNotBlank() },
+        )
+
+        private fun righeDa(linee: List<String>): List<Riga> {
+            if (linee.isEmpty()) return emptyList()
+            val intestazione = Csv.dividi(linee.first()).map { it.trim() }
+            return linee.drop(1).map { linea ->
+                val campi = Csv.dividi(linea)
+                Riga(intestazione.mapIndexed { i, nome -> nome to campi.getOrElse(i) { "" } }.toMap())
+            }
+        }
+
+        /**
          * La regola "vince l'ultima": per ogni `id` si tiene la riga con `ts`
          * piu' recente, a pari merito l'ultima incontrata; le lapidi
          * spariscono.
@@ -232,6 +278,37 @@ class Tabella(val file: File, val colonne: List<String>) {
                 }
             }
             return ultime.values.filterNot { it.cancellata }
+        }
+
+        /**
+         * Fonde due copie della stessa tabella.
+         *
+         * E' la promessa che questo formato fa dal primo giorno — *fondibile* —
+         * e la sua realizzazione e' una riga: si concatenano le righe e si tiene
+         * l'ultima versione di ogni `id`. La regola e' la stessa di [risolvi],
+         * con **una differenza che e' tutto**: qui le lapidi si **tengono**.
+         *
+         * Se si buttassero, una riga cancellata su un telefono e ancora viva
+         * nell'altra copia tornerebbe in vita alla fusione, e tornerebbe in vita
+         * di nuovo a ogni fusione successiva. La lapide e' un fatto quanto la
+         * riga che nega, e va conservata perche' la neghi anche domani.
+         *
+         * L'ordine dei due elenchi conta solo a pari `ts`, e in quel caso vince
+         * chi passa per secondo: si mette quindi per seconda la copia di cui ci
+         * si fida di piu'.
+         */
+        fun fondi(vararg copie: List<Riga>): List<Riga> {
+            val ultime = LinkedHashMap<String, Riga>()
+            copie.forEach { copia ->
+                copia.forEach { riga ->
+                    val chiave = riga.id ?: return@forEach
+                    val precedente = ultime[chiave]
+                    if (precedente == null || !precedente.piuRecenteDi(riga)) {
+                        ultime[chiave] = riga
+                    }
+                }
+            }
+            return ultime.values.toList()
         }
 
         /**

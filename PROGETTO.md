@@ -255,6 +255,7 @@ rete.
 |---|---|
 | Impostare i km con un pieno | 3 |
 | Scegliere la cartella di archivio, e copiarci tutto | 9 |
+| **Sincronizzare** con la cartella: quello che c'è lì e qui manca entra, poi si ricopia tutto fuori | 13 |
 | Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |
@@ -430,7 +431,7 @@ sezione 9.
 | **Non fa da scheda del mezzo** | Nessun libretto, nessuna scadenza, nessun tagliando. Un solo parametro: i km con un pieno |
 | **Non conosce i prezzi dei distributori** | Si guardano dove si guardano oggi |
 | **Non divide le spese fra le persone** | Registra chi paga come, non chi deve a chi |
-| **Non importa il passato** | Si parte dal viaggio in corso. Lo storico su Sheets resta dov'è, leggibile lì |
+| **Non importa il passato** | Si parte dal viaggio in corso. Lo storico su Sheets resta dov'è, leggibile lì. Un archivio **di questa app** invece si recupera: indicare la cartella che lo contiene ne fa entrare i viaggi |
 | **Non importa estratti conto** | Le spese si registrano quando si fanno |
 | **Non gira un modello sul telefono** | Le funzioni generative chiamano un servizio via rete, e senza rete non ci sono |
 | **Non sincronizza da sé** | Nessun cloud, nessun account. La cartella d'archivio può stare dentro una cartella sincronizzata da altri strumenti, e in quel caso i file si fondono senza conflitti |

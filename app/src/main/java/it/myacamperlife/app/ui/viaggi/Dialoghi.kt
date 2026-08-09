@@ -742,6 +742,7 @@ fun ImpostazioniDialog(
     cartellaAccessibile: Boolean,
     onScegliCartella: () -> Unit,
     onEsporta: () -> Unit,
+    onSincronizza: () -> Unit,
     onSpegniCartella: () -> Unit,
     onSalva: (Impostazioni) -> Unit,
     onProvaBriefing: () -> Unit,
@@ -843,7 +844,22 @@ fun ImpostazioniDialog(
                     )
                 }
                 if (cartella != null) {
+                    // Sincronizzare legge e poi scrive; esportare scrive e
+                    // basta. Sono due pulsanti perche' sono due operazioni: la
+                    // prima serve quando nella cartella c'e' qualcosa che
+                    // all'app manca — dopo una reinstallazione, o venendo da un
+                    // altro telefono — la seconda quando si vuole solo essere
+                    // certi che fuori ci sia tutto.
+                    Text(
+                        stringResource(R.string.impostazioni_sincronizza_spiegazione),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Row {
+                        TextButton(
+                            enabled = cartellaAccessibile,
+                            onClick = { onChiudi(); onSincronizza() },
+                        ) { Text(stringResource(R.string.impostazioni_sincronizza)) }
                         TextButton(
                             enabled = cartellaAccessibile,
                             onClick = { onChiudi(); onEsporta() },

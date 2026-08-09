@@ -848,6 +848,52 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **10** | Scheda di una tappa: descrizione, meteo del suo giorno, dintorni di quel posto, domanda al modello su quella tappa, scorrimento laterale | tocchi Bolsena tre giorni prima e sai cosa ti aspetta |
 | **11** | Correggere e cancellare una voce registrata, dal diario | sbagli il chilometraggio di un pieno e lo aggiusti senza aprire il CSV |
 | **12** | Vedere le foto e gli scontrini dentro l'app: miniature nel diario, foto a schermo intero | scorri il diario e riconosci la giornata dalle immagini |
+| **13** | Assegnare la cartella **legge** quello che c'è dentro e lo fonde. Invito all'avvio quando manca | reinstalli l'app, indichi la cartella, ritrovi i viaggi |
+
+### La fusione: la promessa del formato, riscossa
+
+Per dodici fasi lo specchio è andato in una direzione sola, e il costo si vedeva solo nello
+scenario peggiore: **reinstalli l'app, indichi la cartella dove stanno già tutti i tuoi
+file, e riparti da zero** — con l'aggravante che la prima passata di specchio sovrascriveva
+`impostazioni.json` con i valori di riposo. I viaggi non venivano distrutti (nessuna logica
+cancella) ma restavano invisibili, che in pratica è lo stesso.
+
+Il rimedio non ha richiesto nessun meccanismo nuovo, ed è il senso di aver scelto questo
+formato: `Tabella` dichiara *fondibile* dal primo giorno — «due copie si uniscono
+concatenandole e riapplicando la stessa regola» — e la realizzazione sono quindici righe.
+Quella promessa non era mai stata messa alla prova; adesso la reggono venticinque test.
+
+Le decisioni che contano, tutte casi in cui sbagliare si scoprirebbe solo dopo aver perso
+qualcosa:
+
+- **le lapidi si tengono.** `risolvi` le butta, perché serve a chi legge; `fondi` le
+  conserva, perché serve alla prossima fusione. Buttandole, una riga cancellata su un
+  telefono e ancora viva nell'altra copia tornerebbe in vita — e tornerebbe **a ogni
+  fusione successiva**. La lapide è un fatto quanto la riga che nega.
+- **gli allegati si copiano solo se mancano.** Foto, scontrini e dossier non cambiano mai, e
+  sovrascrivere un file che non si può rifare è l'unico errore davvero irreparabile.
+- **le impostazioni si adottano solo se qui sono intatte.** È l'unico caso in cui si può
+  esserne certi: se l'utente non ha ancora toccato niente, qualunque cosa ci sia fuori vale
+  più del nulla. Se invece ha già impostato i km con un pieno, sovrascriverli sceglierebbe
+  male tanto quanto il codice di prima che li cancellava. L'Uri della cartella **non** si
+  prende: appartiene a un'installazione che non c'è più, e il permesso su di esso è perduto.
+- **un CSV che questa versione non conosce non si tocca.** Potrebbe venire da una versione
+  più nuova dell'app, e fonderlo senza sapere quali colonne abbia significherebbe rovinarlo.
+  Le colonne sconosciute delle tabelle note, invece, **sopravvivono**: l'intestazione si
+  allarga, come sempre in questo formato.
+- **niente si cancella, mai**, né dentro né nella cartella. Una fusione che cancella,
+  puntata sulla cartella sbagliata, perde quello che non si può rifare.
+- **è idempotente.** Fondere due volte non aggiunge una riga e non fa crescere un file.
+
+**L'app resta l'autorità.** Si legge da fuori, si scrive dentro, poi lo specchio riporta
+fuori il risultato: dopo quella singola passata il verso torna quello di sempre, e vale
+ancora il secondo invariante — *la scrittura non aspetta niente*.
+
+Una nota su come questo è stato reso verificabile, perché è la ragione per cui `Albero`
+esiste: **la fusione è la parte più delicata dell'app** — tocca dati che l'utente non può
+ricostruire — e sopra un albero SAF non si può provare, perché SAF non esiste fuori da un
+telefono. Dietro quell'interfaccia i test le danno una cartella vera e l'app le dà l'albero
+SAF, ed è **la stessa logica**.
 
 **La fase 9 è stata anticipata prima della 8.** Finché i file stanno solo nell'area privata
 dell'app, il terzo principio — *i file sono il prodotto* — è vero nel codice e falso in

@@ -9,7 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import it.myacamperlife.app.archivio.AlberoSpecchio
 import it.myacamperlife.app.archivio.Documenti
+import it.myacamperlife.app.archivio.EsitoFusione
+import it.myacamperlife.app.archivio.Fusione
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Specchio
 import it.myacamperlife.app.archivio.SpecchioLavoro
@@ -47,6 +50,7 @@ class MainActivity : ComponentActivity() {
                     ),
                     rispecchia = { SpecchioLavoro.programma(applicationContext) },
                     esportaTutto = { esportaArchivio() },
+                    fondiDallaCartella = { fondiDallaCartella() },
                     assistente = Assistente(applicationContext),
                 )
             }
@@ -87,6 +91,26 @@ class MainActivity : ComponentActivity() {
 
         val esito = Specchio(applicationContext, uri).rispecchia(archivio.radiceArchivio())
         return if (esito.riuscito) esito.toccati else null
+    }
+
+    /**
+     * Legge l'archivio che c'e' gia' nella cartella scelta e lo fonde con
+     * questo.
+     *
+     * L'unico verso in cui si legge da SAF, e succede una volta: quando la
+     * cartella viene assegnata, o quando lo si chiede dalle impostazioni. Sta
+     * qui per la stessa ragione dell'esportazione — serve un `Context` — e
+     * restituisce `null` se la cartella non c'e' o non e' piu' nostra.
+     */
+    private suspend fun fondiDallaCartella(): EsitoFusione? {
+        val archivio = (application as MyaApplication).archivio
+        val salvata = archivio.impostazioni().cartellaSpecchio ?: return null
+        val uri = runCatching { Uri.parse(salvata) }.getOrNull() ?: return null
+        if (!Specchio.accessibile(applicationContext, uri)) return null
+
+        return runCatching {
+            Fusione(archivio).fondi(AlberoSpecchio(applicationContext, uri))
+        }.getOrNull()
     }
 
     /**
