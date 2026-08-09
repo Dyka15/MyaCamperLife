@@ -46,6 +46,16 @@ data class Impostazioni(
     val cartellaSpecchio: String? = null,
 
     /**
+     * Quando la cartella e' stata sincronizzata l'ultima volta, in forma ISO.
+     *
+     * E' l'unica delle tre date di aggiornamento che ha bisogno di un campo: il
+     * meteo la porta dentro la sua scorta e i dintorni nel `ts` delle righe,
+     * mentre una sincronizzazione non lascia una traccia propria — e senza
+     * saperne la data non si sa se il telefono nuovo ha davvero preso tutto.
+     */
+    val sincronizzatoIl: String? = null,
+
+    /**
      * Quale modello si prova per primo. L'altro fa da riserva.
      */
     val principale: String = "gemini",

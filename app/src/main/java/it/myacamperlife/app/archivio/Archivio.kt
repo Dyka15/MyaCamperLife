@@ -23,6 +23,7 @@ import it.myacamperlife.app.dominio.PuntoMeteo
 import it.myacamperlife.app.dominio.PuntoTratta
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.Slittamenti
 import it.myacamperlife.app.dominio.RispostaModello
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
@@ -331,6 +332,7 @@ class Archivio(private val radice: File) {
                 tipo = punto.tipo,
                 giorno = punto.giorno,
                 descrizione = punto.descrizione,
+                altro = punto.altro,
             )
         }
         tabellaTappe(viaggio.slug).accodaTutte(tappe.map { TappeTabella.riga(it, ts) })
@@ -572,6 +574,49 @@ class Archivio(private val radice: File) {
         )
         aggiornaDiario(slug, istante.toLocalDate())
         return spesa
+    }
+
+    // --- quando la scorta e' stata presa --------------------------------------
+
+    /**
+     * Quando i dintorni sono stati scaricati: il `ts` piu' recente fra le righe.
+     *
+     * Non serve una colonna nuova ne' un file di stato: **la data e' gia' nei
+     * dati**, perche' ogni riga porta quando e' stata scritta. E' una proprieta'
+     * del formato, e vale la pena usarla invece di duplicarla.
+     */
+    fun dintorniAggiornatiIl(slug: String): OffsetDateTime? =
+        (tabellaPoi(slug).vive() + tabellaLuoghi(slug).vive())
+            .mapNotNull { runCatching { OffsetDateTime.parse(it.ts) }.getOrNull() }
+            .maxOrNull()
+
+    /** Quando il meteo e' stato scaricato, secondo la scorta stessa. */
+    fun meteoAggiornatoIl(slug: String): OffsetDateTime? = meteo(slug)?.istante
+
+    // --- ritardi e anticipi ---------------------------------------------------
+
+    /**
+     * Sposta di [giorni] le tappe che restano dopo [da].
+     *
+     * Il gesto che rimedia a un ritardo: da un check-in fuori programma tutte le
+     * date successive sono sbagliate, e con esse il riepilogo della sera e il
+     * meteo di ogni tappa. La regola sta in [Slittamenti], qui c'e' solo la
+     * scrittura.
+     *
+     * @return quante tappe sono state spostate.
+     */
+    fun slittaTappe(
+        slug: String,
+        da: Tappa,
+        giorni: Long,
+        oggi: LocalDate = LocalDate.now(),
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Int {
+        val cambiate = Slittamenti.slitta(tappe(slug), da, giorni, oggi)
+        if (cambiate.isEmpty()) return 0
+        val ts = ts(adesso)
+        tabellaTappe(slug).accodaTutte(cambiate.map { TappeTabella.riga(it, ts) })
+        return cambiate.size
     }
 
     // --- correggere e cancellare ----------------------------------------------
@@ -1147,7 +1192,8 @@ class Archivio(private val radice: File) {
             appendLine("| `lat`, `lon` | Coordinate in gradi decimali, sei decimali |")
             appendLine("| `tipo` | Come lo scrive l'itinerario di partenza |")
             appendLine("| `giorno` | Il giorno previsto, come lo scrive l'itinerario |")
-            appendLine("| `descrizione` | Testo libero, su una riga sola |")
+            appendLine("| `descrizione` | Il testo dell'itinerario. I capoversi si scrivono `\\\\n`, cosi' un paragrafo sta su una riga fisica sola senza perdere la struttura |")
+            appendLine("| `altro` | **Tutti i campi che l'itinerario portava e per cui non c'e' una colonna**: orari, telefono, quota, un link. In JSON compatto, nell'ordine in cui erano scritti. Senza questa colonna finirebbero nel nulla |")
             appendLine("| `stato` | `da_fare`, `fatta` oppure `saltata` |")
             appendLine("| `checkin` | Istante del check-in, quando c'e' stato |")
             appendLine()

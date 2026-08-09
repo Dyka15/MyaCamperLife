@@ -22,10 +22,35 @@ class OverpassTest {
     @Test
     fun `la query chiede tutte le categorie e i toponimi insieme`() {
         val query = Overpass.query(punti)
-        assertTrue(query, query.contains("\"tourism\"=\"caravan_site\""))
-        assertTrue(query, query.contains("\"amenity\"=\"sanitary_dump_station\""))
+        assertTrue(query, query.contains("caravan_site"))
+        assertTrue(query, query.contains("sanitary_dump_station"))
         assertTrue(query, query.contains("\"shop\"=\"supermarket\""))
         assertTrue(query, query.contains("\"place\"~\"^(city|town|village|hamlet)$\""))
+    }
+
+    @Test
+    fun `i filtri si raggruppano per chiave, non uno per categoria`() {
+        val query = Overpass.query(punti)
+        // Ogni `around` su una polilinea e' il lavoro piu' caro della query, e
+        // farlo dieci volte invece di quattro e' il modo per farsi interrompere
+        // dal server. Le sette categorie stanno su **tre** chiavi OSM — tourism,
+        // amenity, shop — quindi tre `nwr`, piu' un `node` per i toponimi.
+        assertEquals(3, query.lines().count { it.trimStart().startsWith("nwr(") })
+        assertEquals(1, query.lines().count { it.trimStart().startsWith("node(") })
+        // Le cinque categorie che stanno sotto `tourism` in una riga sola.
+        assertTrue(query, query.contains("\"tourism\"~\"^(caravan_site|camp_site|attraction|viewpoint|museum)$\""))
+        assertTrue(query, query.contains("\"amenity\"~\"^(sanitary_dump_station|drinking_water|fuel)$\""))
+    }
+
+    @Test
+    fun `nessuna categoria si perde nel raggruppamento`() {
+        val query = Overpass.query(punti)
+        // La prova che il raggruppamento non e' una scorciatoia: ogni filtro
+        // dichiarato dalle categorie deve comparire nella query.
+        CategoriaPoi.entries.flatMap { it.filtri }.forEach { filtro ->
+            val valore = filtro.substringAfterLast("=\"").removeSuffix("\"]")
+            assertTrue("$valore manca: $query", query.contains(valore))
+        }
     }
 
     @Test
@@ -198,6 +223,56 @@ class OverpassTest {
         assertEquals(6, dintorno.elementi)
         assertTrue(!dintorno.vuoto)
         assertTrue(!dintorno.illeggibile)
+    }
+
+    // --- il remark: il guasto travestito da risposta ---------------------------
+
+    @Test
+    fun `una query interrotta dal server si riconosce dal remark`() {
+        // **La forma esatta con cui Overpass segnala di aver rinunciato**: non un
+        // codice d'errore, ma 200 con elements vuoto e un remark. Letto come
+        // "zona deserta" per quattro fasi.
+        val interrotta = """
+            {
+              "version": 0.6,
+              "generator": "Overpass API 0.7.62",
+              "elements": [],
+              "remark": "runtime error: Query timed out in \"query\" at line 4 after 90 seconds."
+            }
+        """.trimIndent()
+
+        val detto = Overpass.avvertimento(interrotta)
+        assertNotNull(detto)
+        assertTrue(detto!!, detto.contains("timed out"))
+        // E l'elenco resta vuoto: sono due informazioni distinte, e vanno lette
+        // entrambe.
+        assertTrue(Overpass.leggi(interrotta).vuoto)
+    }
+
+    @Test
+    fun `una risposta buona non ha avvertimenti`() {
+        assertNull(Overpass.avvertimento(risposta))
+        assertNull(Overpass.avvertimento("""{"elements": []}"""))
+    }
+
+    @Test
+    fun `un corpo che non e' JSON non produce avvertimenti inventati`() {
+        assertNull(Overpass.avvertimento("<html>504 Gateway Timeout</html>"))
+        assertNull(Overpass.avvertimento(""))
+    }
+
+    @Test
+    fun `un remark puo' arrivare anche con dei risultati`() {
+        // Succede quando il server tronca: qualcosa e' arrivato **e** c'e' un
+        // avvertimento. Quello che e' arrivato si tiene.
+        val parziale = """
+            {"elements": [
+              {"type": "node", "id": 1, "lat": 42.6, "lon": 11.9,
+               "tags": {"amenity": "fuel", "name": "Eni"}}
+            ], "remark": "runtime error: Query ran out of memory"}
+        """.trimIndent()
+        assertEquals(1, Overpass.leggi(parziale).poi.size)
+        assertNotNull(Overpass.avvertimento(parziale))
     }
 
     @Test

@@ -91,6 +91,54 @@ object Csv {
      */
     private val RITORNI_A_CAPO = "[\\r\\n]+".toRegex()
 
+    /**
+     * Un testo che puo' andare a capo, tenuto su **una riga fisica**.
+     *
+     * Serve alla descrizione di una tappa, che nell'itinerario puo' essere un
+     * paragrafo: [testo] la schiaccerebbe perdendo la struttura, e la struttura
+     * e' meta' di quello che si vuole leggere arrivando.
+     *
+     * Si escapa come in C — `\` diventa `\\`, il capo diventa `\n` — perche' e'
+     * la convenzione che chiunque apra il file riconosce, e perche' l'invariante
+     * «una riga fisica e' un record» non si tocca: e' quella che rende il formato
+     * a prova di telefono che si spegne.
+     *
+     * Escapare la barra **prima** del capo non e' pedanteria: farlo dopo
+     * trasformerebbe il `\n` appena scritto in `\\n`.
+     */
+    fun testoLungo(valore: String?): String = valore
+        ?.trim()
+        ?.replace("\\", "\\\\")
+        ?.replace("\r\n", "\n")
+        ?.replace('\r', '\n')
+        ?.replace("\n", "\\n")
+        ?: ""
+
+    /** L'inverso di [testoLungo]. Un testo senza escape torna identico. */
+    fun leggiTestoLungo(valore: String?): String? {
+        val testo = valore?.takeUnless { it.isEmpty() } ?: return null
+        val fatto = StringBuilder(testo.length)
+        var i = 0
+        while (i < testo.length) {
+            val c = testo[i]
+            if (c == '\\' && i + 1 < testo.length) {
+                // La coppia si consuma in un colpo: un carattere alla volta,
+                // `\\n` diventerebbe una barra piu' un capo invece di una barra
+                // piu' la lettera n.
+                when (testo[i + 1]) {
+                    'n' -> fatto.append('\n')
+                    '\\' -> fatto.append('\\')
+                    else -> fatto.append(c).append(testo[i + 1])
+                }
+                i += 2
+            } else {
+                fatto.append(c)
+                i++
+            }
+        }
+        return fatto.toString().takeUnless { it.isEmpty() }
+    }
+
     fun numero(valore: Double, decimali: Int = 2): String =
         String.format(Locale.ROOT, "%.${decimali}f", valore).replace('.', ',')
 

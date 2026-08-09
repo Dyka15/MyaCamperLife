@@ -67,12 +67,18 @@ class BriefingArchivioTest {
     }
 
     @Test
-    fun `una tappa spuntata esce dal briefing`() {
+    fun `una tappa spuntata esce dal briefing, ma il giorno resta`() {
         val slug = creaToscana()
         val viterbo = archivio.tappe(slug).first { it.nome == "Viterbo" }
         archivio.checkin(slug, viterbo, adesso = quando("2026-08-06", "16:00:00"))
 
-        assertNull(archivio.briefing(slug, oggi).domani)
+        val domani = archivio.briefing(slug, oggi).domani!!
+        // La tappa spuntata non compare piu' — quello era e resta il punto —
+        // **ma domani non sparisce dal riepilogo**: e' un giorno di viaggio anche
+        // se non ci si sposta, e dice dove si resta.
+        assertTrue(domani.nomi.toString(), domani.nomi.isEmpty())
+        assertTrue(domani.fermo)
+        assertEquals("Viterbo", domani.restaA)
     }
 
     @Test

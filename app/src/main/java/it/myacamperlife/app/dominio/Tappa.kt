@@ -17,6 +17,12 @@ data class Tappa(
     /** Come lo scrive l'itinerario: puo' essere una data, un numero, "gio 6". */
     val giorno: String? = null,
     val descrizione: String? = null,
+    /**
+     * Tutto il resto che l'itinerario diceva di questa tappa: orari, telefono,
+     * quota, link. Vedi [Waypoint.altro] — si conserva perche' sono le cose che
+     * servono arrivando, e prima finivano nel nulla.
+     */
+    val altro: List<Pair<String, String>> = emptyList(),
     val stato: StatoTappa = StatoTappa.DA_FARE,
     /** Istante ISO-8601 del check-in, quando c'e' stato. */
     val checkinIl: String? = null,

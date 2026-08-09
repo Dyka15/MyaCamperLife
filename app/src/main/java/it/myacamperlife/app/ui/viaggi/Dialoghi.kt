@@ -54,6 +54,7 @@ import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Momento
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.Slittamento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.TestoBriefing
@@ -165,6 +166,67 @@ fun AzioniVoceDialog(
 
 private val VOCE_QUANDO: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEE d MMMM, HH:mm", java.util.Locale.ITALIAN)
+
+/**
+ * Sei arrivato fuori programma: sposto il resto dell'itinerario?
+ *
+ * **Si chiede, non si fa.** Le date successive sono ormai sbagliate e con esse il
+ * riepilogo della sera e il meteo di ogni tappa, ma riscrivere l'itinerario e' una
+ * decisione di chi viaggia: magari il giorno perso lo recuperi domani, magari
+ * salti una tappa. L'app se ne accorge e propone.
+ *
+ * Il numero di tappe interessate sta nella domanda: "sposto le prossime tre" e'
+ * una cosa a cui si puo' rispondere, "sposto l'itinerario" no.
+ */
+@Composable
+fun FuoriProgrammaDialog(
+    tappa: Tappa,
+    slittamento: Slittamento,
+    onSlitta: () -> Unit,
+    onChiudi: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = {
+            Text(
+                stringResource(
+                    if (slittamento.ritardo) R.string.fuori_ritardo else R.string.fuori_anticipo,
+                    slittamento.quanti,
+                ),
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.fuori_arrivato, tappa.nome),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    stringResource(
+                        if (slittamento.ritardo) R.string.fuori_sposta_avanti
+                        else R.string.fuori_sposta_indietro,
+                        slittamento.daFare,
+                        slittamento.quanti,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    stringResource(R.string.fuori_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onChiudi(); onSlitta() }) {
+                Text(stringResource(R.string.fuori_sposta))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.fuori_lascia)) }
+        },
+    )
+}
 
 /**
  * Un campo di testo e via: corregge una nota o la didascalia di una foto.
@@ -740,6 +802,10 @@ fun ImpostazioniDialog(
     scortaDisponibile: Boolean,
     cartella: String?,
     cartellaAccessibile: Boolean,
+    /** Quando la cartella e' stata sincronizzata, e quando la scorta e' stata presa. */
+    sincronizzatoIl: OffsetDateTime?,
+    meteoIl: OffsetDateTime?,
+    dintorniIl: OffsetDateTime?,
     onScegliCartella: () -> Unit,
     onEsporta: () -> Unit,
     onSincronizza: () -> Unit,
@@ -850,6 +916,10 @@ fun ImpostazioniDialog(
                     // all'app manca — dopo una reinstallazione, o venendo da un
                     // altro telefono — la seconda quando si vuole solo essere
                     // certi che fuori ci sia tutto.
+                    // La data risponde alla domanda che uno si fa cambiando
+                    // telefono: "ha davvero preso tutto?". Senza, si puo' solo
+                    // sperare.
+                    Quando(R.string.impostazioni_sincronizzato, sincronizzatoIl)
                     Text(
                         stringResource(R.string.impostazioni_sincronizza_spiegazione),
                         style = MaterialTheme.typography.bodySmall,
@@ -889,6 +959,11 @@ fun ImpostazioniDialog(
                 // OpenStreetMap e' una cortesia. Rifarla ogni volta che si
                 // aggiorna il meteo sarebbe strapazzarlo per niente — i punti di
                 // interesse non cambiano di sera in sera.
+                // L'eta' di una scorta e' meta' del suo valore: un meteo di
+                // quattro giorni e dei dintorni di un viaggio fa non sono la
+                // stessa cosa di quelli presi stamattina.
+                Quando(R.string.impostazioni_meteo_preso, meteoIl)
+                Quando(R.string.impostazioni_dintorni_presi, dintorniIl)
                 TextButton(onClick = { onChiudi(); onScaricaDintorni() }, enabled = scortaDisponibile) {
                     Text(stringResource(R.string.impostazioni_scarica_dintorni))
                 }
@@ -1499,4 +1574,22 @@ private fun RigaModello(
             Text(stringResource(R.string.modelli_dimentica))
         }
     }
+}
+
+/**
+ * "Meteo: preso 3 ore fa" — oppure "mai".
+ *
+ * Sempre e' meglio del silenzio: una riga che dice "mai" spiega perche' una
+ * schermata e' vuota, e l'assenza di quella riga no.
+ */
+@Composable
+private fun Quando(etichetta: Int, istante: OffsetDateTime?) {
+    Text(
+        text = stringResource(
+            etichetta,
+            istante?.format(LETTA) ?: stringResource(R.string.impostazioni_mai),
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

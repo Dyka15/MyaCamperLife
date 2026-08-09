@@ -217,14 +217,24 @@ class Fusione(private val archivio: Archivio) {
     private fun fondiImpostazioni(da: Albero, percorsi: List<String>): EsitoFusione {
         if (NOME_IMPOSTAZIONI !in percorsi) return EsitoFusione()
         val nostre = archivio.impostazioni()
-        if (nostre != Impostazioni(cartellaSpecchio = nostre.cartellaSpecchio)) {
-            return EsitoFusione()
-        }
+
+        // "Intatte" si giudica **ignorando i due campi che riguardano la cartella
+        // e non le preferenze**: la cartella l'utente l'ha appena scelta, e la
+        // data di sincronizzazione la scrive questa stessa operazione. Contarli
+        // renderebbe l'archivio "gia' toccato" sempre, e la fusione delle
+        // impostazioni non scatterebbe mai.
+        val intatte = nostre.copy(cartellaSpecchio = null, sincronizzatoIl = null)
+        if (intatte != Impostazioni()) return EsitoFusione()
 
         val testo = da.testo(NOME_IMPOSTAZIONI) ?: return EsitoFusione(falliti = 1)
         val loro = archivio.leggiImpostazioni(testo) ?: return EsitoFusione(falliti = 1)
 
-        archivio.salvaImpostazioni(loro.copy(cartellaSpecchio = nostre.cartellaSpecchio))
+        archivio.salvaImpostazioni(
+            loro.copy(
+                cartellaSpecchio = nostre.cartellaSpecchio,
+                sincronizzatoIl = nostre.sincronizzatoIl,
+            ),
+        )
         return EsitoFusione(impostazioni = true)
     }
 

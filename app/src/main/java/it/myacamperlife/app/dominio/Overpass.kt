@@ -71,9 +71,25 @@ object Overpass {
             "${gradi(it.lat)},${gradi(it.lon)}"
         }
 
+        // **Una riga per chiave OSM, non una per categoria.** Prima erano dieci
+        // statement, ognuno dei quali rivalutava da zero il filtro `around` su
+        // una polilinea di venti vertici: e' il lavoro piu' caro di tutta la
+        // query, e farlo dieci volte invece di quattro e' il genere di richiesta
+        // che il server pubblico chiude per timeout — restituendo un `remark` e
+        // zero elementi, che per mesi abbiamo letto come "qui non c'e' niente".
+        val perChiave = CategoriaPoi.entries
+            .flatMap { it.filtri }
+            .mapNotNull { chiaveEValore(it) }
+            .groupBy({ it.first }, { it.second })
+
         val righe = buildList {
-            CategoriaPoi.entries.forEach { categoria ->
-                categoria.filtri.forEach { filtro -> add("  nwr($intorno)$filtro;") }
+            perChiave.forEach { (chiave, valori) ->
+                val filtro = if (valori.size == 1) {
+                    "[\"$chiave\"=\"${valori.single()}\"]"
+                } else {
+                    "[\"$chiave\"~\"^(${valori.joinToString("|")})$\"]"
+                }
+                add("  nwr($intorno)$filtro;")
             }
             // I toponimi: solo nodi, e solo i posti abitati. `place=locality`
             // e i suoi parenti descrivono localita' senza case, e nel diario
@@ -88,6 +104,41 @@ object Overpass {
             appendLine(");")
             appendLine("out center;")
         }
+    }
+
+    /**
+     * Da `["tourism"="camp_site"]` a `tourism` e `camp_site`.
+     *
+     * I filtri sono scritti a mano dentro [CategoriaPoi] e hanno tutti questa
+     * forma; se un giorno ne comparisse uno diverso, questa funzione restituisce
+     * `null` e quel filtro esce dal raggruppamento invece di produrre una query
+     * sbagliata in silenzio.
+     */
+    private fun chiaveEValore(filtro: String): Pair<String, String>? {
+        val trovato = CHIAVE_VALORE.matchEntire(filtro.trim()) ?: return null
+        return trovato.groupValues[1] to trovato.groupValues[2]
+    }
+
+    private val CHIAVE_VALORE = "\\[\"([a-z_:]+)\"=\"([A-Za-z0-9_:-]+)\"]".toRegex()
+
+    /**
+     * Il messaggio con cui Overpass segnala un guasto **dentro una risposta
+     * riuscita**.
+     *
+     * E' la cosa che mancava, ed e' costata mesi di dintorni vuoti: quando una
+     * query esaurisce il tempo o la memoria, il server non risponde con un
+     * codice d'errore — risponde **200** con `elements` vuoto e un campo
+     * `remark` che dice cosa e' andato storto. Senza leggerlo, "la query era
+     * troppo cara" e "in quella zona non c'e' niente" sono indistinguibili, e la
+     * seconda e' la spiegazione che si finisce per credere.
+     */
+    fun avvertimento(corpo: String): String? {
+        val radice = runCatching { json.parseToJsonElement(corpo) as? JsonObject }.getOrNull()
+            ?: return null
+        return runCatching { radice["remark"]?.jsonPrimitive?.contentOrNull }
+            .getOrNull()
+            ?.trim()
+            ?.takeUnless { it.isEmpty() }
     }
 
     /**
@@ -225,4 +276,17 @@ object Overpass {
      * contano sono quelle che devi ancora fare.
      */
     const val PUNTI_MASSIMI = 20
+
+    /**
+     * Quanti punti per richiesta.
+     *
+     * **Una richiesta sola per venti tappe non passa.** Un corridoio di quindici
+     * chilometri intorno a mezza Italia e' una delle query piu' care che si
+     * possano chiedere a un server di cortesia, e quello che si ottiene non e' un
+     * errore ma un `remark` con zero risultati. Sei punti per volta, con le fette
+     * che si sovrappongono di uno perche' il tratto di mezzo non sparisca: e' la
+     * stessa medicina che la fase 6 aveva gia' dato a OSRM, e per lo stesso
+     * motivo — **mezzi dintorni sono meglio di nessun dintorno**.
+     */
+    const val PUNTI_PER_RICHIESTA = 6
 }

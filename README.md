@@ -36,13 +36,20 @@ Itinerario:
 - check-in su una tappa, con l'ora e la posizione
 - salta una tappa e ripristinala: lo stesso comando fa le due cose
 - aggiungi una tappa scegliendo dove inserirla, con le coordinate dal GPS o digitate
+- **ritardi e anticipi**: se fai check-in in un giorno diverso da quello previsto, l'app te
+  lo dice e propone di spostare di conseguenza le tappe che restano. Chiede, non fa: magari
+  il giorno perso lo recuperi domani. Le tappe già fatte non si toccano
+- **un giorno è un giorno anche se non ti sposti**: il riepilogo della sera non salta i
+  giorni fermi, dice «si resta a Bolsena». E all'import, se l'itinerario salta dei giorni,
+  te lo segnala — quasi sempre è una dimenticanza nel file
 - tiene più viaggi e li elenca dal più recente
 
 **La scheda di una tappa** — un tocco sulla tappa e c'è tutto quello che l'app sa di quel
 posto, **senza rete**:
 
-- la **descrizione per intero** che sta nel file dell'itinerario, non la riga troncata
-  dell'elenco
+- **tutto quello che il file dice di quella tappa**: la descrizione per intero, con i suoi
+  capoversi, **più ogni campo che il lettore non riconosce** — orari, telefono, quota, un
+  link. Prima finivano nel nulla senza che nessuno lo dicesse
 - il **meteo del suo giorno**, non di oggi: una tappa di giovedì porta la previsione di
   giovedì, con l'età del dato dichiarata come sempre
 - **cosa c'è nei dintorni di quella tappa**, una riga per categoria con quante ce ne sono e
@@ -123,6 +130,9 @@ La scorta — l'unica parte che tocca la rete, e la tocca **prima**:
 - nelle impostazioni, «Aggiorna meteo e distanze» per quando sai di stare per entrare in una
   zona senza campo, e **«Scarica i dintorni» a parte** — è la richiesta più pesante che l'app
   fa, e i punti di interesse non cambiano di sera in sera
+- nelle impostazioni si vede **quando** meteo e dintorni sono stati scaricati, e quando la
+  cartella è stata sincronizzata l'ultima volta: l'età di una scorta è metà del suo valore, e
+  «ha davvero preso tutto?» è la domanda che uno si fa cambiando telefono
 - **quando la richiesta dei dintorni fallisce, dice perché.** È l'unica scorta senza
   ripiego: senza meteo esce la previsione vecchia, senza tratte la linea d'aria, senza
   dintorni resta una schermata vuota. Quindi 429 diventa «aspetta un minuto, è un servizio

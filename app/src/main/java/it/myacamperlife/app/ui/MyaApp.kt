@@ -64,6 +64,7 @@ import it.myacamperlife.app.ui.viaggi.BriefingDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
 import it.myacamperlife.app.ui.viaggi.DossierDialog
 import it.myacamperlife.app.ui.viaggi.ElencoViaggiContent
+import it.myacamperlife.app.ui.viaggi.FuoriProgrammaDialog
 import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
 import it.myacamperlife.app.ui.viaggi.ModelliDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
@@ -204,8 +205,22 @@ fun MyaApp(vista: ViaggiViewModel) {
     }
 
     val avviso = stato.avviso
-    val testoAvviso = avviso?.let { messaggio(it) }
+
+    // Un check-in fuori programma non e' un messaggio da mostrare e scartare:
+    // porta una domanda, e la domanda la fa un dialogo. Si tiene da parte finche'
+    // non le si risponde.
+    var fuoriProgramma by remember { mutableStateOf<ViaggiViewModel.Avviso.FuoriProgramma?>(null) }
     LaunchedEffect(avviso) {
+        if (avviso is ViaggiViewModel.Avviso.FuoriProgramma) {
+            fuoriProgramma = avviso
+            vista.avvisoVisto()
+        }
+    }
+
+    val testoAvviso = avviso
+        ?.takeUnless { it is ViaggiViewModel.Avviso.FuoriProgramma }
+        ?.let { messaggio(it) }
+    LaunchedEffect(testoAvviso) {
         if (testoAvviso != null) {
             avvisi.showSnackbar(testoAvviso)
             vista.avvisoVisto()
@@ -434,6 +449,15 @@ fun MyaApp(vista: ViaggiViewModel) {
         }
     }
 
+    fuoriProgramma?.let { fuori ->
+        FuoriProgrammaDialog(
+            tappa = fuori.tappa,
+            slittamento = fuori.slittamento,
+            onSlitta = { vista.slitta(fuori.tappa, fuori.slittamento.giorni) },
+            onChiudi = { fuoriProgramma = null },
+        )
+    }
+
     if (notaAperta) {
         NotaDialog(
             onSalva = vista::registraNota,
@@ -621,6 +645,11 @@ fun MyaApp(vista: ViaggiViewModel) {
             scortaDisponibile = stato.aperto != null,
             cartella = cartellaScelta?.let { Specchio.nome(contesto, it) },
             cartellaAccessibile = cartellaScelta?.let { Specchio.accessibile(contesto, it) } ?: false,
+            sincronizzatoIl = stato.impostazioni.sincronizzatoIl?.let { salvata ->
+                runCatching { OffsetDateTime.parse(salvata) }.getOrNull()
+            },
+            meteoIl = stato.meteoIl,
+            dintorniIl = stato.dintorniIl,
             onScegliCartella = { scegliCartella.launch(null) },
             onEsporta = vista::esporta,
             onSincronizza = vista::sincronizza,
@@ -743,12 +772,21 @@ private fun uriDi(contesto: android.content.Context, file: File): Uri =
  */
 @Composable
 private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
-    is ViaggiViewModel.Avviso.ImportRiuscito ->
-        if (avviso.scartate == 0) {
+    is ViaggiViewModel.Avviso.ImportRiuscito -> {
+        val testa = if (avviso.scartate == 0) {
             stringResource(R.string.import_riuscito, avviso.tappe)
         } else {
             stringResource(R.string.import_riuscito_con_scarti, avviso.tappe, avviso.scartate)
         }
+        if (avviso.buchi == 0) testa
+        else "$testa. " + stringResource(R.string.import_buchi, avviso.buchi)
+    }
+
+    is ViaggiViewModel.Avviso.ItinerarioSlittato ->
+        stringResource(R.string.itinerario_slittato, avviso.tappe, avviso.giorni)
+
+    // Non e' un messaggio: e' una domanda, e la fa un dialogo. Qui non compare.
+    is ViaggiViewModel.Avviso.FuoriProgramma -> ""
 
     is ViaggiViewModel.Avviso.ImportFallito -> when (avviso.motivo) {
         Itinerario.Motivo.NESSUN_JSON -> stringResource(R.string.import_senza_json)
@@ -782,6 +820,10 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
         EsitoDintorni.Vuoto -> stringResource(R.string.dintorni_vuoto)
         is EsitoDintorni.Illeggibile ->
             stringResource(R.string.dintorni_illeggibile, esito.elementi)
+        // Il messaggio del server, alla lettera: dice se ha finito il tempo o la
+        // memoria, e sono due cose con due rimedi.
+        is EsitoDintorni.Avvertito ->
+            stringResource(R.string.dintorni_avvertito, esito.messaggio)
         is EsitoDintorni.Rifiutato -> when (esito.codice) {
             429 -> stringResource(R.string.dintorni_troppe_richieste)
             504 -> stringResource(R.string.dintorni_troppo_grande)

@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.dominio.CampiExtra
 import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Poi
@@ -152,8 +153,29 @@ private fun Scheda(
         item { Testata(scheda, quante) }
         item { Azioni(scheda, onCheckin, onAlterna, onMappa) }
 
-        scheda.descrizione?.let { descrizione ->
-            item { Sezione(R.string.scheda_descrizione) { Corpo(descrizione) } }
+        // Tutto quello che il file diceva di questa tappa: la descrizione con i
+        // suoi capi, e i campi che il lettore non riconosce — orari, telefono,
+        // quota, link. Prima finivano nel nulla senza che nessuno lo dicesse.
+        if (scheda.descrizione != null || scheda.tappa.altro.isNotEmpty()) {
+            item {
+                Sezione(R.string.scheda_descrizione) {
+                    scheda.descrizione?.let { Corpo(it) }
+                    if (scheda.tappa.altro.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.padding(
+                                top = if (scheda.descrizione == null) 0.dp else 8.dp,
+                            ),
+                        ) {
+                            scheda.tappa.altro.forEach { campo ->
+                                Text(
+                                    text = CampiExtra.riga(campo),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Il meteo di una tappa e' quello del **suo** giorno: una previsione di

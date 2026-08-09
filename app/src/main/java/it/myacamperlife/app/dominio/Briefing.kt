@@ -5,9 +5,21 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.OffsetDateTime
 
-/** Un giorno di viaggio previsto, con le tappe da fare. */
-data class Giornata(val giorno: LocalDate, val tappe: List<Tappa>) {
+/**
+ * Un giorno di viaggio previsto, con le tappe da fare.
+ *
+ * @param restaA dove si resta, quando quel giorno non ha tappe. **Un giorno
+ *   senza spostamenti e' un giorno del viaggio come gli altri**: saltarlo
+ *   nell'elenco fa sembrare che il riepilogo abbia perso un pezzo, mentre "si
+ *   resta a Bolsena" e' un'informazione.
+ */
+data class Giornata(
+    val giorno: LocalDate,
+    val tappe: List<Tappa>,
+    val restaA: String? = null,
+) {
     val nomi: List<String> get() = tappe.map { it.nome }
+    val fermo: Boolean get() = tappe.isEmpty()
 }
 
 /**
@@ -82,10 +94,21 @@ object Briefings {
         val daFare = tappe.filter { it.stato == StatoTappa.DA_FARE }
         val (perGiorno, senzaData) = GiornoTappa.perGiorno(daFare, oggi)
 
-        val finestra = oggi.plusDays(1)..oggi.plusDays(giorni.toLong())
-        val giornate = perGiorno
-            .filterKeys { it in finestra }
-            .map { (giorno, tappe) -> Giornata(giorno, tappe) }
+        // **Ogni giorno della finestra, anche quelli senza tappe.** Prima si
+        // elencavano solo i giorni che avevano qualcosa, e un giorno fermo
+        // spariva dal riepilogo: chi lo leggeva vedeva "domani Bolsena,
+        // dopodomani Roma" senza sapere che in mezzo c'era un giorno intero. Un
+        // giorno di viaggio e' un giorno di viaggio anche se non si guida.
+        val giornate = GiorniDelViaggio.giorni(
+            tappe = daFare,
+            da = oggi.plusDays(1),
+            a = oggi.plusDays(giorni.toLong()),
+            oggi = oggi,
+            dove = tappe.lastOrNull { it.stato == StatoTappa.FATTA }?.nome,
+        ).map { Giornata(it.giorno, it.tappe, restaA = it.restaA) }
+            // Le code vuote non si mostrano: se l'itinerario finisce domani, i
+            // due giorni dopo non sono giorni di viaggio, sono niente.
+            .dropLastWhile { it.fermo }
 
         // Le tappe arretrate — datate ieri o prima, mai spuntate — si mostrano
         // insieme a domani: sono comunque cose che devi ancora fare.

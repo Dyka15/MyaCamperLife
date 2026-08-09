@@ -212,6 +212,7 @@
     <string name="dintorni_senza_tappe">Nessuna tappa da fare su cui cercare: i dintorni si scaricano intorno all\'itinerario.</string>
     <string name="dintorni_vuoto">OpenStreetMap non ha niente di segnato lungo questo itinerario.</string>
     <string name="dintorni_illeggibile">Ha risposto con %1$d elementi ma non ho saputo leggerli: è un difetto dell\'app, non un problema di rete.</string>
+    <string name="dintorni_avvertito">OpenStreetMap ha interrotto la ricerca: %1$s. Riprova, o spunta qualche tappa già fatta per accorciare l\'itinerario.</string>
     <string name="dintorni_troppe_richieste">OpenStreetMap è occupato: aspetta un minuto e riprova. È un servizio gratuito, e ha ragione lui.</string>
     <string name="dintorni_troppo_grande">Richiesta troppo grande per il server: succede con itinerari molto lunghi. Riprova, o spunta qualche tappa già fatta.</string>
     <string name="dintorni_rifiutati">OpenStreetMap ha rifiutato (%1$d). %2$s</string>
@@ -260,6 +261,24 @@
     <string name="esplora_ai_configura">Configura i modelli</string>
     <string name="esplora_risposte">Risposte salvate</string>
     <string name="dossier_perso">Il file della risposta non c\'è più.</string>
+
+    <!-- Ritardi e anticipi -->
+    <string name="fuori_ritardo">In ritardo di %1$d giorni</string>
+    <string name="fuori_anticipo">In anticipo di %1$d giorni</string>
+    <string name="fuori_arrivato">Sei arrivato a %1$s in un giorno diverso da quello previsto dall\'itinerario.</string>
+    <string name="fuori_sposta_avanti">Sposto in avanti di %2$d giorni le %1$d tappe che restano?</string>
+    <string name="fuori_sposta_indietro">Sposto indietro di %2$d giorni le %1$d tappe che restano?</string>
+    <string name="fuori_spiegazione">Le tappe già fatte non si toccano. Le date si riscrivono in forma ISO, e il riepilogo della sera e il meteo delle tappe tornano a puntare ai giorni giusti.</string>
+    <string name="fuori_sposta">Sposta</string>
+    <string name="fuori_lascia">Lascia così</string>
+    <string name="itinerario_slittato">Spostate %1$d tappe di %2$d giorni</string>
+    <string name="import_buchi">L\'itinerario salta %1$d giorni: se non è voluto, controlla il file</string>
+
+    <!-- Le date di aggiornamento -->
+    <string name="impostazioni_mai">mai</string>
+    <string name="impostazioni_sincronizzato">Ultima sincronizzazione: %1$s</string>
+    <string name="impostazioni_meteo_preso">Meteo scaricato: %1$s</string>
+    <string name="impostazioni_dintorni_presi">Dintorni scaricati: %1$s</string>
 
     <!-- La cartella: assegnarla e sincronizzarla -->
     <string name="invito_cartella_titolo">Scegli dove tenere i file</string>

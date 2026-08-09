@@ -91,7 +91,7 @@ foglio di calcolo senza conversioni.
 
 | File | Contenuto |
 |---|---|
-| `viaggi/<viaggio>/tappe.csv` | Le tappe con stato (`da_fare`, `fatta`, `saltata`) e data di check-in |
+| `viaggi/<viaggio>/tappe.csv` | Le tappe con stato (`da_fare`, `fatta`, `saltata`), data di check-in, e **ogni campo che l'itinerario portava** nella colonna `altro` |
 | `viaggi/<viaggio>/spostamenti.csv` | Posizioni e check-in |
 | `viaggi/<viaggio>/note.csv` | Le note di viaggio |
 | `viaggi/<viaggio>/rifornimenti.csv` | Chilometri, litri, importo, pieno sì/no |
@@ -165,11 +165,12 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Vedere le tappe in ordine, con lo stato di ciascuna | 1 |
 | Fare check-in sulla tappa corrente: viene marcata come fatta, registrata negli spostamenti, e viene annunciata la prossima | 2 |
 | Saltare una tappa, e ripristinarla: lo stesso comando fa le due cose a seconda di com'è adesso | 2 |
+| **Spostare l'itinerario** quando si arriva in ritardo o in anticipo di almeno un giorno: l'app lo misura al check-in e lo propone | 14 |
 | Aggiungere una tappa scegliendo dove inserirla nell'itinerario | 2 |
 | Vedere distanza e tempo di guida verso la prossima tappa | 6 |
 | Aprire una tappa nell'app di mappe installata, per la navigazione vera | 2 |
 | Tenere più viaggi, e riaprire quelli passati in sola consultazione | 1 |
-| Aprire la **scheda di una tappa**: descrizione completa, meteo del suo giorno, dintorni di quel posto, e scorrimento laterale alla tappa dopo | 10 |
+| Aprire la **scheda di una tappa**: **tutto** quello che il file dice di quella tappa — descrizione con i capoversi e ogni campo in più — meteo del suo giorno, dintorni di quel posto, e scorrimento laterale alla tappa dopo | 10 / 14 |
 | Chiedere a un modello dei dintorni **di quella tappa**, e ritrovare la risposta arrivandoci | 10 |
 
 ### 4.2 Diario di bordo
@@ -230,7 +231,7 @@ sull'estratto conto, e a sapere quanti contanti stanno finendo.
 
 | | Fase |
 |---|---|
-| Ricevere alle 19:00 le tappe dei prossimi giorni | 5 |
+| Ricevere alle 19:00 le tappe dei prossimi giorni, **senza saltare i giorni fermi**: un giorno senza spostamenti dice dove si resta | 5 / 14 |
 | Essere avvisati se domani serve rifornire | 5 |
 | Attivare e disattivare la notifica | 5 |
 | Sopravvivere a riavvio del telefono e a HyperOS che congela le app | 5 |
@@ -256,6 +257,7 @@ rete.
 | Impostare i km con un pieno | 3 |
 | Scegliere la cartella di archivio, e copiarci tutto | 9 |
 | **Sincronizzare** con la cartella: quello che c'è lì e qui manca entra, poi si ricopia tutto fuori | 13 |
+| Vedere **quando** meteo e dintorni sono stati scaricati, e quando la cartella è stata sincronizzata | 14 |
 | Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |

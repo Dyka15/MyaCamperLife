@@ -849,6 +849,80 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **11** | Correggere e cancellare una voce registrata, dal diario | sbagli il chilometraggio di un pieno e lo aggiusti senza aprire il CSV |
 | **12** | Vedere le foto e gli scontrini dentro l'app: miniature nel diario, foto a schermo intero | scorri il diario e riconosci la giornata dalle immagini |
 | **13** | Assegnare la cartella **legge** quello che c'è dentro e lo fonde. Invito all'avvio quando manca | reinstalli l'app, indichi la cartella, ritrovi i viaggi |
+| **14** | Ritardi e anticipi, giorni senza buchi, contenuto integrale della tappa, date di aggiornamento | arrivi due giorni tardi e l'itinerario si sposta con te |
+
+### Il difetto dei dintorni, secondo atto
+
+La fase 13 aveva corretto `out center tags`, ma i dintorni **continuavano a non caricare**, e
+la ragione era la seconda metà dello stesso errore di lettura.
+
+**Overpass segnala i propri guasti dentro una risposta riuscita.** Quando una query esaurisce
+il tempo o la memoria non risponde con un codice d'errore: risponde **200**, con `elements`
+vuoto e un campo `remark` che dice cosa è andato storto. Il codice leggeva l'array vuoto e
+concludeva «in quella zona non c'è niente segnato» — una spiegazione plausibile, e quindi
+credibile, e quindi la peggiore possibile.
+
+E la query *era* troppo cara. Venti tappe, un corridoio di quindici chilometri, e **dieci
+statement `nwr` che rivalutavano ognuno da zero il filtro `around` su una polilinea di venti
+vertici**: è fra le richieste più costose che si possano fare a un server di cortesia. Due
+rimedi, entrambi strutturali:
+
+- **quattro statement invece di dieci.** Le sette categorie stanno su tre chiavi OSM —
+  `tourism`, `amenity`, `shop` — e i valori si raggruppano in un'espressione regolare. Un
+  test verifica che nessuna categoria si perda nel raggruppamento, perché quello sarebbe il
+  modo elegante di rompere tutto.
+- **l'itinerario si spezza in fette di sei punti**, come la fase 6 aveva già fatto con OSRM e
+  per la stessa ragione: **mezzi dintorni sono meglio di nessun dintorno**. Una fetta che
+  fallisce non ferma le altre.
+
+La lezione è la stessa della fase 8 e della 13, e a questo punto vale come regola del
+progetto: **un servizio che può fallire deve poter dire come**, e i suoi modi di fallire non
+sono sempre dove uno li cerca. Qui non erano nel codice HTTP ma nel corpo della risposta.
+
+### Un giorno è un giorno anche se non ci si sposta
+
+Il riepilogo elencava solo i giorni che avevano una tappa, e un giorno fermo spariva: chi
+leggeva vedeva «domani Bolsena, dopodomani Roma» senza sapere che in mezzo c'era un giorno
+intero. Ora la finestra si percorre giorno per giorno e un giorno senza tappe dice **dove si
+resta** — e «dove sei» viene dall'ultimo check-in, che è un fatto misurato, non dall'ultima
+tappa in programma, che è un'ipotesi su cosa è successo. È un test a stabilirlo, dopo che il
+primo tentativo aveva scelto l'ipotesi.
+
+All'import, i giorni che l'itinerario salta si segnalano. Non è un errore — il file non è
+nostro, e restare fermi un giorno è legittimo — ma se è una dimenticanza vale più scoprirla a
+casa che la sera del giorno che manca.
+
+### Ritardi e anticipi
+
+Un check-in in un giorno diverso da quello previsto rende sbagliate **tutte** le date
+successive, e con esse il riepilogo della sera e la previsione di ogni tappa. L'app lo misura
+e propone di spostare; la soglia è il giorno intero, perché un ritardo di ore si recupera
+guidando e proporre di riscrivere l'itinerario per quello sarebbe fastidioso.
+
+Tre scelte deliberate: **si spostano solo le tappe da fare** — quelle spuntate sono storia, e
+riscriverne la data falsificherebbe quello che è successo; **si riscrive in forma ISO**,
+perdendo il `mer 6` originale, perché l'alternativa sarebbe indovinare come riscrivere ogni
+formato; **una tappa senza data leggibile non si tocca**, perché non si sa da dove partire.
+
+E si **chiede**, non si fa: magari il giorno perso lo si recupera domani, magari si salta una
+tappa. La proposta porta il numero di tappe interessate, perché «sposto le prossime tre» è una
+domanda a cui si può rispondere e «sposto l'itinerario» no.
+
+### Quello che il file diceva e l'app buttava
+
+Il lettore dell'itinerario riconosceva sei campi e **scartava in silenzio tutti gli altri**:
+gli orari di un'area, un telefono, una quota, un link. Sono esattamente le cose che servono
+arrivando. Ora si conservano tutti, con il nome che avevano nel file e nell'ordine in cui
+erano scritti — l'ordine è un'informazione, la prima riga è probabilmente la più importante.
+
+Stanno in una colonna `altro` come JSON compatto. Brutto da guardare in un foglio di calcolo,
+ma con due proprietà che qui contano più della bellezza: è senza ambiguità — nessun separatore
+da indovinare, nessun valore che contiene il separatore — e **sta su una riga sola**, perché i
+ritorni a capo sono già escapati. L'invariante «una riga fisica è un record» resta intatta.
+
+Per la stessa ragione la descrizione ora si scrive con i capoversi escapati (`\n`) invece di
+essere schiacciata su una riga: la struttura di un paragrafo è metà di quello che si vuole
+leggere arrivando.
 
 ### La fusione: la promessa del formato, riscossa
 

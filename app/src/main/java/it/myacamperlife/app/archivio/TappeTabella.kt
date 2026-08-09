@@ -1,5 +1,6 @@
 package it.myacamperlife.app.archivio
 
+import it.myacamperlife.app.dominio.CampiExtra
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
 
@@ -21,12 +22,13 @@ object TappeTabella {
     const val TIPO = "tipo"
     const val GIORNO = "giorno"
     const val DESCRIZIONE = "descrizione"
+    const val ALTRO = "altro"
     const val STATO = "stato"
     const val CHECKIN = "checkin"
 
     val COLONNE = listOf(
         Csv.ID, Csv.TS, Csv.CANCELLATO,
-        ORDINE, NOME, LAT, LON, TIPO, GIORNO, DESCRIZIONE, STATO, CHECKIN,
+        ORDINE, NOME, LAT, LON, TIPO, GIORNO, DESCRIZIONE, ALTRO, STATO, CHECKIN,
     )
 
     fun riga(tappa: Tappa, ts: String, cancellata: Boolean = false): Map<String, String> = mapOf(
@@ -39,7 +41,10 @@ object TappeTabella {
         LON to Csv.numero(tappa.lon, DECIMALI_COORDINATE),
         TIPO to Csv.testo(tappa.tipo),
         GIORNO to Csv.testo(tappa.giorno),
-        DESCRIZIONE to Csv.testo(tappa.descrizione),
+        // Lunga e non normale: una descrizione d'itinerario puo' essere un
+        // paragrafo, e schiacciarla su una riga ne perde la struttura.
+        DESCRIZIONE to Csv.testoLungo(tappa.descrizione),
+        ALTRO to CampiExtra.scrivi(tappa.altro),
         STATO to tappa.stato.codice,
         CHECKIN to Csv.testo(tappa.checkinIl),
     )
@@ -62,7 +67,8 @@ object TappeTabella {
             lon = lon,
             tipo = riga.testo(TIPO),
             giorno = riga.testo(GIORNO),
-            descrizione = riga.testo(DESCRIZIONE),
+            descrizione = Csv.leggiTestoLungo(riga.testo(DESCRIZIONE)),
+            altro = CampiExtra.leggi(riga.testo(ALTRO)),
             stato = StatoTappa.da(riga.testo(STATO)),
             checkinIl = riga.testo(CHECKIN),
         )

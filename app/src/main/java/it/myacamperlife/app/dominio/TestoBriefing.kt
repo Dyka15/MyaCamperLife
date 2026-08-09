@@ -23,6 +23,11 @@ object TestoBriefing {
         return when {
             domani == null && briefing.rifornire -> "Domani conviene rifornire"
             domani == null -> "Domani nessuna tappa in programma"
+            // Un giorno fermo si dice per quello che e', non si tace: "si resta a
+            // Bolsena" e' quello che uno vuole sapere la sera prima.
+            domani.fermo -> domani.restaA
+                ?.let { "Domani si resta a $it" }
+                ?: "Domani nessuno spostamento in programma"
             else -> "Domani, ${quando(domani.giorno)}: ${elenco(domani.nomi)}"
         }
     }
@@ -40,7 +45,12 @@ object TestoBriefing {
         if (briefing.rifornire) add(avviso(briefing.autonomia))
 
         briefing.poi.forEach { giornata ->
-            add("${quando(giornata.giorno)}: ${elenco(giornata.nomi)}")
+            val cosa = when {
+                !giornata.fermo -> elenco(giornata.nomi)
+                giornata.restaA != null -> "si resta a ${giornata.restaA}"
+                else -> "nessuno spostamento"
+            }
+            add("${quando(giornata.giorno)}: $cosa")
         }
 
         if (briefing.senzaData.isNotEmpty()) {

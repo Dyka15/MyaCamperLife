@@ -20,6 +20,7 @@ import it.myacamperlife.app.dominio.Cronaca
 import it.myacamperlife.app.dominio.Dintorni
 import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.Esplora
+import it.myacamperlife.app.dominio.GiorniDelViaggio
 import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Consumi
@@ -36,6 +37,8 @@ import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Schede
 import it.myacamperlife.app.dominio.SchedaTappa
+import it.myacamperlife.app.dominio.Slittamenti
+import it.myacamperlife.app.dominio.Slittamento
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StimaAutonomia
@@ -53,6 +56,7 @@ import it.myacamperlife.app.rete.Scorte
 import java.io.File
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -144,6 +148,9 @@ class ViaggiViewModel(
         val impostazioni: Impostazioni = Impostazioni(),
         /** L'ultimo contachilometri registrato: precompila la form. */
         val ultimoKm: Int? = null,
+        /** Quando la scorta e' stata presa: si mostra, perche' l'eta' conta. */
+        val meteoIl: OffsetDateTime? = null,
+        val dintorniIl: OffsetDateTime? = null,
         val inCorso: Boolean = false,
         val avviso: Avviso? = null,
     ) {
@@ -209,12 +216,27 @@ class ViaggiViewModel(
 
     /** Un messaggio da mostrare una volta e poi scartare. */
     sealed interface Avviso {
-        data class ImportRiuscito(val tappe: Int, val scartate: Int) : Avviso
+        data class ImportRiuscito(
+            val tappe: Int,
+            val scartate: Int,
+            /** Giorni che l'itinerario salta: si dice, non si corregge. */
+            val buchi: Int = 0,
+        ) : Avviso
         data class ImportFallito(val motivo: Itinerario.Motivo?) : Avviso
         data object PosizioneAssente : Avviso
         data object PosizioneRegistrata : Avviso
         data object PermessoPosizioneNegato : Avviso
         data class TappaAggiunta(val nome: String) : Avviso
+
+        /**
+         * Un check-in fuori programma di almeno un giorno.
+         *
+         * Non e' un messaggio da mostrare e scartare come gli altri: porta la
+         * proposta di spostare l'itinerario, e va chiesta.
+         */
+        data class FuoriProgramma(val tappa: Tappa, val slittamento: Slittamento) : Avviso
+
+        data class ItinerarioSlittato(val tappe: Int, val giorni: Long) : Avviso
         data object NotaRegistrata : Avviso
         data object VoceCorretta : Avviso
         data object VoceCancellata : Avviso
@@ -293,6 +315,8 @@ class ViaggiViewModel(
                 dossier = archivio.dossier(slug),
                 quiVicino = archivio.dovePunto(slug),
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
+                meteoIl = archivio.meteoAggiornatoIl(slug),
+                dintorniIl = archivio.dintorniAggiornatiIl(slug),
             )
         }
         _stato.update {
@@ -313,6 +337,8 @@ class ViaggiViewModel(
                 dossier = dati.dossier,
                 quiVicino = dati.quiVicino,
                 ultimoKm = dati.ultimoKm,
+                meteoIl = dati.meteoIl,
+                dintorniIl = dati.dintorniIl,
             )
         }
     }
@@ -333,6 +359,8 @@ class ViaggiViewModel(
         val dossier: List<Dossier>,
         val quiVicino: Coordinate?,
         val ultimoKm: Int?,
+        val meteoIl: OffsetDateTime?,
+        val dintorniIl: OffsetDateTime?,
     )
 
     fun apri(viaggio: Viaggio) = viewModelScope.launch { aggiornaViaggio(viaggio) }
@@ -362,7 +390,16 @@ class ViaggiViewModel(
                         ?: "Viaggio senza nome"
                     archivio.prepara()
                     val viaggio = archivio.creaViaggio(nome, letto.tappe, documento.nome)
-                    Esito(viaggio, Avviso.ImportRiuscito(letto.tappe.size, letto.scartati))
+                    // I giorni che l'itinerario salta si dicono subito: **un
+                    // giorno di viaggio e' un giorno di viaggio anche se non ci si
+                    // sposta**, e un giorno mancante e' quasi sempre una
+                    // dimenticanza. Meglio scoprirla a casa che la sera del giorno
+                    // che manca.
+                    val buchi = GiorniDelViaggio.buchi(archivio.tappe(viaggio.slug), LocalDate.now())
+                    Esito(
+                        viaggio,
+                        Avviso.ImportRiuscito(letto.tappe.size, letto.scartati, buchi.size),
+                    )
                 }
             }
         }
@@ -388,7 +425,25 @@ class ViaggiViewModel(
 
     fun checkin(tappa: Tappa) = operazione { slug ->
         archivio.checkin(slug, tappa, posizione = posizioni.attuale())
-        null
+        // Misurato **dopo** il check-in: la tappa e' appena diventata fatta, e
+        // quelle da spostare sono le altre. Non si sposta niente qui — si
+        // propone, e chi decide e' l'utente.
+        val oggi = LocalDate.now()
+        Slittamenti.misura(tappa, archivio.tappe(slug), quando = oggi, oggi = oggi)
+            ?.takeIf { it.daChiedere }
+            ?.let { Avviso.FuoriProgramma(tappa, it) }
+    }
+
+    /**
+     * Sposta di [giorni] le tappe che restano dopo [tappa].
+     *
+     * Lo si chiama solo dalla proposta che segue un check-in fuori programma: e'
+     * una riscrittura di date, e non e' una cosa da fare senza che sia stata
+     * chiesta.
+     */
+    fun slitta(tappa: Tappa, giorni: Long) = operazione { slug ->
+        val quante = archivio.slittaTappe(slug, tappa, giorni)
+        if (quante == 0) null else Avviso.ItinerarioSlittato(quante, giorni)
     }
 
     fun alternaSalto(tappa: Tappa) = operazione { slug ->
@@ -691,6 +746,17 @@ class ViaggiViewModel(
         ricarica()
 
         val copiati = esportaTutto?.let { withContext(Dispatchers.IO) { it() } }
+
+        // La data si scrive **dopo**, e solo se e' andata: una sincronizzazione
+        // fallita che lascia scritto "sincronizzato adesso" e' peggio di nessuna
+        // data. E si scrive dopo la fusione, non prima, perche' la fusione
+        // giudica "intatte" le impostazioni e questo campo le sporcherebbe.
+        if (fusione != null) {
+            val quando = OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+            val aggiornate = archivio.impostazioni().copy(sincronizzatoIl = quando)
+            withContext(Dispatchers.IO) { archivio.salvaImpostazioni(aggiornate) }
+            _stato.update { it.copy(impostazioni = aggiornate) }
+        }
 
         _stato.update {
             it.copy(

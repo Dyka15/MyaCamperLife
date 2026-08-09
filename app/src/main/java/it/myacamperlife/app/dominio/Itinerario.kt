@@ -19,6 +19,19 @@ data class Waypoint(
     val tipo: String? = null,
     val giorno: String? = null,
     val descrizione: String? = null,
+    /**
+     * **Tutto il resto che il file diceva di questa tappa.**
+     *
+     * I campi che il lettore non riconosce non si buttano: un itinerario scritto
+     * da qualcun altro puo' portare gli orari di un'area, un telefono, un
+     * numero di posti, la quota, un link — e sono esattamente le cose che
+     * servono arrivando. Prima finivano nel nulla senza che nessuno lo dicesse.
+     *
+     * Sono coppie in ordine di apparizione, non una mappa: l'ordine in cui chi
+     * ha scritto l'itinerario ha messo le cose e' un'informazione, e la prima
+     * riga e' probabilmente la piu' importante.
+     */
+    val altro: List<Pair<String, String>> = emptyList(),
 )
 
 /**
@@ -125,8 +138,36 @@ object Itinerario {
             tipo = testo(oggetto, "type", "tipo"),
             giorno = testo(oggetto, "giorno", "day", "date", "data"),
             descrizione = testo(oggetto, "description", "descrizione", "note"),
+            altro = altro(oggetto),
         )
     }
+
+    /**
+     * I campi che non finiscono in nessuna colonna.
+     *
+     * Si tiene **tutto** quello che non e' gia' altrove, con il nome che aveva
+     * nel file: e' l'unico modo di non perdere niente da un formato che non
+     * controlliamo. Gli oggetti e gli array annidati diventano il loro JSON
+     * compatto — brutto da leggere ma vero, e meglio di un campo scomparso.
+     */
+    private fun altro(oggetto: JsonObject): List<Pair<String, String>> = oggetto
+        .filterKeys { it.lowercase() !in RICONOSCIUTE }
+        .mapNotNull { (chiave, valore) ->
+            val testo = when (valore) {
+                is JsonPrimitive -> valore.contentOrNull?.trim()
+                else -> valore.toString()
+            }
+            testo?.takeUnless { it.isEmpty() || it == "null" }?.let { chiave to it }
+        }
+
+    /** Le chiavi che hanno gia' una colonna loro, in tutte le forme accettate. */
+    private val RICONOSCIUTE = setOf(
+        "lat", "latitude", "lng", "lon", "long", "longitude",
+        "name", "nome", "title", "titolo",
+        "type", "tipo",
+        "giorno", "day", "date", "data",
+        "description", "descrizione", "note",
+    )
 
     private fun testo(oggetto: JsonObject, vararg chiavi: String): String? = chiavi
         .asSequence()

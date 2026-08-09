@@ -2,8 +2,11 @@ package it.myacamperlife.app.rete
 
 import android.content.Context
 import it.myacamperlife.app.archivio.Archivio
+import it.myacamperlife.app.dominio.Dintorno
+import it.myacamperlife.app.dominio.Luogo
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Overpass
+import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.RispostaOsrm
 import it.myacamperlife.app.dominio.Tratta
@@ -98,14 +101,20 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
     /**
      * Scarica i dintorni: punti di interesse e toponimi lungo l'itinerario.
      *
-     * **Una richiesta sola**, con un corridoio di quindici chilometri intorno
-     * alla polilinea delle tappe. Sette categorie e i nomi dei paesi arrivano
-     * insieme e si separano leggendo i tag: su Overpass, che e' un servizio di
-     * cortesia, chiedere una volta invece di otto e' buona educazione.
+     * Un corridoio di quindici chilometri intorno alla polilinea delle tappe.
+     * Sette categorie e i nomi dei paesi arrivano insieme e si separano leggendo
+     * i tag: su Overpass, che e' un servizio di cortesia, chiedere quattro cose
+     * in una volta invece di dieci separate non e' efficienza, e' educazione.
      *
-     * E' la richiesta piu' pesante che l'app fa — decine o centinaia di
-     * kilobyte — e per questo si fa **una volta per viaggio**, quando si importa
-     * l'itinerario, o quando la si chiede.
+     * **L'itinerario si spezza in fette**, come per le tratte. Una richiesta sola
+     * su venti tappe non passa: il server la interrompe e risponde 200 con un
+     * `remark` e zero risultati, che e' esattamente il modo in cui questa
+     * funzione ha finto di lavorare per quattro fasi. Una fetta che fallisce non
+     * ferma le altre — mezzi dintorni sono meglio di nessun dintorno — e se
+     * nessuna riesce si riferisce **perche'**.
+     *
+     * E' la richiesta piu' pesante che l'app fa, e per questo si fa **una volta
+     * per viaggio**: quando si importa l'itinerario, o quando la si chiede.
      */
     suspend fun aggiornaDintorni(
         slug: String,
@@ -116,36 +125,87 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
         val punti = archivio.puntiDintorni(slug)
         if (punti.isEmpty()) return@withContext EsitoDintorni.SenzaTappe
 
-        val esito = Rete.postaConEsito(
-            indirizzo = Overpass.SERVIZIO,
-            corpo = Overpass.query(punti),
-            tipo = Rete.TESTO,
-            massimoCaratteri = Rete.MASSIMO_DINTORNI,
+        val poi = mutableListOf<Poi>()
+        val luoghi = mutableListOf<Luogo>()
+        var elementi = 0
+        var avvertimento: String? = null
+        var rifiuto: EsitoDintorni.Rifiutato? = null
+        var muto = false
+
+        // Le fette si sovrappongono di un punto, come per le tratte: il tratto
+        // fra l'ultima tappa di una e la prima della successiva altrimenti
+        // resterebbe scoperto.
+        punti.windowed(
+            size = Overpass.PUNTI_PER_RICHIESTA,
+            step = Overpass.PUNTI_PER_RICHIESTA - 1,
+            partialWindows = true,
+        ).forEach { fetta ->
+            if (fetta.isEmpty()) return@forEach
+
+            val esito = Rete.postaConEsito(
+                indirizzo = Overpass.SERVIZIO,
+                corpo = Overpass.query(fetta),
+                tipo = Rete.TESTO,
+                massimoCaratteri = Rete.MASSIMO_DINTORNI,
+            )
+
+            val corpo = when (esito) {
+                is EsitoHttp.Riuscito -> esito.corpo
+                // Overpass e' un servizio di cortesia e lo dice quando lo si
+                // strapazza: 429 vuol dire aspetta, 504 vuol dire hai chiesto
+                // troppo, 400 vuol dire che la query e' sbagliata — cioe' un
+                // difetto nostro. Tre rimedi diversi, e nessuno indovinabile da
+                // "non aggiornato". Una fetta rifiutata non ferma le altre.
+                is EsitoHttp.Rifiutato -> {
+                    rifiuto = EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
+                    return@forEach
+                }
+                EsitoHttp.Muto -> {
+                    muto = true
+                    return@forEach
+                }
+            }
+
+            // Il `remark` si legge **prima** degli elementi: una risposta 200 con
+            // zero risultati e un remark non e' una zona deserta, e' una query
+            // che il server ha interrotto.
+            Overpass.avvertimento(corpo)?.let { if (avvertimento == null) avvertimento = it }
+
+            val fette = Overpass.leggi(corpo)
+            elementi += fette.elementi
+            poi += fette.poi
+            luoghi += fette.luoghi
+        }
+
+        // Le fette si sovrappongono, quindi lo stesso posto arriva due volte:
+        // l'identificativo OSM lo riconosce, e togliere i doppioni qui evita di
+        // scrivere righe che la lettura scarterebbe comunque.
+        val dintorno = Dintorno(
+            poi = poi.distinctBy { it.id },
+            luoghi = luoghi.distinctBy { "${it.nome}|${it.lat}" },
+            elementi = elementi,
         )
 
-        val corpo = when (esito) {
-            is EsitoHttp.Riuscito -> esito.corpo
-            // Overpass e' un servizio di cortesia e lo dice quando lo si
-            // strapazza: 429 vuol dire aspetta, 504 vuol dire hai chiesto
-            // troppo, 400 vuol dire che la query e' sbagliata — cioe' un difetto
-            // nostro. Tre rimedi diversi, e nessuno indovinabile da "non
-            // aggiornato".
-            is EsitoHttp.Rifiutato ->
-                return@withContext EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
-            EsitoHttp.Muto -> return@withContext EsitoDintorni.SenzaRete
-        }
+        // Copie locali: sono variabili catturate da una lambda, e su quelle il
+        // compilatore non concede lo smart cast.
+        val detto = avvertimento
+        val rifiutata = rifiuto
 
-        val dintorno = Overpass.leggi(corpo)
-        // Trecento elementi arrivati e zero salvati non e' una zona deserta: e'
-        // una risposta che non sappiamo leggere. Distinguerlo qui e' il motivo
-        // per cui un `out` sbagliato non potra' piu' passare per "non c'e' campo".
-        if (dintorno.illeggibile) {
-            return@withContext EsitoDintorni.Illeggibile(dintorno.elementi)
+        when {
+            !dintorno.vuoto -> {
+                archivio.salvaDintorni(slug, dintorno, adesso)
+                EsitoDintorni.Riuscito(dintorno.poi.size, dintorno.luoghi.size)
+            }
+            // In ordine di quanto sono azionabili: prima quello che il server ha
+            // detto di se', poi il difetto nostro, poi la rete.
+            detto != null -> EsitoDintorni.Avvertito(detto)
+            rifiutata != null -> rifiutata
+            // Elementi arrivati e zero salvati non e' una zona deserta: e' una
+            // risposta che non sappiamo leggere.
+            dintorno.illeggibile -> EsitoDintorni.Illeggibile(dintorno.elementi)
+            muto -> EsitoDintorni.SenzaRete
+            else -> EsitoDintorni.Vuoto
         }
-        if (dintorno.vuoto) return@withContext EsitoDintorni.Vuoto
-
-        archivio.salvaDintorni(slug, dintorno, adesso)
-        EsitoDintorni.Riuscito(dintorno.poi.size, dintorno.luoghi.size)
     }
 
     /**
@@ -179,6 +239,13 @@ sealed interface EsitoDintorni {
 
     /** Ha risposto, e non abbiamo saputo leggere la risposta. E' un difetto. */
     data class Illeggibile(val elementi: Int) : EsitoDintorni
+
+    /**
+     * Ha risposto **200 con un avvertimento**: la query e' stata interrotta per
+     * tempo o memoria. E' il caso che per mesi si e' travestito da "qui non c'e'
+     * niente", e adesso porta il messaggio del server con se'.
+     */
+    data class Avvertito(val messaggio: String) : EsitoDintorni
 
     data class Rifiutato(val codice: Int, val messaggio: String?) : EsitoDintorni
 
