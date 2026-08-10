@@ -44,6 +44,16 @@ jobs:
       - name: Compila APK di debug
         run: ./gradlew assembleDebug
 
+      # Pubblicato subito, prima della release: se R8 inciampa, l'APK di debug
+      # di questo commit deve restare scaricabile comunque.
+      - name: Pubblica APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: myacamperlife-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
       # La chiave di firma arriva dai segreti del repository, in base64 perche'
       # un archivio di chiavi e' un file binario. Se i segreti non ci sono la
       # release esce non firmata, e il passo dopo serve comunque: e' quello che
@@ -82,14 +92,6 @@ jobs:
           name: referto-test
           path: app/build/reports/tests/
           if-no-files-found: ignore
-
-      - name: Pubblica APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: myacamperlife-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          retention-days: 30
-          if-no-files-found: error
 
       - name: Pubblica APK di release
         uses: actions/upload-artifact@v4

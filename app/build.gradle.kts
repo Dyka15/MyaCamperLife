@@ -1,3 +1,8 @@
+// Importato invece che scritto per esteso: in un build script `java` e' la
+// property dell'estensione Gradle, non il nome del package, e `java.util.*`
+// non si risolve.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -37,10 +42,10 @@ val commit: String = runCatching {
  * esce non firmato. Serve a verificare che R8 regga anche dove i segreti non
  * arrivano — un fork, un clone, una pull request.
  */
-val proprietaFirma: java.util.Properties? = rootProject.file("keystore.properties")
+val proprietaFirma: Properties? = rootProject.file("keystore.properties")
     .takeIf { it.isFile }
     ?.let { sorgente ->
-        java.util.Properties().apply { sorgente.inputStream().use { flusso -> load(flusso) } }
+        Properties().apply { sorgente.inputStream().use { flusso -> load(flusso) } }
     }
 
 fun segretoDiFirma(proprieta: String, ambiente: String): String? =
