@@ -803,6 +803,8 @@ fun ImpostazioniDialog(
     cartella: String?,
     cartellaAccessibile: Boolean,
     /** Quando la cartella e' stata sincronizzata, e quando la scorta e' stata presa. */
+    /** Come si chiama questa build: versione, numero, e commit. */
+    versione: String,
     sincronizzatoIl: OffsetDateTime?,
     meteoIl: OffsetDateTime?,
     dintorniIl: OffsetDateTime?,
@@ -1014,6 +1016,17 @@ fun ImpostazioniDialog(
                         onTocco = onAvvioAutomatico,
                     )
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // In fondo, e non in cima: non e' una cosa che si cerca, e' una
+                // cosa che serve quando qualcosa non va e bisogna dire quale
+                // build si sta usando.
+                Text(
+                    text = versione,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
         confirmButton = {

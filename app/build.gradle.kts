@@ -5,6 +5,24 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+/**
+ * Il commit da cui questo APK e' stato costruito.
+ *
+ * Serve alla nota di versione: `versionName` cambia una volta ogni tante fasi,
+ * mentre gli APK si susseguono a ogni push, e «che build ho installato?» e' la
+ * prima domanda davanti a un difetto. Il commit la risponde con certezza.
+ *
+ * Se git non c'e' — un sorgente scaricato come zip — resta "sviluppo": una nota
+ * senza commit e' meno utile, ma una compilazione che fallisce per questo
+ * sarebbe assurda.
+ */
+val commit: String = runCatching {
+    providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim()
+}.getOrNull()?.takeUnless { it.isEmpty() } ?: "sviluppo"
+
 android {
     namespace = "it.myacamperlife.app"
     compileSdk = 35
@@ -15,6 +33,8 @@ android {
         targetSdk = 35       // Android 15
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("String", "COMMIT", "\"$commit\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += setOf("it", "en")

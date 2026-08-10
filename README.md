@@ -47,9 +47,14 @@ Itinerario:
 **La scheda di una tappa** — un tocco sulla tappa e c'è tutto quello che l'app sa di quel
 posto, **senza rete**:
 
-- **tutto quello che il file dice di quella tappa**: la descrizione per intero, con i suoi
-  capoversi, **più ogni campo che il lettore non riconosce** — orari, telefono, quota, un
-  link. Prima finivano nel nulla senza che nessuno lo dicesse
+- **il programma della giornata per intero**, come sta scritto nell'itinerario: orari, durate,
+  cosa vedere e perché, dove si dorme. Il blocco `waypoints` porta nomi e coordinate, ma il
+  viaggio sta nel testo intorno — ottocento parole sul 10 agosto a Monaco contro un
+  `"description": "Marienplatz, Residenz"` — e fino a ieri l'app leggeva solo il secondo. È il
+  programma **della giornata**, quindi più tappe dello stesso giorno mostrano lo stesso testo:
+  l'itinerario è scritto così, e così si legge
+- **la descrizione della tappa** per intero, con i suoi capoversi, **più ogni campo che il
+  lettore non riconosce** — orari, telefono, quota, un link
 - il **meteo del suo giorno**, non di oggi: una tappa di giovedì porta la previsione di
   giovedì, con l'età del dato dichiarata come sempre
 - **cosa c'è nei dintorni di quella tappa**, una riga per categoria con quante ce ne sono e
@@ -227,7 +232,13 @@ di poterne fare a meno:
 L'APK viene compilato da GitHub Actions a ogni push e pubblicato come artifact
 scaricabile nella tab **Actions** del repository, anche dal browser del telefono.
 
-In `esempi/` c'è un itinerario con cui provare l'importazione.
+In fondo alle impostazioni c'è **la versione**, col numero di build e il commit da cui l'APK
+è stato costruito: `versionName` cambia una volta ogni tante fasi mentre gli APK si
+susseguono a ogni push, e «che build ho installato?» è la prima domanda davanti a un
+difetto.
+
+In `esempi/` ci sono due itinerari con cui provare l'importazione: uno breve e uno vero da
+diciotto giorni, con il programma giorno per giorno.
 
 ## Tecnologie
 

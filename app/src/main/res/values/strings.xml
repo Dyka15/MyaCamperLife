@@ -274,6 +274,10 @@
     <string name="itinerario_slittato">Spostate %1$d tappe di %2$d giorni</string>
     <string name="import_buchi">L\'itinerario salta %1$d giorni: se non è voluto, controlla il file</string>
 
+    <string name="impostazioni_versione">MyaCamperLife %1$s (%2$d) · %3$s</string>
+    <string name="scheda_programma">Il programma della giornata</string>
+    <string name="scheda_programma_giorno">Dall\'itinerario, giornata del %1$s</string>
+
     <!-- Le date di aggiornamento -->
     <string name="impostazioni_mai">mai</string>
     <string name="impostazioni_sincronizzato">Ultima sincronizzazione: %1$s</string>

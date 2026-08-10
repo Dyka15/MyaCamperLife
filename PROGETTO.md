@@ -98,6 +98,7 @@ foglio di calcolo senza conversioni.
 | `viaggi/<viaggio>/spese.csv` | Categoria, importo, modalità di pagamento, valuta |
 | `viaggi/<viaggio>/foto.csv` | Nome file, didascalia, coordinate |
 | `viaggi/<viaggio>/foto/*.jpg` | Le foto, nominate `foto_AAAAMMGG_HHMMSS[_localita].jpg` come oggi |
+| `viaggi/<viaggio>/itinerario.md` | **Il file dell'itinerario come è arrivato**, per intero: da qui si rilegge il programma di ogni giornata |
 | `viaggi/<viaggio>/diario.md` | **Il diario del viaggio, un unico file** |
 | `viaggi/<viaggio>/dossier.csv` | L'indice delle risposte del modello: domanda, tappa, chi ha risposto |
 | `viaggi/<viaggio>/dossier/*.md` | Le risposte per esteso, con le fonti e il contesto che l'app aveva passato |
@@ -258,6 +259,7 @@ rete.
 | Scegliere la cartella di archivio, e copiarci tutto | 9 |
 | **Sincronizzare** con la cartella: quello che c'è lì e qui manca entra, poi si ricopia tutto fuori | 13 |
 | Vedere **quando** meteo e dintorni sono stati scaricati, e quando la cartella è stata sincronizzata | 14 |
+| Vedere **la versione dell'app**, il numero di build e il commit | 15 |
 | Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |

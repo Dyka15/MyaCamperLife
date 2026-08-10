@@ -850,6 +850,35 @@ Come per Cicala, ogni fase produce un APK che fa qualcosa di verificabile.
 | **12** | Vedere le foto e gli scontrini dentro l'app: miniature nel diario, foto a schermo intero | scorri il diario e riconosci la giornata dalle immagini |
 | **13** | Assegnare la cartella **legge** quello che c'è dentro e lo fonde. Invito all'avvio quando manca | reinstalli l'app, indichi la cartella, ritrovi i viaggi |
 | **14** | Ritardi e anticipi, giorni senza buchi, contenuto integrale della tappa, date di aggiornamento | arrivi due giorni tardi e l'itinerario si sposta con te |
+| **15** | Il programma della giornata dal corpo Markdown dell'itinerario; nota di versione | apri Monaco e leggi le ottocento parole che il file gli dedica |
+
+### Il blocco `waypoints` non è l'itinerario
+
+Un itinerario vero — quello di diciotto giorni fra Baviera, Bratislava e Istria che sta in
+`esempi/` — è fatto così: in fondo un blocco JSON con nomi e coordinate, e sopra
+**trentatremila caratteri** di programma giorno per giorno. Il 10 agosto a Monaco ha
+ottocento parole: orari, durate, cosa vedere e perché, dove si dorme. Nel JSON la stessa
+tappa ha `"description": "Bici Englischer Garten, Marienplatz, Residenz, 2 notti"`.
+
+Per quattordici fasi l'app ha letto **solo il JSON**. Il resto del file veniva scartato senza
+che nessuno lo dicesse, e la scheda di una tappa mostrava sette parole al posto di ottocento.
+
+Tre decisioni:
+
+- **il legame è il giorno, non la tappa.** Le sezioni sono giornate — `## 6/8 — Giovedì` — e
+  in una giornata ci stanno più tappe: il 6 agosto si passa da Lonigo, Garmisch e l'Eibsee,
+  e il programma è lo stesso per tutte tre. Non è un'approssimazione: quel testo racconta la
+  giornata, non il singolo punto sulla mappa, ed è come il file è scritto.
+- **le sezioni che non sono giorni si scartano da sé.** `## RIEPILOGO KM GIORNALIERI`,
+  `## DOCUMENTI E CONSIGLI PRATICI`, `## BLOCCO MAPPA` non hanno una data nell'intestazione, e
+  `GiornoTappa` restituisce `null`. Nessun elenco di titoli da ignorare, che invecchierebbe al
+  primo itinerario scritto diversamente. Sul file vero: diciotto giornate riconosciute,
+  quattro sezioni di servizio ignorate, zero falsi positivi.
+- **il documento si conserva per intero** in `viaggi/<slug>/itinerario.md`, e il programma si
+  rilegge da lì a ogni apertura. Non si copia nelle righe delle tappe: è lo stesso testo per
+  tutte le tappe di una giornata, e duplicarlo gonfierebbe `tappe.csv` di qualche kilobyte per
+  tappa senza aggiungere niente. E conservare il sorgente significa che se domani la regola
+  per capirlo migliora, si applica a quello che c'è già.
 
 ### Il difetto dei dintorni, secondo atto
 

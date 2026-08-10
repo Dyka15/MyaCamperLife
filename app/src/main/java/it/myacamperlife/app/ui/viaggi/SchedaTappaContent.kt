@@ -39,6 +39,7 @@ import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.RiassuntoCategoria
 import it.myacamperlife.app.dominio.SchedaTappa
 import it.myacamperlife.app.dominio.Schede
+import it.myacamperlife.app.dominio.SezioneGiorno
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.TestoMeteo
@@ -71,6 +72,7 @@ fun SchedaTappaContent(
     tratte: Tratte,
     meteo: Meteo?,
     dossier: List<Dossier>,
+    programma: List<SezioneGiorno>,
     aiConfigurata: Boolean,
     inCorso: Boolean,
     onCheckin: (Tappa) -> Unit,
@@ -105,7 +107,7 @@ fun SchedaTappaContent(
 
         // Comporre una scheda costa qualche migliaio di distanze: si rifa'
         // quando cambiano i dati, non quando cambia una barra di attesa.
-        val composta = remember(tappa, tappe, poi, tratte, meteo, dossier) {
+        val composta = remember(tappa, tappe, poi, tratte, meteo, dossier, programma) {
             Schede.componi(
                 tappa = tappa,
                 tappe = tappe,
@@ -115,6 +117,7 @@ fun SchedaTappaContent(
                 meteo = meteo,
                 adesso = adesso,
                 dossier = dossier,
+                programma = programma,
             )
         }
 
@@ -174,6 +177,32 @@ private fun Scheda(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // **Il programma della giornata, per intero.** E' la parte piu' lunga
+        // della scheda e sta subito dopo la descrizione, perche' e' quella che si
+        // legge davvero: orari, durate, cosa vedere e perche'. Non si tronca e non
+        // si riassume — se l'itinerario dice ottocento parole sul 10 agosto a
+        // Monaco, sono ottocento parole che servono arrivando a Monaco.
+        scheda.programma?.takeUnless { it.vuota }?.let { giornata ->
+            item {
+                Sezione(R.string.scheda_programma) {
+                    giornata.titolo?.let { titolo ->
+                        Text(
+                            text = titolo,
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        )
+                    }
+                    if (giornata.testo.isNotBlank()) Corpo(giornata.testo)
+                    Text(
+                        text = stringResource(R.string.scheda_programma_giorno, giornata.etichetta),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
             }
         }

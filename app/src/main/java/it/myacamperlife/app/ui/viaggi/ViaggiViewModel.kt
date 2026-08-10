@@ -36,6 +36,7 @@ import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Schede
+import it.myacamperlife.app.dominio.SezioneGiorno
 import it.myacamperlife.app.dominio.SchedaTappa
 import it.myacamperlife.app.dominio.Slittamenti
 import it.myacamperlife.app.dominio.Slittamento
@@ -148,6 +149,12 @@ class ViaggiViewModel(
         val impostazioni: Impostazioni = Impostazioni(),
         /** L'ultimo contachilometri registrato: precompila la form. */
         val ultimoKm: Int? = null,
+        /**
+         * Il programma giorno per giorno, dall'itinerario originale. Sta nello
+         * stato per la stessa ragione del meteo: aprire la scheda di una tappa
+         * non deve leggere un file.
+         */
+        val programma: List<SezioneGiorno> = emptyList(),
         /** Quando la scorta e' stata presa: si mostra, perche' l'eta' conta. */
         val meteoIl: OffsetDateTime? = null,
         val dintorniIl: OffsetDateTime? = null,
@@ -315,6 +322,7 @@ class ViaggiViewModel(
                 dossier = archivio.dossier(slug),
                 quiVicino = archivio.dovePunto(slug),
                 ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
+                programma = archivio.programma(slug),
                 meteoIl = archivio.meteoAggiornatoIl(slug),
                 dintorniIl = archivio.dintorniAggiornatiIl(slug),
             )
@@ -337,6 +345,7 @@ class ViaggiViewModel(
                 dossier = dati.dossier,
                 quiVicino = dati.quiVicino,
                 ultimoKm = dati.ultimoKm,
+                programma = dati.programma,
                 meteoIl = dati.meteoIl,
                 dintorniIl = dati.dintorniIl,
             )
@@ -359,6 +368,7 @@ class ViaggiViewModel(
         val dossier: List<Dossier>,
         val quiVicino: Coordinate?,
         val ultimoKm: Int?,
+        val programma: List<SezioneGiorno>,
         val meteoIl: OffsetDateTime?,
         val dintorniIl: OffsetDateTime?,
     )
@@ -389,7 +399,14 @@ class ViaggiViewModel(
                         ?: documento.nome?.substringBeforeLast('.')?.trim()?.takeUnless { it.isEmpty() }
                         ?: "Viaggio senza nome"
                     archivio.prepara()
-                    val viaggio = archivio.creaViaggio(nome, letto.tappe, documento.nome)
+                    val viaggio = archivio.creaViaggio(
+                        nome = nome,
+                        punti = letto.tappe,
+                        importatoDa = documento.nome,
+                        // Il documento intero, non solo i waypoint: il programma
+                        // delle giornate sta nel testo, e prima si buttava.
+                        documento = documento.testo,
+                    )
                     // I giorni che l'itinerario salta si dicono subito: **un
                     // giorno di viaggio e' un giorno di viaggio anche se non ci si
                     // sposta**, e un giorno mancante e' quasi sempre una

@@ -18,11 +18,13 @@ import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Overpass
 import it.myacamperlife.app.dominio.Poi
+import it.myacamperlife.app.dominio.Programmi
 import it.myacamperlife.app.dominio.Punto
 import it.myacamperlife.app.dominio.PuntoMeteo
 import it.myacamperlife.app.dominio.PuntoTratta
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.SezioneGiorno
 import it.myacamperlife.app.dominio.Slittamenti
 import it.myacamperlife.app.dominio.RispostaModello
 import it.myacamperlife.app.dominio.Spesa
@@ -310,6 +312,16 @@ class Archivio(private val radice: File) {
         nome: String,
         punti: List<Waypoint>,
         importatoDa: String? = null,
+        /**
+         * Il documento come e' arrivato.
+         *
+         * **Si conserva per intero**, e non per scrupolo d'archivio: il blocco
+         * `waypoints` porta nomi e coordinate, ma il viaggio sta nel testo
+         * intorno — orari, durate, cosa vedere, dove si dorme. Copiarlo dentro il
+         * viaggio significa che quella parte non si perde e che si puo' rileggere
+         * meglio domani, se la regola per capirla migliora.
+         */
+        documento: String? = null,
         oggi: LocalDate = LocalDate.now(),
         adesso: OffsetDateTime = OffsetDateTime.now(),
     ): Viaggio {
@@ -336,8 +348,33 @@ class Archivio(private val radice: File) {
             )
         }
         tabellaTappe(viaggio.slug).accodaTutte(tappe.map { TappeTabella.riga(it, ts) })
+        documento?.let { scriviItinerario(viaggio.slug, it) }
         return viaggio
     }
+
+    /** Il file dell'itinerario come e' arrivato, dentro la cartella del viaggio. */
+    fun fileItinerario(slug: String): File = File(cartellaViaggio(slug), NOME_ITINERARIO)
+
+    fun scriviItinerario(slug: String, documento: String) {
+        cartellaViaggio(slug).mkdirs()
+        fileItinerario(slug).writeText(documento, Charsets.UTF_8)
+    }
+
+    fun itinerario(slug: String): String? =
+        fileItinerario(slug).takeIf { it.isFile }?.let {
+            runCatching { it.readText(Charsets.UTF_8) }.getOrNull()
+        }
+
+    /**
+     * Il programma giorno per giorno, letto dall'itinerario originale.
+     *
+     * Si rilegge dal file invece di essere copiato nelle righe delle tappe: e' lo
+     * stesso testo per tutte le tappe di una giornata, e duplicarlo in ogni riga
+     * gonfierebbe `tappe.csv` di qualche kilobyte per tappa senza aggiungere
+     * niente.
+     */
+    fun programma(slug: String, oggi: LocalDate = LocalDate.now()): List<SezioneGiorno> =
+        itinerario(slug)?.let { Programmi.sezioni(it, oggi) }.orEmpty()
 
     fun tappe(slug: String): List<Tappa> = tabellaTappe(slug)
         .vive()
@@ -1327,6 +1364,19 @@ class Archivio(private val radice: File) {
             appendLine()
             appendLine("Le chiavi API non stanno qui: vivono nell'archivio cifrato dell'app.")
             appendLine()
+            appendLine("## itinerario.md")
+            appendLine()
+            appendLine("Il file dell'itinerario **come e' arrivato**, copiato per intero.")
+            appendLine("Il blocco `waypoints` porta nomi e coordinate, ma il viaggio sta nel")
+            appendLine("testo intorno: orari, durate, cosa vedere e dove si dorme, giorno per")
+            appendLine("giorno. La scheda di una tappa rilegge da qui il programma della sua")
+            appendLine("giornata, cercando l'intestazione `## <data>` che le corrisponde — e")
+            appendLine("piu' tappe dello stesso giorno mostrano lo stesso programma, perche' e'")
+            appendLine("della giornata e non del singolo punto.")
+            appendLine()
+            appendLine("Si conserva anche per un'altra ragione: se domani il modo di leggerlo")
+            appendLine("migliora, si applica a quello che c'e' gia'.")
+            appendLine()
             appendLine("## diario.md")
             appendLine()
             appendLine("Non e' una tabella: e' il diario del viaggio, una sezione per giorno.")
@@ -1355,6 +1405,7 @@ class Archivio(private val radice: File) {
     companion object {
         const val NOME_CARTELLA = "MyaCamperLife"
         private const val NOME_VIAGGIO = "viaggio.json"
+        private const val NOME_ITINERARIO = "itinerario.md"
         private const val NOME_IMPOSTAZIONI = "impostazioni.json"
 
         /**

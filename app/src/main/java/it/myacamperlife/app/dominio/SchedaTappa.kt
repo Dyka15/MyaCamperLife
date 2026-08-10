@@ -38,6 +38,15 @@ data class SchedaTappa(
     val percorso: Percorso?,
     /** Le risposte del modello gia' salvate per questa tappa: si rileggono offline. */
     val dossier: List<Dossier>,
+    /**
+     * Il programma della giornata come sta scritto nell'itinerario.
+     *
+     * E' **della giornata, non della tappa**: il 6 agosto si passa da Lonigo,
+     * Garmisch e l'Eibsee, e quel testo racconta il giorno intero. Piu' tappe
+     * dello stesso giorno mostrano quindi lo stesso programma, ed e' giusto —
+     * l'itinerario e' scritto cosi', e cosi' si legge.
+     */
+    val programma: SezioneGiorno? = null,
 ) {
     val descrizione: String? get() = tappa.descrizione?.trim()?.takeUnless { it.isEmpty() }
 
@@ -74,6 +83,7 @@ object Schede {
         meteo: Meteo? = null,
         adesso: OffsetDateTime? = null,
         dossier: List<Dossier> = emptyList(),
+        programma: List<SezioneGiorno> = emptyList(),
     ): SchedaTappa {
         val giorno = GiornoTappa.leggi(tappa.giorno, oggi)
 
@@ -102,6 +112,7 @@ object Schede {
                 )
             },
             dossier = dossier.filter { it.tappa != null && it.tappa == tappa.nome },
+            programma = Programmi.per(programma, giorno),
         )
     }
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import it.myacamperlife.app.BuildConfig
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Specchio
@@ -359,6 +360,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     tratte = stato.tratte,
                     meteo = stato.meteo,
                     dossier = stato.dossier,
+                    programma = stato.programma,
                     aiConfigurata = vista.aiConfigurata(),
                     inCorso = stato.inCorso,
                     onCheckin = { tappa -> conPosizione { vista.checkin(tappa) } },
@@ -645,6 +647,12 @@ fun MyaApp(vista: ViaggiViewModel) {
             scortaDisponibile = stato.aperto != null,
             cartella = cartellaScelta?.let { Specchio.nome(contesto, it) },
             cartellaAccessibile = cartellaScelta?.let { Specchio.accessibile(contesto, it) } ?: false,
+            versione = stringResource(
+                R.string.impostazioni_versione,
+                BuildConfig.VERSION_NAME,
+                BuildConfig.VERSION_CODE,
+                BuildConfig.COMMIT,
+            ),
             sincronizzatoIl = stato.impostazioni.sincronizzatoIl?.let { salvata ->
                 runCatching { OffsetDateTime.parse(salvata) }.getOrNull()
             },
