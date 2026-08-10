@@ -14,6 +14,12 @@ local.properties
 .externalNativeBuild
 .cxx
 
+# Chiavi di firma. L'archivio e le sue password non si versionano: chi ha
+# questi file puo' pubblicare un aggiornamento a nome dell'app.
+keystore.properties
+*.jks
+*.keystore
+
 # Android Studio / IntelliJ
 *.iml
 .idea/

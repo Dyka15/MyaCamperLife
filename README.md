@@ -240,6 +240,43 @@ difetto.
 In `esempi/` ci sono due itinerari con cui provare l'importazione: uno breve e uno vero da
 diciotto giorni, con il programma giorno per giorno.
 
+## Installarla per davvero
+
+Oltre all'APK di debug, ogni push compila anche **l'APK di release**: minificato da R8, con
+le risorse non usate rimosse, e firmato se il repository ha la chiave nei segreti. È quello
+da portare in viaggio — il debug ha i controlli interni accesi e pesa di più.
+
+**La chiave si crea una volta e si conserva.** Android accetta un aggiornamento solo se è
+firmato con la stessa chiave di quello installato: perderla vuol dire non poter più
+aggiornare l'app sul telefono, solo disinstallarla. Il comando è in
+[keystore.properties.esempio](keystore.properties.esempio), che spiega anche i quattro
+valori. In locale li legge da `keystore.properties` nella radice (non versionato); in CI
+dalle variabili d'ambiente, che arrivano da quattro segreti del repository:
+
+| Segreto | Cos'è |
+|---|---|
+| `MYA_KEYSTORE_BASE64` | l'archivio `.jks` in base64 — `base64 -w0 mya.jks` |
+| `MYA_KEYSTORE_PASSWORD` | la password dell'archivio |
+| `MYA_KEY_ALIAS` | il nome della chiave dentro l'archivio |
+| `MYA_KEY_PASSWORD` | la password della chiave |
+
+Senza i segreti la compilazione **non** fallisce: esce un `app-release-unsigned.apk`, che
+non si installa ma dimostra che R8 regge. È di proposito — così un fork compila.
+
+⚠️ **Passando dal debug alla release, la prima volta va disinstallata l'app.** Le due sono
+firmate con chiavi diverse e Android rifiuta la sostituzione; disinstallare porta via l'area
+privata, cioè i CSV. Prima di farlo: assegna una cartella nelle impostazioni e attendi lo
+specchio, poi reinstalla e riassegna la stessa cartella — la sincronizzazione fonde i file
+trovati e l'archivio torna. È lo stesso percorso di un cambio di telefono, e per questo la
+fusione esiste.
+
+Se qualcosa nella release si comporta diversamente dal debug, il sospetto numero uno è una
+regola di R8 mancante: le regole stanno in [app/proguard-rules.pro](app/proguard-rules.pro),
+ognuna col motivo per cui esiste, e `isMinifyEnabled = false` in `app/build.gradle.kts` è la
+via di fuga in una riga. La mappa dei nomi offuscati viene pubblicata come artifact
+`mappa-r8` assieme all'APK: serve a rileggere una traccia di crash, e vale solo per quel
+build.
+
 ## Tecnologie
 
 Kotlin, Jetpack Compose (Material 3), file CSV e Markdown su archiviazione locale.

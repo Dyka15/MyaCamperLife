@@ -44,6 +44,37 @@ jobs:
       - name: Compila APK di debug
         run: ./gradlew assembleDebug
 
+      # La chiave di firma arriva dai segreti del repository, in base64 perche'
+      # un archivio di chiavi e' un file binario. Se i segreti non ci sono la
+      # release esce non firmata, e il passo dopo serve comunque: e' quello che
+      # verifica R8, e un `-keep` mancante si vede solo compilando la release.
+      - name: Chiave di firma, se c'e'
+        id: chiave
+        env:
+          ARCHIVIO_BASE64: ${{ secrets.MYA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ARCHIVIO_BASE64" ]; then
+            printf '%s' "$ARCHIVIO_BASE64" | base64 -d > "$RUNNER_TEMP/mya.jks"
+            echo "archivio=$RUNNER_TEMP/mya.jks" >> "$GITHUB_OUTPUT"
+            echo "Chiave trovata: la release sara' firmata."
+          else
+            echo "Nessuna chiave nei segreti: la release restera' non firmata."
+          fi
+
+      - name: Compila APK di release
+        env:
+          MYA_KEYSTORE: ${{ steps.chiave.outputs.archivio }}
+          MYA_KEYSTORE_PASSWORD: ${{ secrets.MYA_KEYSTORE_PASSWORD }}
+          MYA_KEY_ALIAS: ${{ secrets.MYA_KEY_ALIAS }}
+          MYA_KEY_PASSWORD: ${{ secrets.MYA_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      # L'archivio decifrato non sopravvive al job nemmeno se qualcosa e'
+      # fallito: `always()` vale anche quando la compilazione cade.
+      - name: Cancella la chiave dal runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/mya.jks"
+
       - name: Pubblica referto dei test se falliscono
         if: failure()
         uses: actions/upload-artifact@v4
@@ -59,3 +90,22 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
           if-no-files-found: error
+
+      - name: Pubblica APK di release
+        uses: actions/upload-artifact@v4
+        with:
+          name: myacamperlife-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 90
+          if-no-files-found: error
+
+      # La mappa dei nomi offuscati. Senza, una traccia di crash della release
+      # e' illeggibile; e vale solo per **quell'** APK, quindi va conservata
+      # assieme a lui.
+      - name: Pubblica la mappa di R8
+        uses: actions/upload-artifact@v4
+        with:
+          name: mappa-r8
+          path: app/build/outputs/mapping/release/
+          retention-days: 90
+          if-no-files-found: warn

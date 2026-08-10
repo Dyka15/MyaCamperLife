@@ -23,6 +23,30 @@ val commit: String = runCatching {
     }.standardOutput.asText.get().trim()
 }.getOrNull()?.takeUnless { it.isEmpty() } ?: "sviluppo"
 
+/**
+ * La chiave con cui si firma la release, se questa macchina ne ha una.
+ *
+ * Due sorgenti, nell'ordine: un `keystore.properties` nella radice del progetto
+ * — comodo su una macchina di casa — e le variabili d'ambiente, che sono la via
+ * della CI, dove i segreti arrivano da GitHub e non da un file.
+ *
+ * Il file non e' versionato e non deve esserlo: contiene le password
+ * dell'archivio di chiavi. Il `.gitignore` lo esclude assieme ai `.jks`.
+ *
+ * Se la chiave non c'e', la compilazione **non** fallisce: l'APK di release
+ * esce non firmato. Serve a verificare che R8 regga anche dove i segreti non
+ * arrivano — un fork, un clone, una pull request.
+ */
+val proprietaFirma: java.util.Properties? = rootProject.file("keystore.properties")
+    .takeIf { it.isFile }
+    ?.let { sorgente ->
+        java.util.Properties().apply { sorgente.inputStream().use { flusso -> load(flusso) } }
+    }
+
+fun segretoDiFirma(proprieta: String, ambiente: String): String? =
+    (proprietaFirma?.getProperty(proprieta) ?: System.getenv(ambiente))
+        ?.takeUnless { it.isBlank() }
+
 android {
     namespace = "it.myacamperlife.app"
     compileSdk = 35
@@ -40,13 +64,41 @@ android {
         resourceConfigurations += setOf("it", "en")
     }
 
+    // La chiave si dichiara solo se c'e' tutta: un archivio senza password, o
+    // una password senza alias, farebbe fallire la compilazione con un errore
+    // che parla di Gradle invece di dire cosa manca.
+    val archivioChiavi = segretoDiFirma("archivio", "MYA_KEYSTORE")
+        ?.let { percorso -> file(percorso) }
+        ?.takeIf { it.isFile }
+    val passwordArchivio = segretoDiFirma("passwordArchivio", "MYA_KEYSTORE_PASSWORD")
+    val aliasChiave = segretoDiFirma("alias", "MYA_KEY_ALIAS")
+    val passwordChiave = segretoDiFirma("passwordChiave", "MYA_KEY_PASSWORD")
+
+    if (archivioChiavi != null && passwordArchivio != null &&
+        aliasChiave != null && passwordChiave != null
+    ) {
+        signingConfigs.create("rilascio") {
+            storeFile = archivioChiavi
+            storePassword = passwordArchivio
+            keyAlias = aliasChiave
+            keyPassword = passwordChiave
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 accorcia e offusca. Le regole che tengono in piedi le parti
+            // raggiunte per riflessione stanno in proguard-rules.pro, dove ogni
+            // `-keep` dice perche' esiste.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // `null` quando la chiave non c'e': l'APK esce non firmato e il
+            // nome del file lo dice — `app-release-unsigned.apk`.
+            signingConfig = signingConfigs.findByName("rilascio")
         }
     }
 
