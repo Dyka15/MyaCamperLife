@@ -3,6 +3,8 @@ package it.myacamperlife.app.ui.viaggi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -339,7 +341,16 @@ private fun Testata(scheda: SchedaTappa, quante: Int) {
     }
 }
 
-/** Le stesse azioni del vecchio dialogo, piu' l'apertura nella mappa. */
+/**
+ * Le stesse azioni del vecchio dialogo, piu' l'apertura nella mappa.
+ *
+ * In `FlowRow` e non in `Row`: «Sono arrivato», «Salta» e «Apri nella mappa»
+ * stanno in fila su uno schermo largo e a carattere normale, ma non su uno
+ * stretto o a carattere ingrandito — e una `Row` non lo dice, schiaccia
+ * l'ultimo figlio finche' il testo va a capo una lettera per riga. Il flusso
+ * manda a capo il pulsante intero.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Azioni(
     scheda: SchedaTappa,
@@ -358,7 +369,7 @@ private fun Azioni(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-        Row(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp),

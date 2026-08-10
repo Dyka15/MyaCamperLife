@@ -927,18 +927,22 @@ fun ImpostazioniDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row {
-                        TextButton(
-                            enabled = cartellaAccessibile,
-                            onClick = { onChiudi(); onSincronizza() },
-                        ) { Text(stringResource(R.string.impostazioni_sincronizza)) }
-                        TextButton(
-                            enabled = cartellaAccessibile,
-                            onClick = { onChiudi(); onEsporta() },
-                        ) { Text(stringResource(R.string.impostazioni_esporta)) }
-                        TextButton(onClick = { onChiudi(); onSpegniCartella() }) {
-                            Text(stringResource(R.string.impostazioni_spegni_cartella))
-                        }
+                    // Uno per riga, non in fila: tre etichette in italiano non
+                    // stanno nella larghezza di un dialogo, e una `Row` non lo
+                    // dice — schiaccia l'ultimo figlio finche' il testo va a capo
+                    // una lettera per riga. Impilati stanno larghi a qualunque
+                    // dimensione di carattere, che e' la cosa che non si puo'
+                    // provare guardando una sola schermata.
+                    TextButton(
+                        enabled = cartellaAccessibile,
+                        onClick = { onChiudi(); onSincronizza() },
+                    ) { Text(stringResource(R.string.impostazioni_sincronizza)) }
+                    TextButton(
+                        enabled = cartellaAccessibile,
+                        onClick = { onChiudi(); onEsporta() },
+                    ) { Text(stringResource(R.string.impostazioni_esporta)) }
+                    TextButton(onClick = { onChiudi(); onSpegniCartella() }) {
+                        Text(stringResource(R.string.impostazioni_spegni_cartella))
                     }
                 }
 
