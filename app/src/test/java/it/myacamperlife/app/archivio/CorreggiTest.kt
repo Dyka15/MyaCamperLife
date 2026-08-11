@@ -382,8 +382,71 @@ class CorreggiTest {
         archivio.cancellaVoce(s, Genere.ARRIVO, id, adesso = oggi)
 
         // Sono due fatti distinti in due file distinti: la voce di diario se ne
-        // va, lo stato della tappa si cambia dalla sua scheda.
+        // va, e la tappa resta spuntata. Per disfare le due cose insieme c'e'
+        // `annullaCheckin`.
         assertTrue(archivio.voci(s).none { it.genere == Genere.ARRIVO })
         assertEquals(StatoTappa.FATTA, archivio.tappe(s).first().stato)
+    }
+
+    // --- annullare un check-in ------------------------------------------------
+
+    @Test
+    fun `annullare un check-in disfa le due scritture che l'avevano fatto`() {
+        val s = slug
+        val tappa = archivio.tappe(s).first()
+        archivio.checkin(s, tappa, posizione = Posizione(42.7185, 12.1112), adesso = oggi)
+
+        assertTrue(archivio.annullaCheckin(s, archivio.tappe(s).first(), adesso = oggi))
+
+        // La tappa torna da fare e perde l'ora d'arrivo...
+        val tornata = archivio.tappe(s).first()
+        assertEquals(StatoTappa.DA_FARE, tornata.stato)
+        assertNull(tornata.checkinIl)
+        // ...e l'arrivo esce dal diario. Lasciarne una sola sarebbe una mezza
+        // verita': un diario che racconta un arrivo mai avvenuto, o una tappa da
+        // fare con dentro l'ora in cui ci sei arrivato.
+        assertTrue(archivio.voci(s).none { it.genere == Genere.ARRIVO })
+        // E "dove sei" torna a non saperlo, che e' la ragione per cui il gesto
+        // esiste: era questo a mandare fuori strada il riepilogo della sera.
+        assertNull(archivio.luogo(s))
+    }
+
+    @Test
+    fun `annullare non cancella niente dal file`() {
+        val s = slug
+        val tappa = archivio.tappe(s).first()
+        archivio.checkin(s, tappa, posizione = Posizione(42.7185, 12.1112), adesso = oggi)
+        archivio.annullaCheckin(s, archivio.tappe(s).first(), adesso = oggi)
+
+        // Tutte aggiunte: la riga che diceva "fatta" e quella dell'arrivo sono
+        // ancora scritte, e il file racconta ancora che quel check-in c'era
+        // stato. E' la stessa promessa di correggere e cancellare una voce.
+        val testo = File(archivio.cartellaViaggio(s), TappeTabella.NOME_FILE).readText()
+        assertTrue(testo, testo.contains("fatta"))
+        assertTrue(testo, testo.contains("da_fare"))
+    }
+
+    @Test
+    fun `annullare un check-in che non c'e' non fa niente e lo dice`() {
+        val s = slug
+        // Nessun check-in su questa tappa: non c'e' niente da disfare, e la
+        // funzione lo dice invece di scrivere una riga inutile.
+        assertTrue(!archivio.annullaCheckin(s, archivio.tappe(s).first(), adesso = oggi))
+        assertEquals(StatoTappa.DA_FARE, archivio.tappe(s).first().stato)
+    }
+
+    @Test
+    fun `con l'orologio indietro l'annullamento vale comunque`() {
+        val s = slug
+        val tappa = archivio.tappe(s).first()
+        archivio.checkin(s, tappa, posizione = Posizione(42.7185, 12.1112), adesso = oggi)
+
+        // Il telefono ha l'ora sbagliata e "adesso" cade prima del check-in: la
+        // lapide con un `ts` piu' vecchio non cancellerebbe niente, e la
+        // funzione riferirebbe un successo che non c'e' stato.
+        archivio.annullaCheckin(s, archivio.tappe(s).first(), adesso = ieri)
+
+        assertTrue(archivio.voci(s).none { it.genere == Genere.ARRIVO })
+        assertEquals(StatoTappa.DA_FARE, archivio.tappe(s).first().stato)
     }
 }

@@ -84,6 +84,10 @@ fun SchedaTappaContent(
     onDossier: (Dossier) -> Unit,
     /** Cerca i dintorni **di questa** tappa: un punto, una richiesta, salvata. */
     onScarica: (Tappa) -> Unit,
+    /** Disfa un check-in dato per errore. Chiede conferma prima. */
+    onAnnullaCheckin: (Tappa) -> Unit,
+    /** Sposta le date da questa tappa in avanti, questa compresa. */
+    onSpostaDate: (Tappa) -> Unit,
     onTappaCambiata: (Tappa) -> Unit,
 ) {
     if (tappe.isEmpty()) return
@@ -135,6 +139,8 @@ fun SchedaTappaContent(
             onChiedi = { onChiedi(tappa) },
             onDossier = onDossier,
             onScarica = { onScarica(tappa) },
+            onAnnullaCheckin = { onAnnullaCheckin(tappa) },
+            onSpostaDate = { onSpostaDate(tappa) },
         )
     }
 }
@@ -151,13 +157,15 @@ private fun Scheda(
     onChiedi: () -> Unit,
     onDossier: (Dossier) -> Unit,
     onScarica: () -> Unit,
+    onAnnullaCheckin: () -> Unit,
+    onSpostaDate: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 96.dp),
     ) {
         item { Testata(scheda, quante) }
-        item { Azioni(scheda, onCheckin, onAlterna, onMappa) }
+        item { Azioni(scheda, onCheckin, onAlterna, onMappa, onAnnullaCheckin, onSpostaDate) }
 
         // Tutto quello che il file diceva di questa tappa: la descrizione con i
         // suoi capi, e i campi che il lettore non riconosce — orari, telefono,
@@ -354,6 +362,8 @@ private fun Azioni(
     onCheckin: () -> Unit,
     onAlterna: () -> Unit,
     onMappa: () -> Unit,
+    onAnnullaCheckin: () -> Unit,
+    onSpostaDate: () -> Unit,
 ) {
     Column {
         Text(
@@ -388,6 +398,18 @@ private fun Azioni(
                         },
                     )
                 }
+            }
+            // **Il gesto che mancava.** Su una tappa fatta non c'era niente da
+            // fare: "salta/ripristina" non tocca una tappa fatta — e ha ragione
+            // — quindi un check-in dato per sbaglio restava per sempre, e con
+            // lui dove sei, la prossima tappa e il riepilogo della sera.
+            if (scheda.tappa.stato == StatoTappa.FATTA) {
+                TextButton(onClick = onAnnullaCheckin) {
+                    Text(stringResource(R.string.azione_annulla_checkin))
+                }
+            }
+            TextButton(onClick = onSpostaDate) {
+                Text(stringResource(R.string.azione_sposta_date))
             }
             TextButton(onClick = onMappa) {
                 Text(stringResource(R.string.scheda_apri_mappa))

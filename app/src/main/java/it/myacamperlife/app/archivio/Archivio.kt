@@ -391,7 +391,7 @@ class Archivio(private val radice: File) {
      * fallire perche' manca la rete.
      */
     fun checkin(slug: String, tappa: Tappa, posizione: Posizione? = null, adesso: OffsetDateTime = OffsetDateTime.now()) {
-        val ts = ts(adesso)
+        val ts = ts(dopoLaTappa(slug, tappa, adesso))
         val fatta = Tappe.checkin(tappa, adesso)
         tabellaTappe(slug).accoda(TappeTabella.riga(fatta, ts))
         tabellaSpostamenti(slug).accoda(
@@ -407,11 +407,77 @@ class Archivio(private val radice: File) {
         aggiornaDiario(slug, adesso.toLocalDate())
     }
 
+    /**
+     * Disfa un check-in dato per errore: la tappa torna da fare e l'arrivo esce
+     * dal diario.
+     *
+     * **Due scritture, perche' il check-in ne aveva fatte due.** La tappa torna
+     * `da_fare` con una riga nuova, e la riga d'arrivo nel diario prende la sua
+     * lapide: lasciarne una sola vorrebbe dire un diario che racconta un arrivo
+     * mai avvenuto, oppure una tappa da fare con dentro l'ora in cui ci sei
+     * arrivato. Nessuna delle due mezze verita' e' meglio del difetto.
+     *
+     * **Niente si cancella davvero**: entrambe le scritture sono aggiunte, e le
+     * righe di prima restano nel file. Se un giorno si volesse sapere che quel
+     * check-in c'era stato, il file lo dice ancora.
+     *
+     * La riga d'arrivo si riconosce dal nome della tappa e si prende **l'ultima**:
+     * se hai fatto check-in due volte sullo stesso posto, quella che annulli e'
+     * la piu' recente, che e' anche l'unica che puoi aver appena sbagliato.
+     *
+     * @return `false` se la tappa non era fatta — non c'era niente da disfare.
+     */
+    fun annullaCheckin(slug: String, tappa: Tappa, adesso: OffsetDateTime = OffsetDateTime.now()): Boolean {
+        val tornata = Tappe.annullaCheckin(tappa)
+        if (tornata == tappa) return false
+
+        // Il `ts` deve **vincere** su quello della riga che dice "fatta": con un
+        // orologio indietro — un telefono appena riaccesso, un fuso sbagliato —
+        // una riga piu' vecchia perderebbe la risoluzione «vince l'ultima», e
+        // l'annullamento riferirebbe un successo che non c'e' stato.
+        tabellaTappe(slug).accoda(TappeTabella.riga(tornata, ts(dopoLaTappa(slug, tappa, adesso))))
+
+        val spostamenti = tabellaSpostamenti(slug)
+        spostamenti.vive()
+            .lastOrNull {
+                it.testo(SpostamentiTabella.GENERE) == SpostamentiTabella.ARRIVO &&
+                    it.testo(SpostamentiTabella.TAPPA) == tappa.nome
+            }
+            ?.let { riga ->
+                val id = riga.id ?: return@let
+                spostamenti.accoda(
+                    mapOf(
+                        Csv.ID to id,
+                        Csv.TS to ts(dopoDi(riga, adesso)),
+                        Csv.CANCELLATO to Csv.booleano(true),
+                    ),
+                )
+                riga.quando?.toLocalDate()?.let { aggiornaDiario(slug, it) }
+            }
+
+        aggiornaDiario(slug, adesso.toLocalDate())
+        return true
+    }
+
     /** Salta la tappa, o la ripristina se era gia' saltata. */
     fun alternaSalto(slug: String, tappa: Tappa, adesso: OffsetDateTime = OffsetDateTime.now()) {
         val cambiata = Tappe.alterna(tappa)
         if (cambiata == tappa) return
-        tabellaTappe(slug).accoda(TappeTabella.riga(cambiata, ts(adesso)))
+        tabellaTappe(slug).accoda(TappeTabella.riga(cambiata, ts(dopoLaTappa(slug, tappa, adesso))))
+    }
+
+    /**
+     * Un istante che viene **dopo** l'ultima riga di questa tappa.
+     *
+     * Le tabelle si risolvono con "vince l'ultima per `ts`", e un orologio
+     * indietro — un telefono appena riaccesso, un fuso preso male — farebbe
+     * scrivere una riga che perde contro quella che vuole sostituire: il gesto
+     * sembra riuscito e non cambia niente. E' la stessa protezione che
+     * [dopoDi] da' alle correzioni, applicata allo stato di una tappa.
+     */
+    private fun dopoLaTappa(slug: String, tappa: Tappa, adesso: OffsetDateTime): OffsetDateTime {
+        val riga = tabellaTappe(slug).vive().firstOrNull { it.id == tappa.id } ?: return adesso
+        return dopoDi(riga, adesso)
     }
 
     /**
@@ -647,8 +713,9 @@ class Archivio(private val radice: File) {
         giorni: Long,
         oggi: LocalDate = LocalDate.now(),
         adesso: OffsetDateTime = OffsetDateTime.now(),
+        compresa: Boolean = false,
     ): Int {
-        val cambiate = Slittamenti.slitta(tappe(slug), da, giorni, oggi)
+        val cambiate = Slittamenti.slitta(tappe(slug), da, giorni, oggi, compresa)
         if (cambiate.isEmpty()) return 0
         val ts = ts(adesso)
         tabellaTappe(slug).accodaTutte(cambiate.map { TappeTabella.riga(it, ts) })

@@ -244,6 +244,15 @@ class ViaggiViewModel(
         data class FuoriProgramma(val tappa: Tappa, val slittamento: Slittamento) : Avviso
 
         data class ItinerarioSlittato(val tappe: Int, val giorni: Long) : Avviso
+
+        /**
+         * Nessuna tappa da spostare: erano tutte fatte, saltate, o senza una data
+         * leggibile. Si dice, perche' un gesto che non fa niente in silenzio
+         * sembra un gesto che non funziona.
+         */
+        data object NienteDaSpostare : Avviso
+
+        data class CheckinAnnullato(val tappa: String) : Avviso
         data object NotaRegistrata : Avviso
         data object VoceCorretta : Avviso
         data object VoceCancellata : Avviso
@@ -463,6 +472,30 @@ class ViaggiViewModel(
     fun slitta(tappa: Tappa, giorni: Long) = operazione { slug ->
         val quante = archivio.slittaTappe(slug, tappa, giorni)
         if (quante == 0) null else Avviso.ItinerarioSlittato(quante, giorni)
+    }
+
+    /**
+     * Sposta l'itinerario **a mano**, da questa tappa in avanti, questa compresa.
+     *
+     * Serve dove la proposta automatica non arriva: un ritardo che si sa la sera
+     * prima, o il rimedio a uno slittamento accettato per sbaglio — che prima non
+     * aveva nessun gesto inverso, perche' [slitta] viveva solo dentro la proposta
+     * che segue un check-in.
+     */
+    fun spostaDate(tappa: Tappa, giorni: Long) = operazione { slug ->
+        val quante = archivio.slittaTappe(slug, tappa, giorni, compresa = true)
+        if (quante == 0) Avviso.NienteDaSpostare else Avviso.ItinerarioSlittato(quante, giorni)
+    }
+
+    /**
+     * Disfa un check-in dato per errore.
+     *
+     * Era l'unico gesto dell'app senza ritorno, e non per scelta: lo stato di una
+     * tappa si cambiava solo con "salta/ripristina", che su una tappa fatta —
+     * giustamente — non fa niente.
+     */
+    fun annullaCheckin(tappa: Tappa) = operazione { slug ->
+        if (archivio.annullaCheckin(slug, tappa)) Avviso.CheckinAnnullato(tappa.nome) else null
     }
 
     fun alternaSalto(tappa: Tappa) = operazione { slug ->

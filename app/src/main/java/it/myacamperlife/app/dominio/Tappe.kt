@@ -36,6 +36,25 @@ object Tappe {
     )
 
     /**
+     * Disfa un check-in: la tappa torna da fare e perde l'ora d'arrivo.
+     *
+     * **Esiste per il tocco sbagliato**, che era l'unico gesto dell'app senza
+     * ritorno. [alterna] non fa niente su una tappa fatta, e la ragione era
+     * buona — saltare un posto in cui sei stato non vuol dire nulla — ma la
+     * conseguenza non era voluta: un check-in dato per errore restava per
+     * sempre, e con lui dove sei, la prossima tappa, il riepilogo della sera e
+     * il nome delle foto.
+     *
+     * Su una tappa che non e' fatta non fa niente: non c'e' niente da disfare.
+     */
+    fun annullaCheckin(tappa: Tappa): Tappa =
+        if (tappa.stato == StatoTappa.FATTA) {
+            tappa.copy(stato = StatoTappa.DA_FARE, checkinIl = null)
+        } else {
+            tappa
+        }
+
+    /**
      * Il comando a doppio stato: una tappa da fare diventa saltata, una
      * saltata torna da fare. Su una tappa gia' fatta non fa niente — saltare
      * un posto in cui sei stato non vuol dire nulla.

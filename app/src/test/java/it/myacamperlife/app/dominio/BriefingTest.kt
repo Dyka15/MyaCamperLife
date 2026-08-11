@@ -450,4 +450,91 @@ class BriefingTest {
         assertNull(briefing.meteoDomani)
         assertEquals("Domani, venerdì 7 agosto: Viterbo", TestoBriefing.titolo(briefing))
     }
+
+    // --- il meteo dei giorni dopo domani ---------------------------------------
+
+    private val bolsena = Coordinate(42.6437, 11.9871)
+
+    /**
+     * Tre giorni, tre posti, tre previsioni: e' la forma vera di un riepilogo, e
+     * quella su cui si decide **quale giorno mettere all'aperto**.
+     */
+    private fun treGiorni(adesso: OffsetDateTime = seraDiOggi) = Briefings.componi(
+        tappe = listOf(
+            tappa("Viterbo", "2026-08-07", lat = viterbo.lat, lon = viterbo.lon),
+            tappa("Bolsena", "2026-08-08", lat = bolsena.lat, lon = bolsena.lon),
+        ),
+        oggi = oggi,
+        meteo = Meteo(
+            scaricatoIl = seraDiOggi.toString(),
+            luoghi = listOf(
+                MeteoLuogo(
+                    "Viterbo", viterbo.lat, viterbo.lon,
+                    listOf(Previsione("2026-08-07", codice = 0, minima = 18.0, massima = 31.0)),
+                ),
+                MeteoLuogo(
+                    "Bolsena", bolsena.lat, bolsena.lon,
+                    listOf(Previsione("2026-08-08", codice = 61, minima = 14.0, massima = 22.0)),
+                ),
+            ),
+        ),
+        adesso = adesso,
+    )
+
+    @Test
+    fun `ogni giornata porta la previsione del suo giorno e del suo posto`() {
+        val giornate = treGiorni().giornate
+        assertEquals(31.0, giornate.first().previsione!!.massima!!, 0.001)
+        assertEquals(22.0, giornate[1].previsione!!.massima!!, 0.001)
+    }
+
+    @Test
+    fun `il testo dice il tempo anche dei giorni dopo domani`() {
+        // Era il pezzo che mancava: la scorta ha tre giorni di previsioni e il
+        // riepilogo ne mostrava uno.
+        val corpo = TestoBriefing.corpo(treGiorni())
+        assertTrue(corpo, corpo.contains("sabato 8 agosto: Bolsena · Pioggia, 14–22°"))
+    }
+
+    @Test
+    fun `l'eta' del meteo si dice una volta sola`() {
+        // Le previsioni arrivano tutte con la stessa richiesta: ripetere "meteo
+        // di ieri" su ogni riga sarebbe rumore, ometterlo del tutto sarebbe far
+        // credere a un dato fermo da due giorni.
+        val corpo = TestoBriefing.corpo(treGiorni(adesso = seraDiOggi.plusHours(30)))
+        assertEquals(1, corpo.split("meteo di ieri").size - 1)
+    }
+
+    @Test
+    fun `un giorno fermo ha il meteo di dove si resta`() {
+        // **E' il giorno in cui il tempo conta di piu'**: non c'e' la guida a
+        // occupare le ore. Il 7 si arriva a Viterbo, l'8 si resta la', e la
+        // previsione dell'8 e' quella di Viterbo.
+        val briefing = Briefings.componi(
+            tappe = listOf(
+                tappa("Viterbo", "2026-08-07", lat = viterbo.lat, lon = viterbo.lon),
+                tappa("Roma", "2026-08-09", lat = viterbo.lat, lon = viterbo.lon),
+            ),
+            oggi = oggi,
+            meteo = Meteo(
+                scaricatoIl = seraDiOggi.toString(),
+                luoghi = listOf(
+                    MeteoLuogo(
+                        "Viterbo", viterbo.lat, viterbo.lon,
+                        listOf(
+                            Previsione("2026-08-07", codice = 0, massima = 31.0),
+                            Previsione("2026-08-08", codice = 61, massima = 22.0),
+                        ),
+                    ),
+                ),
+            ),
+            adesso = seraDiOggi,
+        )
+
+        val fermo = briefing.giornate.first { it.giorno == LocalDate.parse("2026-08-08") }
+        assertTrue(fermo.fermo)
+        assertEquals(22.0, fermo.previsione!!.massima!!, 0.001)
+        val corpo = TestoBriefing.corpo(briefing)
+        assertTrue(corpo, corpo.contains("si resta a Viterbo · Pioggia"))
+    }
 }

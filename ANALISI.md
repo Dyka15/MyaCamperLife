@@ -979,6 +979,67 @@ frase che spiega il guasto arrivava tagliata a metà. Ora si taglia da `Error` i
 quella parola non c'è si tiene tutto, perché un messaggio inatteso è proprio quello che non
 va buttato.
 
+### Il gesto senza ritorno
+
+Domanda posta da chi usa l'app: *quanto è facile annullare un check-in fatto per errore?*
+La risposta, misurata sul codice, era **per metà e non dall'app**.
+
+Un check-in scrive due fatti in due file: la tappa diventa `fatta` in `tappe.csv`, e un
+`arrivo` finisce in `spostamenti.csv`. La riga di diario si cancellava già — lapide, con
+conferma — ma lo stato della tappa era **terminale**: `Tappe.alterna` non fa niente su una
+tappa fatta, e la ragione era buona («saltare un posto in cui sei stato non vuol dire
+nulla»). La conseguenza non era voluta: finché quella tappa restava `fatta`, restavano
+sbagliati *dove sei* (`Tappe.corrente` è la tappa fatta col numero d'ordine più alto), la
+prossima tappa, il riepilogo della sera, il meteo di quella tappa — che non si scarica più —
+e il nome delle foto scattate senza GPS.
+
+E l'avvertenza del dialogo diceva: «lo stato di una tappa si cambia dalla sua scheda». Dalla
+scheda non si cambiava. **Una riga di aiuto che manda in un posto vuoto è peggio di nessuna
+riga**: fa cercare, e chi cerca conclude di non aver capito.
+
+Tre rimedi, e nessuno introduce un meccanismo nuovo:
+
+- **«Annulla il check-in»**, sulla scheda di una tappa fatta, con conferma. Disfa entrambe le
+  scritture: la tappa torna `da_fare` e perde l'ora d'arrivo, la riga d'arrivo prende la sua
+  lapide. Farne una sola sarebbe una mezza verità — un diario che racconta un arrivo mai
+  avvenuto, o una tappa da fare con dentro l'ora in cui ci sei arrivato.
+- **«Sposta le date»**, un giorno per volta, da una tappa in avanti *questa compresa*. Lo
+  slittamento esisteva solo dentro la proposta che segue un check-in fuori programma: una
+  proposta accettata per sbaglio non aveva rimedio. Sono due insiemi diversi e ora il dominio
+  lo dice — dopo un check-in la tappa è fatta e la sua data è storia, mentre «questa tappa la
+  facciamo domani» comincia proprio da lei.
+- **la riga di aiuto dice il vero**, e indica il gesto che adesso esiste.
+
+E un difetto trovato scrivendo la prova, non leggendo il codice: le tre scritture che cambiano
+lo stato di una tappa usavano `ts(adesso)` senza guardare la riga che stavano sostituendo. Con
+l'orologio indietro — un telefono appena riaccesso — la riga nuova **perde** la risoluzione
+«vince l'ultima», e il gesto sembra riuscito senza cambiare niente. È lo stesso difetto che
+`dopoDi` aveva già chiuso per le correzioni; ora c'è `dopoLaTappa`, e la prova che lo
+sorveglia si chiama «con l'orologio indietro l'annullamento vale comunque».
+
+**La lezione:** una scelta giusta su un caso previsto («non si salta un posto dove sei
+stato») può rendere irreversibile un caso non previsto («ho toccato la riga sbagliata»). Il
+formato non perdeva niente — i dati erano tutti lì, e si potevano perfino rimettere a mano
+modificando il CSV nella cartella e risincronizzando — ma «non hai perso i dati» non è una
+risposta a «ho sbagliato un tocco».
+
+### Il meteo di tutti e tre i giorni
+
+Il riepilogo scaricava tre giorni di previsioni e ne mostrava uno. Non era una scelta:
+`Briefing` aveva un solo campo `meteoDomani`, e le altre due giornate erano nomi di posti
+senza tempo. Ora la previsione sta **su ogni giornata**, che è la sera prima si decide quale
+giorno mettere all'aperto e quale al coperto.
+
+Due dettagli che non erano ovvi:
+
+- **anche un giorno fermo ha la sua previsione**, presa dove si resta. È il giorno in cui il
+  tempo conta di più, perché non c'è la guida a occupare le ore. «Si resta a X» però è un
+  nome, e da un nome non si prende una previsione: la coordinata si tiene scorrendo i giorni
+  in ordine, ed è quella dell'ultimo posto dove l'itinerario ti ha lasciato.
+- **l'età del dato si dice una volta.** Le previsioni arrivano tutte con la stessa richiesta,
+  quindi hanno la stessa età: ripetere «meteo di ieri» su tre righe è rumore, ometterlo è far
+  credere a un dato fermo da due giorni. Sta sulla prima riga di meteo e basta.
+
 ### Un giorno è un giorno anche se non ci si sposta
 
 Il riepilogo elencava solo i giorni che avevano una tappa, e un giorno fermo spariva: chi

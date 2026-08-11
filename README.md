@@ -34,11 +34,18 @@ Itinerario:
 
 - importa un file `.md` con dentro il blocco `waypoints`, quello che usi oggi
 - check-in su una tappa, con l'ora e la posizione
+- **e si annulla**, se l'hai dato per sbaglio: la tappa torna fra quelle da fare e l'arrivo
+  esce dal diario, in un gesto solo. Era l'unico comando dell'app senza ritorno — «salta e
+  ripristina» non tocca una tappa fatta, e ha ragione — e finché restava lì portava con sé
+  dove sei, la prossima tappa, il riepilogo della sera e il nome delle foto
 - salta una tappa e ripristinala: lo stesso comando fa le due cose
 - aggiungi una tappa scegliendo dove inserirla, con le coordinate dal GPS o digitate
 - **ritardi e anticipi**: se fai check-in in un giorno diverso da quello previsto, l'app te
   lo dice e propone di spostare di conseguenza le tappe che restano. Chiede, non fa: magari
   il giorno perso lo recuperi domani. Le tappe già fatte non si toccano
+- **e le date si spostano anche a mano**, da una tappa in avanti, un giorno per volta: serve
+  quando il ritardo lo sai la sera prima, e serve a disfare uno slittamento accettato per
+  sbaglio — che prima non aveva nessun gesto inverso
 - **un giorno è un giorno anche se non ti sposti**: il riepilogo della sera non salta i
   giorni fermi, dice «si resta a Bolsena». E all'import, se l'itinerario salta dei giorni,
   te lo segnala — quasi sempre è una dimenticanza nel file
@@ -110,8 +117,13 @@ Spese:
 
 Riepilogo della sera:
 
-- alle **19:00** una notifica con le tappe di domani, i chilometri, il **meteo** e i
-  giorni successivi. L'ora si cambia, il riepilogo si spegne
+- alle **19:00** una notifica con le tappe di domani, i chilometri, e i giorni successivi.
+  L'ora si cambia, il riepilogo si spegne
+- **il meteo di ogni giornata, non solo di domani**: la scorta ha tre giorni di previsioni, e
+  la sera prima si decide con quelle quale giorno mettere all'aperto e quale al coperto. Anche
+  un giorno fermo ha il suo, preso dove si resta — è il giorno in cui il tempo conta di più,
+  perché non c'è la guida a occupare le ore. L'età del dato si dice una volta, perché è la
+  stessa per tutte
 - **avviso di rifornimento** quando l'autonomia stimata non copre la strada di domani con
   un margine, o quando sei sotto gli 80 km comunque
 - legge il campo `giorno` dell'itinerario in tutte le forme che arriva davvero

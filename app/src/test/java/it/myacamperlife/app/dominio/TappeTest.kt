@@ -79,6 +79,29 @@ class TappeTest {
     }
 
     @Test
+    fun `un check-in si disfa, e la tappa perde l'ora d'arrivo`() {
+        // Il gesto che mancava: `alterna` non tocca una tappa fatta — e ha
+        // ragione, saltare un posto dove sei stato non vuol dire niente — ma
+        // cosi' un check-in dato per sbaglio non aveva nessun rimedio.
+        val fatta = Tappe.checkin(tappa("a", 1), OffsetDateTime.parse("2026-08-06T14:00:00+02:00"))
+        assertEquals(StatoTappa.FATTA, fatta.stato)
+
+        val disfatta = Tappe.annullaCheckin(fatta)
+        assertEquals(StatoTappa.DA_FARE, disfatta.stato)
+        // L'ora d'arrivo va via con lo stato: una tappa da fare che porta l'ora
+        // in cui ci sei arrivato e' una mezza verita' peggiore del difetto.
+        assertNull(disfatta.checkinIl)
+    }
+
+    @Test
+    fun `su una tappa non fatta annullare il check-in non fa niente`() {
+        val daFare = tappa("a", 1)
+        assertEquals(daFare, Tappe.annullaCheckin(daFare))
+        val saltata = tappa("b", 2, StatoTappa.SALTATA)
+        assertEquals(saltata, Tappe.annullaCheckin(saltata))
+    }
+
+    @Test
     fun `inserire in fondo aggiunge e non tocca gli altri numeri`() {
         val tappe = listOf(tappa("a", 1), tappa("b", 2))
 

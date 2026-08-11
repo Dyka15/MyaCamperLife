@@ -17,6 +17,19 @@ data class Giornata(
     val giorno: LocalDate,
     val tappe: List<Tappa>,
     val restaA: String? = null,
+    /**
+     * Che tempo fara' **quel** giorno dove sarai.
+     *
+     * Una per giornata e non una sola per domani: un riepilogo che dice «domani
+     * Dinkelsbuhl e Rothenburg, nuvoloso» e poi «giovedi' Wurzburg» senza il
+     * tempo lascia fuori proprio la decisione che si prende la sera prima —
+     * quale giorno mettere all'aperto e quale al coperto. La scorta ce l'ha per
+     * tutti e tre i giorni: non mostrarla era spreco, non prudenza.
+     *
+     * Anche un giorno fermo ce l'ha, presa dove si resta: e' il giorno in cui il
+     * tempo conta di piu', perche' non c'e' la guida a occupare le ore.
+     */
+    val previsione: Previsione? = null,
 ) {
     val nomi: List<String> get() = tappe.map { it.nome }
     val fermo: Boolean get() = tappe.isEmpty()
@@ -41,12 +54,19 @@ data class Briefing(
     val minutiDomani: Int? = null,
     val autonomia: Autonomia?,
     val rifornire: Boolean,
-    /** La previsione di domani nel posto dove sarai, quando la scorta ce l'ha. */
-    val meteoDomani: Previsione? = null,
-    /** Da quante ore la previsione e' ferma li'. Nulla se non si sa. */
+    /**
+     * Da quante ore la scorta di meteo e' ferma. Nulla se non si sa.
+     *
+     * Una sola per tutto il riepilogo, e non una per giornata: le previsioni
+     * arrivano tutte con la stessa richiesta, quindi hanno tutte la stessa eta',
+     * e ripeterla su tre righe sarebbe rumore.
+     */
     val meteoOreFa: Long? = null,
 ) {
     val domani: Giornata? get() = giornate.firstOrNull { it.giorno == oggi.plusDays(1) }
+
+    /** La previsione di domani, dove la giornata di domani dice che sarai. */
+    val meteoDomani: Previsione? get() = domani?.previsione
 
     /** I giorni dopo domani, quelli che il riepilogo cita di sfuggita. */
     val poi: List<Giornata> get() = giornate.filter { it.giorno > oggi.plusDays(1) }
@@ -94,6 +114,16 @@ object Briefings {
         val daFare = tappe.filter { it.stato == StatoTappa.DA_FARE }
         val (perGiorno, senzaData) = GiornoTappa.perGiorno(daFare, oggi)
 
+        // Una previsione scaduta non e' un dato vecchio, e' un dato sbagliato:
+        // non si usa affatto.
+        val valido = meteo?.takeUnless { adesso != null && it.scaduto(adesso) }
+        val dove = tappe.lastOrNull { it.stato == StatoTappa.FATTA }
+
+        // Dove sarai in un giorno fermo: nell'ultimo posto dove ti ha lasciato
+        // l'itinerario. Si tiene scorrendo i giorni in ordine, perche' "si resta
+        // a X" e' un nome, e da un nome non si prende una previsione.
+        var ultimoPosto: Coordinate? = dove?.let { Coordinate(it.lat, it.lon) }
+
         // **Ogni giorno della finestra, anche quelli senza tappe.** Prima si
         // elencavano solo i giorni che avevano qualcosa, e un giorno fermo
         // spariva dal riepilogo: chi lo leggeva vedeva "domani Bolsena,
@@ -104,8 +134,20 @@ object Briefings {
             da = oggi.plusDays(1),
             a = oggi.plusDays(giorni.toLong()),
             oggi = oggi,
-            dove = tappe.lastOrNull { it.stato == StatoTappa.FATTA }?.nome,
-        ).map { Giornata(it.giorno, it.tappe, restaA = it.restaA) }
+            dove = dove?.nome,
+        ).map { giorno ->
+            // La previsione di una giornata con tappe e' quella della **prima**:
+            // e' dove arrivi, ed e' il tempo con cui guiderai fino a la'.
+            giorno.tappe.firstOrNull()?.let { ultimoPosto = Coordinate(it.lat, it.lon) }
+            Giornata(
+                giorno = giorno.giorno,
+                tappe = giorno.tappe,
+                restaA = giorno.restaA,
+                previsione = ultimoPosto?.let { posto ->
+                    valido?.per(posto.lat, posto.lon, giorno.giorno)
+                },
+            )
+        }
             // Le code vuote non si mostrano: se l'itinerario finisce domani, i
             // due giorni dopo non sono giorni di viaggio, sono niente.
             .dropLastWhile { it.fermo }
@@ -122,12 +164,9 @@ object Briefings {
         val suStrada = catena?.let { tratte?.percorso(it) }
         val kmDomani = suStrada?.km ?: catena?.let { chilometri(it) }
 
-        // Una previsione scaduta non e' un dato vecchio, e' un dato sbagliato:
-        // non si mostra affatto.
-        val valido = meteo?.takeUnless { adesso != null && it.scaduto(adesso) }
-        val previsione = domani?.tappe?.firstOrNull()?.let { tappa ->
-            valido?.per(tappa.lat, tappa.lon, domani.giorno)
-        }
+        // L'eta' si dichiara solo se una previsione viene mostrata: dire "meteo
+        // di ieri" senza meteo non vuol dire niente.
+        val qualcheMeteo = giornate.any { it.previsione != null }
         val oreFa = adesso?.let { valido?.eta(it)?.toHours() }
 
         return Briefing(
@@ -139,8 +178,7 @@ object Briefings {
             minutiDomani = suStrada?.minuti,
             autonomia = autonomia,
             rifornire = serveRifornire(autonomia, kmDomani, suStrada != null),
-            meteoDomani = previsione,
-            meteoOreFa = previsione?.let { oreFa },
+            meteoOreFa = if (qualcheMeteo) oreFa else null,
         )
     }
 

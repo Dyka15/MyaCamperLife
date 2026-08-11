@@ -44,13 +44,20 @@ object TestoBriefing {
 
         if (briefing.rifornire) add(avviso(briefing.autonomia))
 
+        // I giorni dopo domani, **col loro tempo**. La previsione della sera
+        // prima serve a decidere l'ordine delle cose: se giovedi' piove e
+        // venerdi' no, il museo si sposta a giovedi'. La scorta ce l'ha per tutti
+        // e tre i giorni, e mostrarla solo per domani era spreco.
         briefing.poi.forEach { giornata ->
             val cosa = when {
                 !giornata.fermo -> elenco(giornata.nomi)
                 giornata.restaA != null -> "si resta a ${giornata.restaA}"
                 else -> "nessuno spostamento"
             }
-            add("${quando(giornata.giorno)}: $cosa")
+            // L'eta' del dato non si ripete riga per riga: e' la stessa per
+            // tutte, e sta scritta una volta sulla riga di domani.
+            val tempo = giornata.previsione?.let { " · ${TestoMeteo.riga(it)}" } ?: ""
+            add("${quando(giornata.giorno)}: $cosa$tempo")
         }
 
         if (briefing.senzaData.isNotEmpty()) {
@@ -76,7 +83,14 @@ object TestoBriefing {
         else "${arrotonda(km)} km, ${Percorso(km, minuti).durata} di guida."
     }
 
-    /** Il meteo di domani, con l'eta' del dato appiccicata dietro. */
+    /**
+     * Il meteo di domani, con l'eta' del dato appiccicata dietro.
+     *
+     * L'eta' sta **qui e solo qui**, sulla prima riga di meteo del riepilogo:
+     * tutte le previsioni arrivano con la stessa richiesta, quindi hanno la
+     * stessa eta', e dirlo tre volte sarebbe rumore. Ma dirlo zero volte
+     * significherebbe far credere a una previsione ferma da due giorni.
+     */
     private fun meteo(briefing: Briefing): String? {
         val previsione = briefing.meteoDomani ?: return null
         val riga = TestoMeteo.riga(previsione)

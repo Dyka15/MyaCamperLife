@@ -278,6 +278,19 @@
     <string name="scheda_programma">Il programma della giornata</string>
     <string name="scheda_programma_giorno">Dall\'itinerario, giornata del %1$s</string>
 
+    <!-- Annullare un check-in, e spostare le date a mano -->
+    <string name="annulla_checkin_titolo">Annullo il check-in?</string>
+    <string name="annulla_checkin_domanda">%1$s torna fra le tappe da fare, e l\'arrivo esce dal diario.</string>
+    <string name="annulla_checkin_spiegazione">Niente viene cancellato dai file: le righe di prima restano scritte, con una marca di annullamento. Le date delle tappe successive non si toccano — se le avevi fatte slittare, usa «Sposta le date» per rimetterle.</string>
+    <string name="annulla_checkin_conferma">Annulla il check-in</string>
+    <string name="checkin_annullato">Check-in su %1$s annullato</string>
+    <string name="sposta_titolo">Sposta le date</string>
+    <string name="sposta_domanda">Sposta %1$s e le tappe successive ancora da fare: %2$d in tutto.</string>
+    <string name="sposta_spiegazione">Le tappe già fatte e quelle saltate non si toccano, e una tappa la cui data non si è saputa leggere resta dov\'è. La data si riscrive in forma 2026-08-12.</string>
+    <string name="sposta_avanti">Un giorno più tardi</string>
+    <string name="sposta_indietro">Un giorno prima</string>
+    <string name="niente_da_spostare">Nessuna data da spostare: da qui in avanti le tappe sono tutte fatte, saltate, o senza una data leggibile.</string>
+
     <!-- Le date di aggiornamento -->
     <string name="impostazioni_mai">mai</string>
     <string name="impostazioni_sincronizzato">Ultima sincronizzazione: %1$s</string>
@@ -309,7 +322,7 @@
     <string name="voce_cancella_titolo">Cancellare questa voce?</string>
     <string name="voce_cancella_spiegazione">La riga resta scritta nel file con una marca di cancellazione, ma dall\'app non si rimette più.</string>
     <string name="voce_cancella_foto">La foto non viene toccata: resta nella cartella del viaggio.</string>
-    <string name="voce_cancella_arrivo">Il check-in sulla tappa resta: lo stato di una tappa si cambia dalla sua scheda.</string>
+    <string name="voce_cancella_arrivo">Cancella solo questa riga di diario: la tappa resta spuntata. Per disfare il check-in usa «Annulla il check-in» sulla scheda della tappa — quello fa le due cose insieme.</string>
     <string name="voce_correggi_nota">Correggi la nota</string>
     <string name="voce_correggi_didascalia">Correggi la didascalia</string>
     <string name="azione_correggi">Correggi</string>
@@ -330,6 +343,8 @@
     <string name="scheda_da_con_distanza">Da %1$s · %2$d km · %3$s</string>
     <string name="scheda_posizione_nel_viaggio">Tappa %1$d di %2$d</string>
     <string name="scheda_apri_mappa">Apri nella mappa</string>
+    <string name="azione_annulla_checkin">Annulla il check-in</string>
+    <string name="azione_sposta_date">Sposta le date</string>
     <string name="scheda_chiedi">Cerca nei dintorni</string>
     <string name="scheda_chiedi_spiegazione">Chiede al modello cosa c\'è intorno a questa tappa, con quello che l\'app già sa. Serve la rete; la risposta si salva e si rilegge offline arrivando qui.</string>
     <string name="scheda_risposte">Risposte su questa tappa</string>

@@ -229,6 +229,90 @@ fun FuoriProgrammaDialog(
 }
 
 /**
+ * Annullo il check-in su questa tappa?
+ *
+ * **Si chiede, perche' su una tappa dove sei stato davvero e' un gesto da non
+ * fare per sbaglio** — e perche' l'errore che rimedia e' proprio un tocco dato
+ * per sbaglio, quindi un secondo tocco senza domanda ripeterebbe la storia.
+ *
+ * Il testo dice le due conseguenze prima e non dopo: la tappa torna da fare, e
+ * l'arrivo esce dal diario. Nessuna delle due cancella niente dai file.
+ */
+@Composable
+fun AnnullaCheckinDialog(tappa: Tappa, onAnnulla: () -> Unit, onChiudi: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(stringResource(R.string.annulla_checkin_titolo)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.annulla_checkin_domanda, tappa.nome),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    stringResource(R.string.annulla_checkin_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onChiudi(); onAnnulla() }) {
+                Text(stringResource(R.string.annulla_checkin_conferma))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
+
+/**
+ * Sposta le date di questa tappa e delle successive, di un giorno.
+ *
+ * Il gesto che mancava: lo slittamento esisteva **solo** dentro la proposta che
+ * segue un check-in fuori programma, quindi una proposta accettata per sbaglio
+ * non aveva rimedio, e un ritardo che si sa la sera prima non aveva gesto.
+ *
+ * Un giorno per volta e non un campo numerico: due tocchi fanno due giorni, e un
+ * campo dove si puo' scrivere 30 invita a scriverlo.
+ */
+@Composable
+fun SpostaDateDialog(tappa: Tappa, quante: Int, onSposta: (Long) -> Unit, onChiudi: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(stringResource(R.string.sposta_titolo)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.sposta_domanda, tappa.nome, quante),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    stringResource(R.string.sposta_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Le due direzioni stanno **nel corpo**, non nei due pulsanti in
+                // fondo: quelli sono "fai" e "lascia stare", e mettere "un giorno
+                // prima" dove uno si aspetta "annulla" farebbe riscrivere delle
+                // date a chi voleva uscire. Impilate, perche' due etichette in
+                // italiano non stanno in fila in un dialogo.
+                TextButton(onClick = { onChiudi(); onSposta(1) }) {
+                    Text(stringResource(R.string.sposta_avanti))
+                }
+                TextButton(onClick = { onChiudi(); onSposta(-1) }) {
+                    Text(stringResource(R.string.sposta_indietro))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
+
+/**
  * Un campo di testo e via: corregge una nota o la didascalia di una foto.
  *
  * Sta a parte da [NotaDialog] e [DidascaliaDialog] perche' correggere non e'

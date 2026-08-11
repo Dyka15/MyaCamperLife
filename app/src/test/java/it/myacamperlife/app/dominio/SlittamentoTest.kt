@@ -150,6 +150,37 @@ class SlittamentoTest {
         // perdita accettabile, e l'alternativa sarebbe indovinare ogni formato.
         assertEquals("2026-08-11", cambiate.first { it.nome == "Viterbo" }.giorno)
     }
+
+    // --- spostare a mano, questa tappa compresa --------------------------------
+
+    @Test
+    fun `spostando a mano si sposta anche la tappa da cui parti`() {
+        // **Sono due gesti diversi.** Dopo un check-in la tappa e' fatta e la sua
+        // data e' storia: si spostano le successive. Ma «questa tappa la facciamo
+        // domani» comincia da questa tappa, e lasciarla indietro sarebbe
+        // l'opposto di quello che si e' chiesto.
+        val bolsena = itinerario.first { it.nome == "Bolsena" }
+        val cambiate = Slittamenti.slitta(itinerario, bolsena, giorni = 1, oggi = oggi, compresa = true)
+
+        assertEquals(listOf("Bolsena", "Viterbo", "Roma"), cambiate.map { it.nome })
+        assertEquals("2026-08-10", cambiate.first { it.nome == "Bolsena" }.giorno)
+    }
+
+    @Test
+    fun `una tappa fatta non si sposta nemmeno partendo da lei`() {
+        // `compresa` allarga l'insieme, non cambia la regola: le tappe fatte
+        // restano storia anche quando sono il punto di partenza.
+        val orvieto = itinerario.first { it.nome == "Orvieto" }
+        val cambiate = Slittamenti.slitta(itinerario, orvieto, giorni = 1, oggi = oggi, compresa = true)
+        assertTrue(cambiate.none { it.nome == "Orvieto" })
+    }
+
+    @Test
+    fun `quante dice il numero che finisce nella domanda`() {
+        val bolsena = itinerario.first { it.nome == "Bolsena" }
+        assertEquals(3, Slittamenti.quante(itinerario, bolsena, compresa = true))
+        assertEquals(2, Slittamenti.quante(itinerario, bolsena))
+    }
 }
 
 class GiorniDelViaggioTest {

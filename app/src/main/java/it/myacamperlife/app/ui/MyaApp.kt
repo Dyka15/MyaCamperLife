@@ -53,8 +53,10 @@ import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.Slittamenti
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
+import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.ui.diario.DiarioContent
 import it.myacamperlife.app.ui.esplora.EsploraContent
 import it.myacamperlife.app.ui.foto.FotoDialog
@@ -65,12 +67,14 @@ import it.myacamperlife.app.ui.viaggi.BriefingDialog
 import it.myacamperlife.app.ui.viaggi.DidascaliaDialog
 import it.myacamperlife.app.ui.viaggi.DossierDialog
 import it.myacamperlife.app.ui.viaggi.ElencoViaggiContent
+import it.myacamperlife.app.ui.viaggi.AnnullaCheckinDialog
 import it.myacamperlife.app.ui.viaggi.FuoriProgrammaDialog
 import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
 import it.myacamperlife.app.ui.viaggi.ModelliDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
 import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
 import it.myacamperlife.app.ui.viaggi.SchedaTappaContent
+import it.myacamperlife.app.ui.viaggi.SpostaDateDialog
 import it.myacamperlife.app.ui.viaggi.SpesaDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
 import it.myacamperlife.app.ui.viaggi.TestoDialog
@@ -132,6 +136,12 @@ fun MyaApp(vista: ViaggiViewModel) {
 
     /** La voce di cui si sta guardando la foto — o lo scontrino. */
     var fotoAperta by remember { mutableStateOf<Voce?>(null) }
+
+    // I due gesti che si chiedono prima di fare: disfare un check-in e
+    // riscrivere delle date sono entrambi rimedi a un errore, e un rimedio che
+    // parte al primo tocco puo' diventare l'errore dopo.
+    var checkinDaAnnullare by remember { mutableStateOf<Tappa?>(null) }
+    var dateDaSpostare by remember { mutableStateOf<Tappa?>(null) }
 
     val scegliFile = rememberLauncherForActivityResult(
         // Un itinerario e' un .md, ma i gestori file lo annunciano in mille
@@ -376,6 +386,8 @@ fun MyaApp(vista: ViaggiViewModel) {
                         }
                     },
                     onScarica = vista::cercaDintorniDi,
+                    onAnnullaCheckin = { tappa -> checkinDaAnnullare = tappa },
+                    onSpostaDate = { tappa -> dateDaSpostare = tappa },
                     onTappaCambiata = { tappa -> tappaAperta = tappa.id },
                 )
 
@@ -473,6 +485,25 @@ fun MyaApp(vista: ViaggiViewModel) {
             didascalia = voce.testo,
             onApriFuori = { vista.allegato(voce)?.let { apriFuori(contesto, it) } },
             onChiudi = { fotoAperta = null },
+        )
+    }
+
+    checkinDaAnnullare?.let { tappa ->
+        AnnullaCheckinDialog(
+            tappa = tappa,
+            onAnnulla = { vista.annullaCheckin(tappa) },
+            onChiudi = { checkinDaAnnullare = null },
+        )
+    }
+
+    dateDaSpostare?.let { tappa ->
+        SpostaDateDialog(
+            tappa = tappa,
+            // Il numero sta nella domanda: "sposto questa e altre tre" e' una
+            // cosa a cui si puo' rispondere, "sposto l'itinerario" no.
+            quante = Slittamenti.quante(stato.tappe, tappa, compresa = true),
+            onSposta = { giorni -> vista.spostaDate(tappa, giorni) },
+            onChiudi = { dateDaSpostare = null },
         )
     }
 
@@ -816,6 +847,9 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
     ViaggiViewModel.Avviso.ScortaAggiornata -> stringResource(R.string.scorta_aggiornata)
     ViaggiViewModel.Avviso.ScortaNonAggiornata -> stringResource(R.string.scorta_non_aggiornata)
+    is ViaggiViewModel.Avviso.CheckinAnnullato ->
+        stringResource(R.string.checkin_annullato, avviso.tappa)
+    ViaggiViewModel.Avviso.NienteDaSpostare -> stringResource(R.string.niente_da_spostare)
     is ViaggiViewModel.Avviso.DintorniAggiornati ->
         stringResource(R.string.dintorni_aggiornati, avviso.poi, avviso.luoghi)
 

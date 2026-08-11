@@ -60,7 +60,9 @@ object Slittamenti {
     ): Slittamento? {
         val previsto = GiornoTappa.leggi(tappa.giorno, oggi) ?: return null
         val giorni = quando.toEpochDay() - previsto.toEpochDay()
-        return Slittamento(giorni = giorni, daFare = daSpostare(tappe, tappa).size)
+        // `compresa = false`: dopo un check-in questa tappa e' fatta e la sua
+        // data e' storia. Si contano quelle che verranno.
+        return Slittamento(giorni = giorni, daFare = daSpostare(tappe, tappa, compresa = false).size)
     }
 
     /**
@@ -85,13 +87,18 @@ object Slittamenti {
         da: Tappa,
         giorni: Long,
         oggi: LocalDate,
+        compresa: Boolean = false,
     ): List<Tappa> {
         if (giorni == 0L) return emptyList()
-        return daSpostare(tappe, da).mapNotNull { tappa ->
+        return daSpostare(tappe, da, compresa).mapNotNull { tappa ->
             val previsto = GiornoTappa.leggi(tappa.giorno, oggi) ?: return@mapNotNull null
             tappa.copy(giorno = previsto.plusDays(giorni).toString())
         }
     }
+
+    /** Quante tappe sposterebbe [slitta]: il numero sta nella domanda. */
+    fun quante(tappe: List<Tappa>, da: Tappa, compresa: Boolean = false): Int =
+        daSpostare(tappe, da, compresa).size
 
     /**
      * Le tappe che vengono dopo [da] nell'itinerario e sono ancora da fare.
@@ -99,9 +106,16 @@ object Slittamenti {
      * L'ordine dell'itinerario e non la data: e' l'itinerario che dice cosa
      * viene dopo, e una tappa con una data sbagliata e' esattamente il caso che
      * si sta rimediando.
+     *
+     * @param compresa se anche [da] si sposta. **Sono due gesti diversi.** Dopo
+     *   un check-in fuori programma quella tappa e' fatta e la sua data e'
+     *   storia: si spostano le successive. Quando invece si sposta l'itinerario
+     *   a mano — «questa tappa la facciamo domani» — quella tappa e' la prima a
+     *   spostarsi, e lasciarla indietro sarebbe l'opposto di quel che si chiede.
      */
-    private fun daSpostare(tappe: List<Tappa>, da: Tappa): List<Tappa> = tappe
-        .filter { it.ordine > da.ordine && it.stato == StatoTappa.DA_FARE }
+    private fun daSpostare(tappe: List<Tappa>, da: Tappa, compresa: Boolean): List<Tappa> = tappe
+        .filter { it.ordine > da.ordine || (compresa && it.id == da.id) }
+        .filter { it.stato == StatoTappa.DA_FARE }
         .sortedBy { it.ordine }
 }
 
