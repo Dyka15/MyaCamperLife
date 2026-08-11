@@ -13,11 +13,29 @@ class OverpassTest {
     // --- la richiesta ---------------------------------------------------------
 
     @Test
-    fun `la query e un corridoio intorno alla polilinea, non un rettangolo`() {
-        val query = Overpass.query(punti)
-        // Un solo `around` con tutte le coordinate in fila: Overpass misura
-        // dalla linea, quindi copre la strada fra le tappe.
-        assertTrue(query, query.contains("around:15000,42.71850,12.11120,42.42070,12.10770"))
+    fun `la ricerca e' un cerchio intorno a un punto`() {
+        // **Il cambio di approccio, in una riga.** Prima era un corridoio di
+        // quindici chilometri lungo la polilinea di venti tappe: migliaia di
+        // chilometri quadrati, che il server pubblico non serviva — e non lo
+        // diceva con un errore, rispondeva 200 con zero elementi. Ora dieci
+        // chilometri intorno a un punto solo.
+        val query = Overpass.query(Coordinate(42.7185, 12.1112))
+        assertTrue(query, query.contains("around:10000,42.71850,12.11120"))
+        assertTrue(query, query.contains("[timeout:30]"))
+    }
+
+    @Test
+    fun `il corpo della POST e' un modulo, che e' la forma documentata`() {
+        // Prima la query andava come corpo grezzo `text/plain`: una forma che
+        // alcune installazioni accettano e altre no, e quando non l'accettano
+        // rispondono a una query vuota — cioe' "qui non c'e' niente".
+        val corpo = Overpass.corpoModulo(Overpass.query(punti))
+        assertTrue(corpo, corpo.startsWith("data="))
+        // Codificato: la query ha spazi, parentesi quadre e virgolette, e in un
+        // modulo non codificato quei caratteri cambiano di significato.
+        assertTrue(corpo, !corpo.contains(" "))
+        assertTrue(corpo, !corpo.contains("\n"))
+        assertTrue(corpo, corpo.contains("%5Bout%3Ajson%5D"))
     }
 
     @Test

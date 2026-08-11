@@ -437,13 +437,25 @@ class BriefingArchivioTest {
     }
 
     @Test
-    fun `i punti dei dintorni sono le tappe da fare, con quella dove sei`() {
-        val slug = creaToscana()
-        val orvieto = archivio.tappe(slug).first { it.nome == "Orvieto" }
-        archivio.checkin(slug, orvieto, adesso = quando("2026-08-06", "14:00:00"))
+    fun `l'esito dell'ultima ricerca dei dintorni resta scritto`() {
+        // Prima i dintorni si cercavano su tutte le tappe in una volta, e quella
+        // richiesta e' proprio quella che non funzionava. Ora si cerca un punto
+        // per volta, e quello che resta da sapere non e' su quali tappe si e'
+        // cercato ma **com'e' andata**: una notifica scorre, questa riga no.
+        archivio.annotaDintorni("rifiutata con 429", quando("2026-08-06", "14:00:00"))
 
-        // Orvieto in testa perche' e' dove sei, poi le due che restano.
-        assertEquals(3, archivio.puntiDintorni(slug).size)
-        assertEquals(42.7185, archivio.puntiDintorni(slug).first().lat, 0.0001)
+        val impostazioni = archivio.impostazioni()
+        assertEquals("rifiutata con 429", impostazioni.dintorniEsito)
+        assertEquals(
+            OffsetDateTime.parse("2026-08-06T14:00:00+02:00"),
+            OffsetDateTime.parse(impostazioni.dintorniProvatoIl),
+        )
+    }
+
+    @Test
+    fun `annotare i dintorni non cancella le altre impostazioni`() {
+        archivio.salvaImpostazioni(archivio.impostazioni().copy(kmConUnPieno = 700))
+        archivio.annotaDintorni("riuscita: 12 punti, 3 toponimi")
+        assertEquals(700, archivio.impostazioni().kmConUnPieno)
     }
 }

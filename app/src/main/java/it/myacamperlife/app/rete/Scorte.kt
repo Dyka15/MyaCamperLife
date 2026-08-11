@@ -2,11 +2,10 @@ package it.myacamperlife.app.rete
 
 import android.content.Context
 import it.myacamperlife.app.archivio.Archivio
+import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dintorno
-import it.myacamperlife.app.dominio.Luogo
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Overpass
-import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.RispostaOsrm
 import it.myacamperlife.app.dominio.Tratta
@@ -99,111 +98,69 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
     }
 
     /**
-     * Scarica i dintorni: punti di interesse e toponimi lungo l'itinerario.
+     * Cerca i dintorni **di un punto** e salva quello che trova.
      *
-     * Un corridoio di quindici chilometri intorno alla polilinea delle tappe.
-     * Sette categorie e i nomi dei paesi arrivano insieme e si separano leggendo
-     * i tag: su Overpass, che e' un servizio di cortesia, chiedere quattro cose
-     * in una volta invece di dieci separate non e' efficienza, e' educazione.
+     * Un cerchio di dieci chilometri, tutte le categorie in una richiesta, e la
+     * scrittura subito dopo. Niente scorta d'anticipo su tutto l'itinerario:
+     * quella era una query da migliaia di chilometri quadrati su un server di
+     * cortesia, e il modo in cui Overpass dice "hai chiesto troppo" e' rispondere
+     * 200 con un `remark` e zero elementi — cioe' travestirsi da "in quella zona
+     * non c'e' niente". Quattro fasi di dintorni vuoti sono venute da la'.
      *
-     * **L'itinerario si spezza in fette**, come per le tratte. Una richiesta sola
-     * su venti tappe non passa: il server la interrompe e risponde 200 con un
-     * `remark` e zero risultati, che e' esattamente il modo in cui questa
-     * funzione ha finto di lavorare per quattro fasi. Una fetta che fallisce non
-     * ferma le altre — mezzi dintorni sono meglio di nessun dintorno — e se
-     * nessuna riesce si riferisce **perche'**.
+     * Ora la scorta si riempie con le ricerche che si fanno: una tappa che apri
+     * e cerchi resta cercata, e i suoi punti si rileggono offline per sempre.
+     * Le righe si accodano, quindi cercare due volte lo stesso posto non
+     * cancella niente — i doppioni li riconosce l'identificativo OSM in
+     * lettura.
      *
-     * E' la richiesta piu' pesante che l'app fa, e per questo si fa **una volta
-     * per viaggio**: quando si importa l'itinerario, o quando la si chiede.
+     * @param punto dove cercare. `null` — nessuna tappa, nessuna posizione
+     *   registrata — e' [EsitoDintorni.SenzaTappe], non un errore muto.
      */
-    suspend fun aggiornaDintorni(
+    suspend fun dintorniAttorno(
         slug: String,
+        punto: Coordinate?,
         adesso: OffsetDateTime = OffsetDateTime.now(),
     ): EsitoDintorni = withContext(Dispatchers.IO) {
-        if (!Rete.disponibile(context)) return@withContext EsitoDintorni.SenzaRete
+        val esito = cerca(punto)
+        // L'esito si annota **sempre**, riuscito o no: un messaggio in una
+        // notifica che scorre non si rilegge, e la domanda "perche' non carica
+        // niente" arriva il giorno dopo, senza rete e senza il messaggio.
+        archivio.annotaDintorni(esito.riassunto(), adesso)
+        if (esito is EsitoDintorni.Riuscito) archivio.salvaDintorni(slug, esito.dintorno, adesso)
+        esito
+    }
 
-        val punti = archivio.puntiDintorni(slug)
-        if (punti.isEmpty()) return@withContext EsitoDintorni.SenzaTappe
+    private suspend fun cerca(punto: Coordinate?): EsitoDintorni {
+        if (!Rete.disponibile(context)) return EsitoDintorni.SenzaRete
+        if (punto == null) return EsitoDintorni.SenzaTappe
 
-        val poi = mutableListOf<Poi>()
-        val luoghi = mutableListOf<Luogo>()
-        var elementi = 0
-        var avvertimento: String? = null
-        var rifiuto: EsitoDintorni.Rifiutato? = null
-        var muto = false
-
-        // Le fette si sovrappongono di un punto, come per le tratte: il tratto
-        // fra l'ultima tappa di una e la prima della successiva altrimenti
-        // resterebbe scoperto.
-        punti.windowed(
-            size = Overpass.PUNTI_PER_RICHIESTA,
-            step = Overpass.PUNTI_PER_RICHIESTA - 1,
-            partialWindows = true,
-        ).forEach { fetta ->
-            if (fetta.isEmpty()) return@forEach
-
-            val esito = Rete.postaConEsito(
-                indirizzo = Overpass.SERVIZIO,
-                corpo = Overpass.query(fetta),
-                tipo = Rete.TESTO,
-                massimoCaratteri = Rete.MASSIMO_DINTORNI,
-            )
-
-            val corpo = when (esito) {
-                is EsitoHttp.Riuscito -> esito.corpo
-                // Overpass e' un servizio di cortesia e lo dice quando lo si
-                // strapazza: 429 vuol dire aspetta, 504 vuol dire hai chiesto
-                // troppo, 400 vuol dire che la query e' sbagliata — cioe' un
-                // difetto nostro. Tre rimedi diversi, e nessuno indovinabile da
-                // "non aggiornato". Una fetta rifiutata non ferma le altre.
-                is EsitoHttp.Rifiutato -> {
-                    rifiuto = EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
-                    return@forEach
-                }
-                EsitoHttp.Muto -> {
-                    muto = true
-                    return@forEach
-                }
-            }
-
-            // Il `remark` si legge **prima** degli elementi: una risposta 200 con
-            // zero risultati e un remark non e' una zona deserta, e' una query
-            // che il server ha interrotto.
-            Overpass.avvertimento(corpo)?.let { if (avvertimento == null) avvertimento = it }
-
-            val fette = Overpass.leggi(corpo)
-            elementi += fette.elementi
-            poi += fette.poi
-            luoghi += fette.luoghi
-        }
-
-        // Le fette si sovrappongono, quindi lo stesso posto arriva due volte:
-        // l'identificativo OSM lo riconosce, e togliere i doppioni qui evita di
-        // scrivere righe che la lettura scarterebbe comunque.
-        val dintorno = Dintorno(
-            poi = poi.distinctBy { it.id },
-            luoghi = luoghi.distinctBy { "${it.nome}|${it.lat}" },
-            elementi = elementi,
+        val esito = Rete.postaConEsito(
+            indirizzo = Overpass.SERVIZIO,
+            corpo = Overpass.corpoModulo(Overpass.query(punto)),
+            tipo = Rete.MODULO,
+            massimoCaratteri = Rete.MASSIMO_DINTORNI,
         )
 
-        // Copie locali: sono variabili catturate da una lambda, e su quelle il
-        // compilatore non concede lo smart cast.
-        val detto = avvertimento
-        val rifiutata = rifiuto
+        val corpo = when (esito) {
+            is EsitoHttp.Riuscito -> esito.corpo
+            // 429 vuol dire aspetta, 504 vuol dire hai chiesto troppo, 400 vuol
+            // dire che la query e' sbagliata — cioe' un difetto nostro. Tre
+            // rimedi diversi, e nessuno indovinabile da "non aggiornato".
+            is EsitoHttp.Rifiutato -> return EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
+            EsitoHttp.Muto -> return EsitoDintorni.SenzaRete
+        }
 
-        when {
-            !dintorno.vuoto -> {
-                archivio.salvaDintorni(slug, dintorno, adesso)
-                EsitoDintorni.Riuscito(dintorno.poi.size, dintorno.luoghi.size)
-            }
-            // In ordine di quanto sono azionabili: prima quello che il server ha
-            // detto di se', poi il difetto nostro, poi la rete.
-            detto != null -> EsitoDintorni.Avvertito(detto)
-            rifiutata != null -> rifiutata
+        // Il `remark` si legge **prima** degli elementi: una risposta 200 con
+        // zero risultati e un remark non e' una zona deserta, e' una query che il
+        // server ha interrotto.
+        Overpass.avvertimento(corpo)?.let { return EsitoDintorni.Avvertito(it) }
+
+        val dintorno = Overpass.leggi(corpo)
+        return when {
+            !dintorno.vuoto -> EsitoDintorni.Riuscito(dintorno)
             // Elementi arrivati e zero salvati non e' una zona deserta: e' una
             // risposta che non sappiamo leggere.
             dintorno.illeggibile -> EsitoDintorni.Illeggibile(dintorno.elementi)
-            muto -> EsitoDintorni.SenzaRete
             else -> EsitoDintorni.Vuoto
         }
     }
@@ -232,7 +189,15 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
  * vuote, e l'utente deve poter sapere **perche'**.
  */
 sealed interface EsitoDintorni {
-    data class Riuscito(val poi: Int, val luoghi: Int) : EsitoDintorni
+    /**
+     * Porta il [Dintorno] con se' e non solo due conteggi: chi decide se salvare
+     * non e' chi ha fatto la richiesta, e con due numeri dovrebbe chiedere il
+     * resto una seconda volta.
+     */
+    data class Riuscito(val dintorno: Dintorno) : EsitoDintorni {
+        val poi: Int get() = dintorno.poi.size
+        val luoghi: Int get() = dintorno.luoghi.size
+    }
 
     /** Ha risposto che li' non c'e' niente. E' una risposta. */
     data object Vuoto : EsitoDintorni
@@ -252,6 +217,25 @@ sealed interface EsitoDintorni {
     /** Niente campo, timeout, o risposta oltre il tetto. */
     data object SenzaRete : EsitoDintorni
 
-    /** Nessuna tappa su cui centrare la richiesta. */
+    /** Nessun punto su cui centrare la ricerca. */
     data object SenzaTappe : EsitoDintorni
+
+    /**
+     * Una riga che dice com'e' andata, da scrivere nelle impostazioni.
+     *
+     * **Non e' il messaggio per l'utente** — quello sta nelle stringhe, tradotto
+     * e gentile — ma la traccia che resta: una notifica scorre, e la domanda
+     * «perche' non carica niente?» arriva il giorno dopo, in mezzo al nulla, con
+     * la notifica gia' dimenticata. Questa riga si rilegge nelle impostazioni
+     * quando serve, ed e' la differenza fra sapere e indovinare.
+     */
+    fun riassunto(): String = when (this) {
+        is Riuscito -> "riuscita: $poi punti, $luoghi toponimi"
+        Vuoto -> "nessun risultato: qui non c'e' niente di censito"
+        is Illeggibile -> "illeggibile: $elementi elementi arrivati, nessuno usabile"
+        is Avvertito -> "il server avverte: $messaggio"
+        is Rifiutato -> "rifiutata con $codice" + (messaggio?.let { ": $it" } ?: "")
+        SenzaRete -> "senza rete, o risposta troppo grande"
+        SenzaTappe -> "nessun punto su cui cercare"
+    }
 }

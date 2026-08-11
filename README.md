@@ -133,17 +133,19 @@ La scorta — l'unica parte che tocca la rete, e la tocca **prima**:
 - senza tratte si ripiega sulla linea d'aria **dicendolo**, e l'avviso di rifornimento usa
   un margine più largo perché sa di stare guardando un numero più incerto
 - nelle impostazioni, «Aggiorna meteo e distanze» per quando sai di stare per entrare in una
-  zona senza campo, e **«Scarica i dintorni» a parte** — è la richiesta più pesante che l'app
-  fa, e i punti di interesse non cambiano di sera in sera
+  zona senza campo. I dintorni no: si cercano **una tappa per volta**, dalla schermata della
+  tappa, perché una ricerca su tutto l'itinerario è una richiesta che il server pubblico non
+  serve — e non lo dice con un errore, risponde a vuoto
 - nelle impostazioni si vede **quando** meteo e dintorni sono stati scaricati, e quando la
   cartella è stata sincronizzata l'ultima volta: l'età di una scorta è metà del suo valore, e
   «ha davvero preso tutto?» è la domanda che uno si fa cambiando telefono
-- **quando la richiesta dei dintorni fallisce, dice perché.** È l'unica scorta senza
-  ripiego: senza meteo esce la previsione vecchia, senza tratte la linea d'aria, senza
-  dintorni resta una schermata vuota. Quindi 429 diventa «aspetta un minuto, è un servizio
-  gratuito», 504 «richiesta troppo grande», e il caso «ha risposto ma non ho saputo
-  leggerlo» si chiama così: è un difetto dell'app, e va detto invece di travestirlo da
-  mancanza di campo
+- **quando la ricerca dei dintorni fallisce, dice perché** — e lo **scrive**. È l'unica
+  scorta senza ripiego: senza meteo esce la previsione vecchia, senza tratte la linea d'aria,
+  senza dintorni resta una schermata vuota. Quindi 429 diventa «aspetta un minuto, è un
+  servizio gratuito», 504 «richiesta troppo grande», e il caso «ha risposto ma non ho saputo
+  leggerlo» si chiama così: è un difetto dell'app, non mancanza di campo. L'esito dell'ultima
+  ricerca resta scritto nelle impostazioni, perché una notifica dura tre secondi e la domanda
+  «perché non carica niente?» arriva il giorno dopo, in mezzo al nulla
 
 Esplora — cosa c'è nei dintorni, **senza rete**:
 
@@ -153,8 +155,9 @@ Esplora — cosa c'è nei dintorni, **senza rete**:
   vuote non compaiono: una lista bianca fa sembrare rotta l'app
 - un tocco apre il posto in Organic Maps o OsmAnd con un intent `geo:`. La navigazione la
   fanno loro, meglio di quanto potremmo farla noi e già offline
-- i dintorni si scaricano da OpenStreetMap **una volta per viaggio**, in un corridoio di
-  quindici chilometri intorno all'itinerario, e poi si consultano senza rete
+- i dintorni si cercano su OpenStreetMap **un punto per volta**, in un cerchio di dieci
+  chilometri, e da quel momento si consultano senza rete: la scorta si riempie con le
+  ricerche che fai, e quello che hai cercato resta cercato per tutto il viaggio
 
 E l'app sa **dire dove sei senza rete**: insieme ai punti di interesse arrivano i nomi dei
 paesi lungo il percorso, e da quel momento una foto si chiama `foto_..._Bolsena.jpg` anche

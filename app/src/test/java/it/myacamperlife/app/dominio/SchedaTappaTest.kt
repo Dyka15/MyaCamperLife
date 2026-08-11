@@ -179,18 +179,20 @@ class SchedaTappaTest {
     }
 
     @Test
-    fun `senza scorta e con scorta vuota sono due casi diversi`() {
-        val senza = Schede.componi(bolsena, tappe, oggi)
-        assertTrue(senza.dintorni.isEmpty())
-        // Non lo so: c'e' un rimedio, e va offerto.
-        assertTrue(!senza.haScorta && !senza.dintorniVuoti)
+    fun `una scorta lontana non riempie i dintorni di questa tappa`() {
+        // Prima la scheda distingueva "non ho scorta" da "qui non c'e' niente",
+        // e la seconda diceva "niente di segnato nel raggio di venti
+        // chilometri". Quella frase reggeva **solo** finche' una ricerca sola
+        // copriva tutto l'itinerario: ora si cerca una tappa per volta, e una
+        // scorta presa altrove non dice niente su qui. Restano i dintorni vuoti,
+        // e l'unica cosa onesta e' offrire la ricerca.
+        assertTrue(Schede.componi(bolsena, tappe, oggi).dintorni.isEmpty())
 
-        // Qui non c'e' niente: e' una risposta, non un invito a scaricare.
-        val vuota = Schede.componi(
+        val altrove = Schede.componi(
             bolsena, tappe, oggi,
             poi = listOf(poi("Area Aosta", CategoriaPoi.SOSTA, 45.7372, 7.3206)),
         )
-        assertTrue(vuota.haScorta && vuota.dintorniVuoti)
+        assertTrue(altrove.dintorni.isEmpty())
     }
 
     // --- i dossier ------------------------------------------------------------

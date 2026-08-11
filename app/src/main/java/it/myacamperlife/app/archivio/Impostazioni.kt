@@ -56,6 +56,21 @@ data class Impostazioni(
     val sincronizzatoIl: String? = null,
 
     /**
+     * Com'e' andata l'ultima ricerca dei dintorni, in una riga, e quando.
+     *
+     * **Non e' un vezzo diagnostico, e' la risposta a una domanda vera**: per
+     * quattro fasi i dintorni sono tornati vuoti, e ogni volta l'unica cosa che
+     * si sapeva era «non carica niente». La notifica che spiegava il perche'
+     * durava tre secondi; questa riga resta, e si legge dalle impostazioni.
+     *
+     * Non contiene niente di riservato — un messaggio di Overpass e un codice
+     * HTTP — quindi puo' stare in un file che finisce in una cartella
+     * sincronizzata.
+     */
+    val dintorniEsito: String? = null,
+    val dintorniProvatoIl: String? = null,
+
+    /**
      * Quale modello si prova per primo. L'altro fa da riserva.
      */
     val principale: String = "gemini",

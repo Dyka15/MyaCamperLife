@@ -375,7 +375,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                             dossierAperto = salvato
                         }
                     },
-                    onScarica = vista::aggiornaDintorni,
+                    onScarica = vista::cercaDintorniDi,
                     onTappaCambiata = { tappa -> tappaAperta = tappa.id },
                 )
 
@@ -424,7 +424,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     dossier = stato.dossier,
                     aiConfigurata = vista.aiConfigurata(),
                     inCorso = stato.inCorso,
-                    onScarica = vista::aggiornaDintorni,
+                    onScarica = vista::cercaDintorniQui,
                     onApri = { vicino ->
                         apriNellaMappa(contesto, vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
                     },
@@ -643,7 +643,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                 else chiediNotifiche.launch(Avvisi.PERMESSI)
             },
             onAggiornaScorta = vista::aggiornaScorta,
-            onScaricaDintorni = vista::aggiornaDintorni,
+            onScaricaDintorni = vista::cercaDintorniQui,
             scortaDisponibile = stato.aperto != null,
             cartella = cartellaScelta?.let { Specchio.nome(contesto, it) },
             cartellaAccessibile = cartellaScelta?.let { Specchio.accessibile(contesto, it) } ?: false,

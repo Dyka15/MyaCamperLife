@@ -82,7 +82,8 @@ fun SchedaTappaContent(
     onMappa: (Tappa) -> Unit,
     onChiedi: (Tappa) -> Unit,
     onDossier: (Dossier) -> Unit,
-    onScarica: () -> Unit,
+    /** Cerca i dintorni **di questa** tappa: un punto, una richiesta, salvata. */
+    onScarica: (Tappa) -> Unit,
     onTappaCambiata: (Tappa) -> Unit,
 ) {
     if (tappe.isEmpty()) return
@@ -133,7 +134,7 @@ fun SchedaTappaContent(
             onMappa = { onMappa(tappa) },
             onChiedi = { onChiedi(tappa) },
             onDossier = onDossier,
-            onScarica = onScarica,
+            onScarica = { onScarica(tappa) },
         )
     }
 }
@@ -225,21 +226,17 @@ private fun Scheda(
 
         item {
             Sezione(R.string.scheda_dintorni) {
-                when {
-                    scheda.dintorni.isNotEmpty() ->
-                        scheda.dintorni.forEach { RigaDintorno(it) }
-
-                    // "Qui non c'e' niente" e "non lo so" sono due cose
-                    // diverse, e si dicono diversamente: la seconda ha un
-                    // rimedio, la prima e' una risposta.
-                    scheda.dintorniVuoti -> Sottotitolo(stringResource(R.string.scheda_dintorni_vuoti))
-
-                    else -> {
-                        Sottotitolo(stringResource(R.string.scheda_dintorni_senza_scorta))
-                        TextButton(onClick = onScarica) {
-                            Text(stringResource(R.string.esplora_scarica))
-                        }
-                    }
+                if (scheda.dintorni.isEmpty()) {
+                    Sottotitolo(stringResource(R.string.scheda_dintorni_da_cercare))
+                } else {
+                    scheda.dintorni.forEach { RigaDintorno(it) }
+                }
+                // Il pulsante c'e' **sempre**, anche quando qualcosa e' gia'
+                // salvato: la ricerca e' per questa tappa e non per il viaggio,
+                // e cercare di nuovo dopo essersi spostati e' il gesto normale.
+                // Quello che torna si accoda, non sostituisce.
+                TextButton(onClick = onScarica, enabled = !inCorso) {
+                    Text(stringResource(R.string.scheda_dintorni_cerca))
                 }
             }
         }

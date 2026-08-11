@@ -30,8 +30,6 @@ data class SchedaTappa(
     val meteoOreFa: Long?,
     /** Cosa c'e' nei dintorni della tappa, una riga per categoria. */
     val dintorni: List<RiassuntoCategoria>,
-    /** Vero quando una scorta di dintorni esiste: distingue "niente" da "non so". */
-    val haScorta: Boolean,
     /** La tappa da cui ci si arriva, secondo l'itinerario. */
     val da: Tappa?,
     /** Quanto c'e' in mezzo, **su strada**. Nullo se le tratte non ce l'hanno. */
@@ -51,14 +49,6 @@ data class SchedaTappa(
     val descrizione: String? get() = tappa.descrizione?.trim()?.takeUnless { it.isEmpty() }
 
     val posizione: Coordinate get() = Coordinate(tappa.lat, tappa.lon)
-
-    /**
-     * Vero quando la scorta c'e' ma intorno alla tappa non ha trovato niente.
-     *
-     * E' un caso diverso dal non avere scorta, e va detto diversamente: "qui
-     * non c'e' niente" e' un'informazione, "non lo so" e' un invito a scaricare.
-     */
-    val dintorniVuoti: Boolean get() = haScorta && dintorni.isEmpty()
 }
 
 /**
@@ -104,7 +94,6 @@ object Schede {
             previsione = previsione,
             meteoOreFa = previsione?.let { adesso?.let { ora -> valido?.eta(ora)?.toHours() } },
             dintorni = Dintorni.riassunto(poi, tappa.lat, tappa.lon),
-            haScorta = poi.isNotEmpty(),
             da = da,
             percorso = da?.let {
                 tratte?.percorso(

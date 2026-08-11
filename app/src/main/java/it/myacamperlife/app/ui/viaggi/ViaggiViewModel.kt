@@ -430,11 +430,13 @@ class ViaggiViewModel(
         esito.viaggio?.let { viaggio ->
             val scorte = scorte ?: return@let
             val tratte = scorte.aggiornaTratte(viaggio.slug)
-            // All'import il fallimento non si mostra: l'avviso dell'import
-            // appena riuscito e' piu' importante, e i dintorni si riscaricano
-            // con un pulsante che invece lo dice.
-            val dintorni = scorte.aggiornaDintorni(viaggio.slug) is EsitoDintorni.Riuscito
-            if (tratte || dintorni) aggiornaViaggio(viaggio)
+            // **Niente dintorni all'import.** Prima si provava a scaricare i
+            // punti di interesse di tutto l'itinerario in un colpo, e era la
+            // richiesta che non funzionava: troppo larga per un server di
+            // cortesia, che rispondeva 200 con zero risultati. Adesso i dintorni
+            // si cercano una tappa per volta, quando si apre quella tappa e si
+            // chiede — dove il risultato si vede subito e un guasto si nota.
+            if (tratte) aggiornaViaggio(viaggio)
         }
     }
 
@@ -687,18 +689,26 @@ class ViaggiViewModel(
     }
 
     /**
-     * Riscarica i dintorni: punti di interesse e toponimi.
+     * Cerca i dintorni **di una tappa** e li salva.
      *
-     * A parte dalla scorta generale perche' e' la richiesta piu' pesante che
-     * l'app fa, e perche' ha senso rifarla quando l'itinerario cambia — non
-     * ogni volta che si aggiorna il meteo.
+     * Il gesto sta sulla tappa e non nelle impostazioni perche' e' li' che uno
+     * si chiede cosa c'e' intorno, e perche' una ricerca su un punto e' una
+     * richiesta che Overpass serve in un secondo. La scorta si riempie cosi',
+     * una tappa per volta: quello che hai cercato resta cercato, e si rilegge
+     * senza rete per il resto del viaggio.
      */
-    fun aggiornaDintorni() = viewModelScope.launch {
+    fun cercaDintorniDi(tappa: Tappa) = cercaDintorni { Coordinate(tappa.lat, tappa.lon) }
+
+    /** Cerca i dintorni di dove sei: l'ultima posizione, o la tappa corrente. */
+    fun cercaDintorniQui() = cercaDintorni { slug -> archivio.dovePunto(slug) }
+
+    private fun cercaDintorni(dove: suspend (String) -> Coordinate?) = viewModelScope.launch {
         val viaggio = _stato.value.aperto ?: return@launch
         val scorte = scorte ?: return@launch
         _stato.update { it.copy(inCorso = true, avviso = null) }
 
-        val esito = scorte.aggiornaDintorni(viaggio.slug)
+        val punto = withContext(Dispatchers.IO) { dove(viaggio.slug) }
+        val esito = scorte.dintorniAttorno(viaggio.slug, punto)
         aggiornaViaggio(viaggio)
         _stato.update {
             it.copy(

@@ -218,12 +218,18 @@ class Fusione(private val archivio: Archivio) {
         if (NOME_IMPOSTAZIONI !in percorsi) return EsitoFusione()
         val nostre = archivio.impostazioni()
 
-        // "Intatte" si giudica **ignorando i due campi che riguardano la cartella
-        // e non le preferenze**: la cartella l'utente l'ha appena scelta, e la
-        // data di sincronizzazione la scrive questa stessa operazione. Contarli
-        // renderebbe l'archivio "gia' toccato" sempre, e la fusione delle
-        // impostazioni non scatterebbe mai.
-        val intatte = nostre.copy(cartellaSpecchio = null, sincronizzatoIl = null)
+        // "Intatte" si giudica **ignorando i campi che non sono preferenze**: la
+        // cartella l'utente l'ha appena scelta, la data di sincronizzazione la
+        // scrive questa stessa operazione, e l'esito dell'ultima ricerca dei
+        // dintorni e' una traccia di diagnostica. Contarli renderebbe l'archivio
+        // "gia' toccato" sempre, e la fusione delle impostazioni non scatterebbe
+        // mai — che e' il difetto peggiore, perche' silenzioso.
+        val intatte = nostre.copy(
+            cartellaSpecchio = null,
+            sincronizzatoIl = null,
+            dintorniEsito = null,
+            dintorniProvatoIl = null,
+        )
         if (intatte != Impostazioni()) return EsitoFusione()
 
         val testo = da.testo(NOME_IMPOSTAZIONI) ?: return EsitoFusione(falliti = 1)
@@ -233,6 +239,8 @@ class Fusione(private val archivio: Archivio) {
             loro.copy(
                 cartellaSpecchio = nostre.cartellaSpecchio,
                 sincronizzatoIl = nostre.sincronizzatoIl,
+                dintorniEsito = nostre.dintorniEsito,
+                dintorniProvatoIl = nostre.dintorniProvatoIl,
             ),
         )
         return EsitoFusione(impostazioni = true)

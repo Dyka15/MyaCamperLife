@@ -87,10 +87,14 @@ fun DiarioContent(
                     // La prosa riscrive **solo la sezione di `diario.md`**: gli
                     // eventi restano nelle tabelle, ed e' per questo che si puo'
                     // offrire senza timori.
-                    if (prosaPossibile) {
-                        TextButton(onClick = { onProsa(giorno) }) {
-                            Text(stringResource(R.string.diario_in_prosa))
-                        }
+                    //
+                    // Spento e non nascosto quando manca la chiave del modello:
+                    // un pulsante che non c'e' non si distingue da una funzione
+                    // che non esiste, e la domanda che ne nasce — "dov'e' il
+                    // pulsante del diario?" — non ha nessun posto dove trovare
+                    // risposta. Il perche' sta scritto in fondo alla schermata.
+                    TextButton(onClick = { onProsa(giorno) }, enabled = prosaPossibile) {
+                        Text(stringResource(R.string.diario_in_prosa))
                     }
                 }
                 HorizontalDivider()
@@ -108,16 +112,27 @@ fun DiarioContent(
             }
         }
 
-        if (prosaPossibile) {
-            item {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    TextButton(onClick = onCronaca) {
-                        Text(stringResource(R.string.diario_torna_cronaca))
-                    }
+        item {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // **Questo pulsante non ha bisogno di nessun modello**: riscrive
+                // `diario.md` dalle tabelle, che sono la verita'. Stava dentro
+                // `if (prosaPossibile)` per il solo motivo che era nato come
+                // l'annullamento della prosa — e cosi' senza una chiave API
+                // l'unico modo di rifare il file del diario era invisibile.
+                TextButton(onClick = onCronaca) {
+                    Text(stringResource(R.string.diario_torna_cronaca))
+                }
+                Text(
+                    stringResource(R.string.diario_prosa_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!prosaPossibile) {
                     Text(
-                        stringResource(R.string.diario_prosa_spiegazione),
+                        stringResource(R.string.diario_prosa_senza_chiavi),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
             }

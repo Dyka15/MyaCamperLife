@@ -173,8 +173,15 @@ object Rete {
 
     const val JSON = "application/json; charset=utf-8"
 
-    /** Overpass vuole la query nel corpo, e la query e' testo. */
+    /** Un corpo di testo semplice. */
     const val TESTO = "text/plain; charset=utf-8"
+
+    /**
+     * La forma **documentata** di una POST a Overpass: `data=<query>` codificata
+     * come un modulo. Il perche' sta in
+     * [it.myacamperlife.app.dominio.Overpass.corpoModulo].
+     */
+    const val MODULO = "application/x-www-form-urlencoded; charset=utf-8"
 
     /** Dieci secondi per connettersi: sotto un ripetitore stanco ne servono tre. */
     private const val ATTESA_CONNESSIONE = 10_000
@@ -195,9 +202,9 @@ object Rete {
     const val MASSIMO_CARATTERI = 2_000_000
 
     /**
-     * I dintorni sono la risposta piu' grande: sette categorie e i toponimi di
-     * un corridoio di centinaia di chilometri. Sei megabyte di testo sono un
-     * tetto generoso e comunque limitato.
+     * I dintorni sono la risposta piu' grande: sette categorie e i toponimi in
+     * un cerchio di dieci chilometri, e in citta' sono migliaia di oggetti. Sei
+     * megabyte di testo sono un tetto generoso e comunque limitato.
      */
     const val MASSIMO_DINTORNI = 6_000_000
 }

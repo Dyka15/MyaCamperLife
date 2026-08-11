@@ -30,16 +30,20 @@ data class Dintorno(
 /**
  * Costruisce e legge la richiesta dei dintorni.
  *
- * **Un `around` lungo l'itinerario, non un rettangolo.** Un rettangolo che
- * contiene Milano e Palermo contiene mezza Italia; un corridoio di quindici
- * chilometri intorno alla linea che unisce le tappe contiene la strada che
- * farai, e cresce col numero di tappe e non con la loro distanza. Overpass
- * accetta una polilinea in `around`, e misura da quella.
+ * **Un punto per volta, quando lo si chiede.** Prima l'app provava a fare
+ * scorta di tutto l'itinerario in una richiesta: un `around` di quindici
+ * chilometri lungo una polilinea di venti tappe, cioe' un corridoio di
+ * migliaia di chilometri quadrati, su un server pubblico che e' una cortesia.
+ * Quella richiesta non tornava con un errore — tornava con un `remark` e zero
+ * elementi, e dal lato dell'app somigliava a "in quella zona non c'e' niente".
+ * Un cerchio di dieci chilometri intorno a **una** tappa e' una query che
+ * Overpass serve in un secondo, e quello che torna si salva subito: la scorta
+ * si riempie una tappa per volta, con le ricerche che uno fa davvero.
  *
- * **Una richiesta sola per tutto**: le sette categorie di punti di interesse e
- * i toponimi arrivano insieme, e si separano leggendo i tag. Su Overpass, che
- * e' un servizio di cortesia, chiedere una volta invece di otto non e' un
- * dettaglio di efficienza, e' buona educazione.
+ * **Una richiesta per tutte le categorie**: le sette categorie di punti di
+ * interesse e i toponimi arrivano insieme, e si separano leggendo i tag. Le
+ * righe sono raggruppate per chiave OSM, non per categoria, perche' ogni
+ * statement rivaluta il filtro geografico da zero.
  *
  * Funzioni pure: costruire il testo della query e leggere la risposta.
  */
@@ -65,6 +69,9 @@ object Overpass {
      *   coordinate dei nodi **e** i tag di tutto, e `center` aggiunge il centro a
      *   vie e relazioni. E' esattamente quello che [leggi] va a cercare
      */
+    fun query(punto: Coordinate, raggioMetri: Int = RAGGIO_METRI, timeout: Int = TIMEOUT): String =
+        query(listOf(punto), raggioMetri, timeout)
+
     fun query(punti: List<Coordinate>, raggioMetri: Int = RAGGIO_METRI, timeout: Int = TIMEOUT): String {
         require(punti.isNotEmpty()) { "senza punti non c'e' un intorno" }
         val intorno = "around:$raggioMetri," + punti.joinToString(",") {
@@ -105,6 +112,20 @@ object Overpass {
             appendLine("out center;")
         }
     }
+
+    /**
+     * La query impacchettata come la vuole Overpass in una POST.
+     *
+     * `data=<query codificata>` con `Content-Type: application/x-www-form-urlencoded`
+     * e' la forma **documentata** dell'API, quella che usano overpass-turbo e le
+     * librerie. Prima l'app mandava la query come corpo grezzo `text/plain`: e'
+     * una forma che alcune installazioni accettano e altre no, e quando non
+     * l'accettano non lo dicono con un errore — rispondono a una query vuota, che
+     * dal lato dell'app somiglia a "qui non c'e' niente". Fra due forme di cui
+     * una sola e' documentata non c'e' motivo di preferire l'altra.
+     */
+    fun corpoModulo(query: String): String =
+        "data=" + java.net.URLEncoder.encode(query, "UTF-8")
 
     /**
      * Da `["tourism"="camp_site"]` a `tourism` e `camp_site`.
@@ -264,29 +285,23 @@ object Overpass {
      */
     const val SERVIZIO = "https://overpass-api.de/api/interpreter"
 
-    /** Quindici chilometri dal percorso: il corridoio in cui passerai. */
-    const val RAGGIO_METRI = 15_000
-
-    /** Novanta secondi lato server: una query larga ci mette. */
-    const val TIMEOUT = 90
-
     /**
-     * Oltre questo numero di punti la polilinea si accorcia: una query con
-     * cento vertici mette in ginocchio il server pubblico, e le tappe che
-     * contano sono quelle che devi ancora fare.
-     */
-    const val PUNTI_MASSIMI = 20
-
-    /**
-     * Quanti punti per richiesta.
+     * Dieci chilometri dal punto: quello che si raggiunge in un quarto d'ora
+     * dalla tappa.
      *
-     * **Una richiesta sola per venti tappe non passa.** Un corridoio di quindici
-     * chilometri intorno a mezza Italia e' una delle query piu' care che si
-     * possano chiedere a un server di cortesia, e quello che si ottiene non e' un
-     * errore ma un `remark` con zero risultati. Sei punti per volta, con le fette
-     * che si sovrappongono di uno perche' il tratto di mezzo non sparisca: e' la
-     * stessa medicina che la fase 6 aveva gia' dato a OSRM, e per lo stesso
-     * motivo — **mezzi dintorni sono meglio di nessun dintorno**.
+     * Erano quindici, quando la richiesta era una sola per tutto l'itinerario e
+     * il raggio doveva coprire un corridoio. Su un punto solo dieci bastano, e
+     * l'area di una query cresce col quadrato del raggio: da 15 a 10 chilometri
+     * il lavoro del server si piu' che dimezza.
      */
-    const val PUNTI_PER_RICHIESTA = 6
+    const val RAGGIO_METRI = 10_000
+
+    /**
+     * Trenta secondi lato server.
+     *
+     * Erano novanta per la query larga. Una ricerca su un punto solo che ci
+     * mette piu' di trenta secondi non e' lenta: e' rotta, e vale saperlo
+     * subito invece di aspettare un minuto e mezzo per scoprirlo.
+     */
+    const val TIMEOUT = 30
 }

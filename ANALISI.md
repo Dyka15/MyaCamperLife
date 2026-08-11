@@ -908,6 +908,46 @@ La lezione è la stessa della fase 8 e della 13, e a questo punto vale come rego
 progetto: **un servizio che può fallire deve poter dire come**, e i suoi modi di fallire non
 sono sempre dove uno li cerca. Qui non erano nel codice HTTP ma nel corpo della risposta.
 
+### Il difetto dei dintorni, terzo atto: smettere di fare scorta
+
+Dopo i due rimedi strutturali, i dintorni **continuavano a non caricare**. A quel punto la
+domanda giusta non era più «cosa c'è di sbagliato nella richiesta» ma **perché quella
+richiesta esiste**.
+
+Faceva scorta di tutto l'itinerario in anticipo: un corridoio di quindici chilometri lungo
+venti tappe, migliaia di chilometri quadrati, su un server pubblico che è una cortesia. Ogni
+rimedio la rendeva meno cara senza cambiarne la natura — restava la richiesta più grande che
+l'app potesse formulare, chiesta nel momento in cui nessuno stava guardando il risultato.
+
+**La proposta di chi la usa era di salvare le ricerche invece di anticiparle**, ed è
+giusta. Un cerchio di dieci chilometri intorno a *una* tappa è una query che Overpass serve
+in un secondo, e la si chiede stando sulla tappa, guardando il risultato. La scorta si
+riempie con le ricerche fatte davvero, e resta: quello che hai cercato una volta si rilegge
+offline per tutto il viaggio. Non è meno offline-first del prefetch — è più onesto, perché
+non promette una copertura che non c'era.
+
+Due cose sono cambiate con lei, e nessuna delle due era «ottimizzazione»:
+
+- **la forma della POST.** La query andava come corpo grezzo `text/plain`; la forma
+  documentata dell'API è `data=<query codificata>` con `application/x-www-form-urlencoded`.
+  Fra due forme di cui una sola è documentata non c'è ragione di preferire l'altra — e le
+  installazioni che non accettano la prima non lo dicono con un errore: rispondono a una
+  query vuota, che dal lato dell'app somiglia a «qui non c'è niente».
+- **l'esito resta scritto.** `dintorniEsito` e `dintorniProvatoIl` nelle impostazioni: il
+  codice HTTP, la frase del server, la data. Perché la diagnostica di un guasto che accade
+  in viaggio non può vivere in una notifica di tre secondi né in un logcat — chi viaggia ha
+  soltanto il telefono, e la domanda «perché non carica niente?» arriva il giorno dopo.
+
+E una schermata ha smesso di mentire: «niente di segnato nel raggio di venti chilometri»
+aveva senso finché una ricerca sola copriva tutto, e non ne ha più adesso che una tappa può
+semplicemente non essere stata cercata. Ora dice quello che sa — *niente salvato qui
+intorno* — e offre la ricerca.
+
+**La lezione, che è diversa dalle due precedenti:** quando un rimedio dopo l'altro non
+guarisce una funzione, il difetto può non stare nell'implementazione ma nel gesto che le si
+è chiesto di fare. Tre atti su questa richiesta, e i primi due erano correzioni giuste a una
+domanda sbagliata.
+
 ### Un giorno è un giorno anche se non ci si sposta
 
 Il riepilogo elencava solo i giorni che avevano una tappa, e un giorno fermo spariva: chi

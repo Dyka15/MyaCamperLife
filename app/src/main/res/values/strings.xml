@@ -194,27 +194,27 @@
     <!-- La scorta: rete presa in anticipo -->
     <string name="prossima_distanza">%1$d km · %2$s di guida</string>
     <string name="impostazioni_scorta">La scorta</string>
-    <string name="impostazioni_scorta_spiegazione">Meteo e distanze su strada si scaricano in anticipo e si usano offline. Aggiornali prima di entrare in una zona senza campo. I dintorni hanno un pulsante a parte: è la richiesta più pesante, e i punti di interesse non cambiano di sera in sera.</string>
+    <string name="impostazioni_scorta_spiegazione">Meteo e distanze su strada si scaricano in anticipo e si usano offline. Aggiornali prima di entrare in una zona senza campo. I dintorni no: si cercano una tappa per volta, dalla schermata della tappa, e quello che trovano resta salvato.</string>
     <string name="impostazioni_aggiorna_scorta">Aggiorna meteo e distanze</string>
-    <string name="impostazioni_scarica_dintorni">Scarica i dintorni</string>
+    <string name="impostazioni_scarica_dintorni">Cerca i dintorni di qui</string>
     <string name="scorta_aggiornata">Scorta aggiornata</string>
     <string name="scorta_non_aggiornata">Niente da aggiornare: senza rete si usa quella che c\'è.</string>
 
     <!-- Esplora -->
     <string name="esplora_tutto">Tutto</string>
-    <string name="esplora_vuoto">I dintorni non sono ancora scaricati</string>
-    <string name="esplora_vuoto_spiegazione">Aree di sosta, campeggi, carico e scarico, distributori, supermercati e cose da vedere lungo l\'itinerario. Si scaricano una volta, con la rete, e poi si consultano senza.</string>
-    <string name="esplora_scarica">Scarica i dintorni</string>
-    <string name="esplora_riscarica">Riscarica i dintorni</string>
-    <string name="esplora_niente_qui">Niente di questo genere nel raggio di venti chilometri.</string>
-    <string name="dintorni_aggiornati">Dintorni scaricati: %1$d punti, %2$d località</string>
+    <string name="esplora_vuoto">Nessun dintorno salvato</string>
+    <string name="esplora_vuoto_spiegazione">Aree di sosta, campeggi, carico e scarico, distributori, supermercati e cose da vedere. Si cercano un posto per volta, con la rete, e da quel momento si consultano senza — la scorta si riempie con le ricerche che fai.</string>
+    <string name="esplora_scarica">Cerca i dintorni di qui</string>
+    <string name="esplora_riscarica">Cerca ancora, qui intorno</string>
+    <string name="esplora_niente_qui">Niente di questo genere fra i punti salvati qui intorno.</string>
+    <string name="dintorni_aggiornati">Trovati e salvati: %1$d punti, %2$d località</string>
     <string name="dintorni_senza_rete">Niente campo, o OpenStreetMap non ha risposto in tempo. Riprova dove c\'è rete.</string>
-    <string name="dintorni_senza_tappe">Nessuna tappa da fare su cui cercare: i dintorni si scaricano intorno all\'itinerario.</string>
-    <string name="dintorni_vuoto">OpenStreetMap non ha niente di segnato lungo questo itinerario.</string>
+    <string name="dintorni_senza_tappe">Nessun punto su cui cercare: apri una tappa e cerca da lì.</string>
+    <string name="dintorni_vuoto">OpenStreetMap non ha niente di segnato entro dieci chilometri da qui.</string>
     <string name="dintorni_illeggibile">Ha risposto con %1$d elementi ma non ho saputo leggerli: è un difetto dell\'app, non un problema di rete.</string>
-    <string name="dintorni_avvertito">OpenStreetMap ha interrotto la ricerca: %1$s. Riprova, o spunta qualche tappa già fatta per accorciare l\'itinerario.</string>
+    <string name="dintorni_avvertito">OpenStreetMap ha interrotto la ricerca: %1$s. Riprova fra un momento.</string>
     <string name="dintorni_troppe_richieste">OpenStreetMap è occupato: aspetta un minuto e riprova. È un servizio gratuito, e ha ragione lui.</string>
-    <string name="dintorni_troppo_grande">Richiesta troppo grande per il server: succede con itinerari molto lunghi. Riprova, o spunta qualche tappa già fatta.</string>
+    <string name="dintorni_troppo_grande">Il server ha rinunciato per dimensione o per tempo. Riprova fra un momento: capita quando è carico.</string>
     <string name="dintorni_rifiutati">OpenStreetMap ha rifiutato (%1$d). %2$s</string>
 
     <!-- Quando e' accaduto -->
@@ -282,7 +282,8 @@
     <string name="impostazioni_mai">mai</string>
     <string name="impostazioni_sincronizzato">Ultima sincronizzazione: %1$s</string>
     <string name="impostazioni_meteo_preso">Meteo scaricato: %1$s</string>
-    <string name="impostazioni_dintorni_presi">Dintorni scaricati: %1$s</string>
+    <string name="impostazioni_dintorni_presi">Dintorni salvati: %1$s</string>
+    <string name="impostazioni_dintorni_esito">Ultima ricerca (%1$s): %2$s</string>
 
     <!-- La cartella: assegnarla e sincronizzarla -->
     <string name="invito_cartella_titolo">Scegli dove tenere i file</string>
@@ -322,8 +323,8 @@
     <string name="scheda_descrizione">Dall\'itinerario</string>
     <string name="scheda_meteo">Che tempo farà</string>
     <string name="scheda_dintorni">Nei dintorni</string>
-    <string name="scheda_dintorni_vuoti">Niente di segnato nel raggio di venti chilometri. Non vuol dire che non ci sia: OpenStreetMap non copre tutto.</string>
-    <string name="scheda_dintorni_senza_scorta">I dintorni non sono ancora scaricati.</string>
+    <string name="scheda_dintorni_da_cercare">Niente salvato qui intorno. La ricerca ha bisogno di rete una volta sola: quello che trova resta.</string>
+    <string name="scheda_dintorni_cerca">Cerca i dintorni di questa tappa</string>
     <string name="scheda_categoria_quante">%1$s · %2$d</string>
     <string name="scheda_da">Si arriva da %1$s</string>
     <string name="scheda_da_con_distanza">Da %1$s · %2$d km · %3$s</string>
@@ -358,7 +359,8 @@
 
     <!-- Il diario in prosa -->
     <string name="diario_in_prosa">In prosa</string>
-    <string name="diario_torna_cronaca">Riporta tutto a cronaca</string>
+    <string name="diario_torna_cronaca">Rigenera diario.md dalla cronaca</string>
+    <string name="diario_prosa_senza_chiavi">La riscrittura in prosa ha bisogno di un modello: metti una chiave in Impostazioni, sotto «I modelli».</string>
     <string name="diario_prosa_spiegazione">La prosa riscrive solo diario.md. Gli eventi restano nei CSV, quindi si può sempre tornare indietro.</string>
     <string name="diario_riscritto">Diario aggiornato</string>
 </resources>

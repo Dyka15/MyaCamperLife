@@ -970,6 +970,11 @@ fun ImpostazioniDialog(
                 // stessa cosa di quelli presi stamattina.
                 Quando(R.string.impostazioni_meteo_preso, meteoIl)
                 Quando(R.string.impostazioni_dintorni_presi, dintorniIl)
+                // **L'esito dell'ultima ricerca, per iscritto.** Una notifica
+                // dura tre secondi e la domanda «perche' non carica niente?»
+                // arriva il giorno dopo, in mezzo al nulla. Questa riga si
+                // rilegge quando serve, e dice quello che ha detto il server.
+                EsitoScritto(impostazioni.dintorniEsito, impostazioni.dintorniProvatoIl)
                 TextButton(onClick = { onChiudi(); onScaricaDintorni() }, enabled = scortaDisponibile) {
                     Text(stringResource(R.string.impostazioni_scarica_dintorni))
                 }
@@ -1606,6 +1611,31 @@ private fun Quando(etichetta: Int, istante: OffsetDateTime?) {
             etichetta,
             istante?.format(LETTA) ?: stringResource(R.string.impostazioni_mai),
         ),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * Com'e' andata l'ultima ricerca dei dintorni, come l'ha scritta chi l'ha fatta.
+ *
+ * Il testo arriva da [it.myacamperlife.app.rete.EsitoDintorni.riassunto] e non
+ * dalle stringhe: e' una traccia tecnica, non un messaggio: dice il codice HTTP
+ * e la frase del server, che sono le due cose con cui si capisce qualcosa. Se
+ * non c'e' ancora stata nessuna ricerca la riga non compare — non c'e' niente
+ * da dire.
+ *
+ * La data si mostra come sta scritta nel file quando non si sa leggere: un
+ * timestamp brutto e' meglio di una riga senza data.
+ */
+@Composable
+private fun EsitoScritto(esito: String?, quando: String?) {
+    val testo = esito?.trim()?.takeUnless { it.isEmpty() } ?: return
+    val letta = quando
+        ?.let { runCatching { OffsetDateTime.parse(it).format(LETTA) }.getOrNull() ?: it }
+        ?: stringResource(R.string.impostazioni_mai)
+    Text(
+        text = stringResource(R.string.impostazioni_dintorni_esito, letta, testo),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

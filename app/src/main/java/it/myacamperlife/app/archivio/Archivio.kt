@@ -16,7 +16,6 @@ import it.myacamperlife.app.dominio.GiornoTappa
 import it.myacamperlife.app.dominio.Luoghi
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Modalita
-import it.myacamperlife.app.dominio.Overpass
 import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.Programmi
 import it.myacamperlife.app.dominio.Punto
@@ -221,20 +220,20 @@ class Archivio(private val radice: File) {
     }
 
     /**
-     * I punti su cui centrare la richiesta dei dintorni: le tappe che devi
-     * ancora fare, piu' quella dove sei.
+     * Annota com'e' andata l'ultima ricerca dei dintorni, e quando.
      *
-     * Non tutte: la polilinea di un itinerario di cinquanta tappe metterebbe in
-     * ginocchio il server pubblico, e i dintorni delle tappe gia' fatte non
-     * servono piu' a niente.
+     * Nelle impostazioni e non in un log: un log su Android lo legge chi ha un
+     * computer e un cavo, e chi viaggia ha soltanto il telefono. Due righe nel
+     * file delle impostazioni si rileggono dallo schermo delle impostazioni, che
+     * e' dove la domanda nasce.
      */
-    fun puntiDintorni(slug: String, quanti: Int = Overpass.PUNTI_MASSIMI): List<Coordinate> {
-        val tappe = tappe(slug)
-        val corrente = Tappe.corrente(tappe)
-        val daFare = tappe.filter { it.stato == StatoTappa.DA_FARE }
-        return (listOfNotNull(corrente) + daFare)
-            .take(quanti)
-            .map { Coordinate(it.lat, it.lon) }
+    fun annotaDintorni(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        salvaImpostazioni(
+            impostazioni().copy(
+                dintorniEsito = esito.take(300),
+                dintorniProvatoIl = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            ),
+        )
     }
 
     /**
@@ -1358,6 +1357,8 @@ class Archivio(private val radice: File) {
             appendLine("| `briefingAttivo` | Se il riepilogo della sera deve arrivare |")
             appendLine("| `oraBriefing` | L'ora del riepilogo, 0-23. Di riposo le 19 |")
             appendLine("| `cartellaSpecchio` | L'Uri della cartella in cui l'app ricopia l'archivio. Il permesso su quella cartella non e' qui: vive nell'installazione, e dopo una reinstallazione la cartella va riscelta |")
+            appendLine("| `sincronizzatoIl` | Quando la cartella e' stata sincronizzata l'ultima volta. Risponde alla domanda di chi cambia telefono: «ha davvero preso tutto?» |")
+            appendLine("| `dintorniEsito`, `dintorniProvatoIl` | Com'e' andata l'ultima ricerca dei dintorni, e quando. Una notifica dura tre secondi; questa riga si rilegge dalle impostazioni |")
             appendLine("| `principale` | Quale modello si prova per primo: `gemini` oppure `grok`. L'altro fa da riserva |")
             appendLine("| `modelloGemini`, `modelloGrok` | Gli identificativi dei modelli. Sono qui e non compilati dentro perche' i nomi vengono ritirati ogni pochi mesi: si correggono leggendo l'errore che il servizio ha restituito |")
             appendLine("| `promptEsplora` | Il prompt di sistema di Esplora. Vuoto vuol dire «usa quello di serie» |")
