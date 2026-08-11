@@ -121,41 +121,81 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
         punto: Coordinate?,
         adesso: OffsetDateTime = OffsetDateTime.now(),
     ): EsitoDintorni = withContext(Dispatchers.IO) {
-        val esito = cerca(punto)
-        // L'esito si annota **sempre**, riuscito o no: un messaggio in una
-        // notifica che scorre non si rilegge, e la domanda "perche' non carica
-        // niente" arriva il giorno dopo, senza rete e senza il messaggio.
-        archivio.annotaDintorni(esito.riassunto(), adesso)
+        val tentativo = cerca(punto)
+        // L'esito si annota **sempre**, riuscito o no, e con dentro quale server
+        // ha risposto: un messaggio in una notifica che scorre non si rilegge, e
+        // la domanda "perche' non carica niente" arriva il giorno dopo, senza
+        // rete e senza il messaggio.
+        archivio.annotaDintorni(tentativo.scritto(), adesso)
+        val esito = tentativo.esito
         if (esito is EsitoDintorni.Riuscito) archivio.salvaDintorni(slug, esito.dintorno, adesso)
         esito
     }
 
-    private suspend fun cerca(punto: Coordinate?): EsitoDintorni {
-        if (!Rete.disponibile(context)) return EsitoDintorni.SenzaRete
-        if (punto == null) return EsitoDintorni.SenzaTappe
+    /** Un esito e il server che l'ha prodotto, per poterlo scrivere. */
+    private data class Tentativo(val esito: EsitoDintorni, val dove: String? = null) {
+        fun scritto(): String =
+            esito.riassunto() + (dove?.let { " [$it]" } ?: "")
+    }
 
+    /**
+     * Prova i server di Overpass in fila, e si ferma al primo che risponde.
+     *
+     * **Il secondo esiste per un guasto vero**: un 504 con
+     * `Dispatcher_Client::request_read_and_idx::timeout`, cioe' un server
+     * congestionato, non una query da correggere. Contro quello l'unico rimedio
+     * e' chiedere a un altro.
+     *
+     * Un `Vuoto` **non** fa passare al server dopo: "qui non c'e' niente" e' una
+     * risposta, e ripeterla su tre server sarebbe strapazzarli per confermare
+     * quello che il primo ha gia' detto. Si insiste solo su chi non ha risposto.
+     */
+    private suspend fun cerca(punto: Coordinate?): Tentativo {
+        if (!Rete.disponibile(context)) return Tentativo(EsitoDintorni.SenzaRete)
+        if (punto == null) return Tentativo(EsitoDintorni.SenzaTappe)
+
+        val corpo = Overpass.corpoModulo(Overpass.query(punto))
+        var ultimo = Tentativo(EsitoDintorni.SenzaRete)
+
+        Overpass.SERVIZI.forEach { servizio ->
+            val dove = Overpass.nomeServizio(servizio)
+            val tentativo = Tentativo(interroga(servizio, corpo), dove)
+            when (tentativo.esito) {
+                // Risposte, non guasti: si smette di chiedere.
+                is EsitoDintorni.Riuscito, EsitoDintorni.Vuoto -> return tentativo
+                // Guasti: si tiene da parte e si prova il prossimo. L'ultimo
+                // vince, perche' e' quello dell'ultimo server disponibile.
+                else -> ultimo = tentativo
+            }
+        }
+        return ultimo
+    }
+
+    private suspend fun interroga(servizio: String, corpo: String): EsitoDintorni {
         val esito = Rete.postaConEsito(
-            indirizzo = Overpass.SERVIZIO,
-            corpo = Overpass.corpoModulo(Overpass.query(punto)),
+            indirizzo = servizio,
+            corpo = corpo,
             tipo = Rete.MODULO,
             massimoCaratteri = Rete.MASSIMO_DINTORNI,
         )
 
-        val corpo = when (esito) {
+        val risposta = when (esito) {
             is EsitoHttp.Riuscito -> esito.corpo
-            // 429 vuol dire aspetta, 504 vuol dire hai chiesto troppo, 400 vuol
-            // dire che la query e' sbagliata — cioe' un difetto nostro. Tre
-            // rimedi diversi, e nessuno indovinabile da "non aggiornato".
-            is EsitoHttp.Rifiutato -> return EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
+            // 429 vuol dire aspetta, 504 vuol dire che il server non ce la fa
+            // adesso, 400 vuol dire che la query e' sbagliata — cioe' un difetto
+            // nostro. Tre rimedi diversi, e nessuno indovinabile da "non
+            // aggiornato".
+            is EsitoHttp.Rifiutato ->
+                return EsitoDintorni.Rifiutato(esito.codice, messaggio(esito.corpo))
             EsitoHttp.Muto -> return EsitoDintorni.SenzaRete
         }
 
         // Il `remark` si legge **prima** degli elementi: una risposta 200 con
         // zero risultati e un remark non e' una zona deserta, e' una query che il
         // server ha interrotto.
-        Overpass.avvertimento(corpo)?.let { return EsitoDintorni.Avvertito(it) }
+        Overpass.avvertimento(risposta)?.let { return EsitoDintorni.Avvertito(it) }
 
-        val dintorno = Overpass.leggi(corpo)
+        val dintorno = Overpass.leggi(risposta)
         return when {
             !dintorno.vuoto -> EsitoDintorni.Riuscito(dintorno)
             // Elementi arrivati e zero salvati non e' una zona deserta: e' una
@@ -166,16 +206,15 @@ class Scorte(private val context: Context, private val archivio: Archivio) {
     }
 
     /**
-     * La prima riga utile del corpo d'errore.
+     * La parte utile del corpo d'errore.
      *
-     * Overpass risponde con una pagina HTML che contiene, in mezzo al resto, la
-     * riga che spiega davvero cosa non va. Mostrarla intera in un messaggio non
-     * si puo'; buttarla via lascia l'utente a indovinare.
+     * Il taglio sta in [Overpass.causa], che e' dominio e si verifica senza
+     * rete: un errore di Overpass arriva avvolto in due righe di licenza sempre
+     * uguali, e in duecento caratteri quelle coprivano la frase che spiega
+     * davvero cosa non va — che era proprio il caso del 504 del dispatcher.
      */
     private fun messaggio(corpo: String?): String? = corpo
-        ?.replace(Regex("<[^>]*>"), " ")
-        ?.replace(Regex("\\s+"), " ")
-        ?.trim()
+        ?.let { Overpass.causa(it) }
         ?.takeUnless { it.isEmpty() }
         ?.take(200)
 }

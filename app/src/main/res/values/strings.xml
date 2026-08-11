@@ -208,13 +208,13 @@
     <string name="esplora_riscarica">Cerca ancora, qui intorno</string>
     <string name="esplora_niente_qui">Niente di questo genere fra i punti salvati qui intorno.</string>
     <string name="dintorni_aggiornati">Trovati e salvati: %1$d punti, %2$d località</string>
-    <string name="dintorni_senza_rete">Niente campo, o OpenStreetMap non ha risposto in tempo. Riprova dove c\'è rete.</string>
+    <string name="dintorni_senza_rete">Niente campo, o nessuno dei server di OpenStreetMap ha risposto in tempo. Riprova dove c\'è rete.</string>
     <string name="dintorni_senza_tappe">Nessun punto su cui cercare: apri una tappa e cerca da lì.</string>
     <string name="dintorni_vuoto">OpenStreetMap non ha niente di segnato entro dieci chilometri da qui.</string>
     <string name="dintorni_illeggibile">Ha risposto con %1$d elementi ma non ho saputo leggerli: è un difetto dell\'app, non un problema di rete.</string>
     <string name="dintorni_avvertito">OpenStreetMap ha interrotto la ricerca: %1$s. Riprova fra un momento.</string>
-    <string name="dintorni_troppe_richieste">OpenStreetMap è occupato: aspetta un minuto e riprova. È un servizio gratuito, e ha ragione lui.</string>
-    <string name="dintorni_troppo_grande">Il server ha rinunciato per dimensione o per tempo. Riprova fra un momento: capita quando è carico.</string>
+    <string name="dintorni_troppe_richieste">OpenStreetMap chiede di rallentare: aspetta un minuto e riprova. È un servizio gratuito, e ha ragione lui.</string>
+    <string name="dintorni_troppo_grande">I server di OpenStreetMap sono occupati: l\'app ne ha provati tre e nessuno ha risposto. Riprova fra qualche minuto — non è un problema della tua richiesta.</string>
     <string name="dintorni_rifiutati">OpenStreetMap ha rifiutato (%1$d). %2$s</string>
 
     <!-- Quando e' accaduto -->

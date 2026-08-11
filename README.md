@@ -158,6 +158,11 @@ Esplora — cosa c'è nei dintorni, **senza rete**:
 - i dintorni si cercano su OpenStreetMap **un punto per volta**, in un cerchio di dieci
   chilometri, e da quel momento si consultano senza rete: la scorta si riempie con le
   ricerche che fai, e quello che hai cercato resta cercato per tutto il viaggio
+- **tre server provati in fila**, fermandosi al primo che risponde: il primo tentativo vero
+  da un telefono ha ricevuto un 504 col dispatcher di Overpass congestionato, e a un server
+  che non risponde non si rimedia correggendo la richiesta. Un «qui non c'è niente» invece
+  non fa passare al server dopo: è una risposta, e chiederne conferma ad altri due sarebbe
+  strapazzarli per niente
 
 E l'app sa **dire dove sei senza rete**: insieme ai punti di interesse arrivano i nomi dei
 paesi lungo il percorso, e da quel momento una foto si chiama `foto_..._Bolsena.jpg` anche

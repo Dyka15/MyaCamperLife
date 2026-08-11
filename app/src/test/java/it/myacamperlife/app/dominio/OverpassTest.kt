@@ -85,6 +85,66 @@ class OverpassTest {
         assertTrue(query, !query.contains("center tags"))
     }
 
+    // --- i server -------------------------------------------------------------
+
+    @Test
+    fun `i server sono piu' di uno, e il primo e' quello ufficiale`() {
+        // Il secondo e il terzo esistono per un guasto vero: un 504 col
+        // dispatcher congestionato non si corregge cambiando la query.
+        assertTrue(Overpass.SERVIZI.size >= 2)
+        assertTrue(Overpass.SERVIZI.first().contains("overpass-api.de"))
+        assertTrue(Overpass.SERVIZI.all { it.startsWith("https://") })
+        assertTrue(Overpass.SERVIZI.all { it.endsWith("/api/interpreter") })
+        // Nessun doppione: sarebbero due tentativi sullo stesso server rotto.
+        assertEquals(Overpass.SERVIZI.size, Overpass.SERVIZI.distinct().size)
+    }
+
+    @Test
+    fun `il nome del servizio e' l'ospite, non mezzo indirizzo`() {
+        assertEquals(
+            "overpass-api.de",
+            Overpass.nomeServizio("https://overpass-api.de/api/interpreter"),
+        )
+        assertEquals(
+            "overpass.kumi.systems",
+            Overpass.nomeServizio("https://overpass.kumi.systems/api/interpreter"),
+        )
+    }
+
+    // --- il corpo d'errore ----------------------------------------------------
+
+    @Test
+    fun `del corpo d'errore si tiene la causa, non la licenza`() {
+        // **Il caso vero**, arrivato da un telefono: in duecento caratteri le due
+        // righe di licenza — sempre uguali, e quindi inutili — coprivano la frase
+        // che spiega il guasto, che finiva tagliata a meta'.
+        val corpo = """
+            <html><body>
+            <p>The data included in this document is from www.openstreetmap.org.
+            The data is made available under ODbL.</p>
+            <p><strong style="color:#FF0000">Error</strong>: runtime error:
+            open64: 0 Success /osm3s_osm_base
+            Dispatcher_Client::request_read_and_idx::timeout</p>
+            </body></html>
+        """.trimIndent()
+
+        val causa = Overpass.causa(corpo)
+        assertTrue(causa, causa.startsWith("Error"))
+        assertTrue(causa, causa.contains("Dispatcher_Client::request_read_and_idx::timeout"))
+        assertTrue(causa, !causa.contains("ODbL"))
+        // Niente tag e niente righe: deve stare in una riga di impostazioni.
+        assertTrue(causa, !causa.contains("<"))
+        assertTrue(causa, !causa.contains("\n"))
+    }
+
+    @Test
+    fun `un corpo d'errore inatteso si tiene tutto`() {
+        // Senza la parola "Error" non si sa dove tagliare, e buttare via un
+        // messaggio che non si riconosce e' il modo di perdere l'unico indizio.
+        assertEquals("Bad Request", Overpass.causa("<p>Bad Request</p>"))
+        assertEquals("", Overpass.causa("   "))
+    }
+
     @Test
     fun `la query usa il punto decimale, che e' quello che vuole il servizio`() {
         assertTrue(!Overpass.query(punti).contains("42,71850"))

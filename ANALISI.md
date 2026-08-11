@@ -948,6 +948,37 @@ guarisce una funzione, il difetto può non stare nell'implementazione ma nel ges
 è chiesto di fare. Tre atti su questa richiesta, e i primi due erano correzioni giuste a una
 domanda sbagliata.
 
+### Quarto atto: il server, non la richiesta
+
+La riga di diagnostica ha risposto al primo tentativo vero, e ha chiuso la questione:
+
+> `rifiutata con 504: Error: runtime error: open64: 0 Success /osm3s_osm_base
+> Dispatcher_Client::request_read_and_idx::timeout`
+
+Non è un rifiuto della query. Una query troppo cara suona diverso — «Query timed out», «run
+out of memory» — mentre questo è il *dispatcher*, il processo che distribuisce i turni di
+lettura sul database, che non aveva uno slot libero: congestione, o base dati in
+aggiornamento. **Nessuna correzione alla richiesta rimedia a un server che in quel momento
+non risponde**, e continuare a limare la query sarebbe stato il quarto rimedio giusto al
+problema sbagliato — se non ci fosse stata quella riga a dirlo.
+
+Due conseguenze:
+
+- **tre server invece di uno**, provati in fila e uno per volta, fermandosi al primo che
+  risponde: quello ufficiale e due specchi pubblici. Una ricerca che riesce costa una
+  richiesta come prima. Un `Vuoto` **non** fa passare al server dopo: «qui non c'è niente» è
+  una risposta, e ripeterla su tre server sarebbe strapazzarli per farsi confermare quello
+  che il primo ha già detto. Si insiste solo su chi non ha risposto.
+- **l'esito scritto dice anche chi ha risposto**, fra parentesi quadre. Con tre server la
+  domanda «ha funzionato?» diventa «ha funzionato dove?», e la risposta serve tanto quanto
+  l'errore.
+
+E il taglio del corpo d'errore è passato nel dominio: le due righe di licenza ODbL che
+Overpass mette in testa a ogni errore si mangiavano i duecento caratteri disponibili, e la
+frase che spiega il guasto arrivava tagliata a metà. Ora si taglia da `Error` in poi — e se
+quella parola non c'è si tiene tutto, perché un messaggio inatteso è proprio quello che non
+va buttato.
+
 ### Un giorno è un giorno anche se non ci si sposta
 
 Il riepilogo elencava solo i giorni che avevano una tappa, e un giorno fermo spariva: chi

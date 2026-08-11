@@ -277,13 +277,52 @@ object Overpass {
         String.format(java.util.Locale.ROOT, "%.4f", valore)
 
     /**
-     * Il server pubblico di Overpass.
+     * I server di Overpass, in ordine di tentativo.
      *
-     * Come OSRM: un servizio di cortesia, non un'infrastruttura. Lo si
-     * interroga **una volta per viaggio**, quando si importa l'itinerario, e su
-     * richiesta esplicita. Mai da una schermata che si apre.
+     * **Non e' ridondanza da manuale, e' quello che e' successo.** Il primo
+     * tentativo vero da un telefono ha ricevuto un 504 con dentro
+     * `Dispatcher_Client::request_read_and_idx::timeout`: non un rifiuto della
+     * query — quello suona diverso, «Query timed out» o «run out of memory» — ma
+     * il processo che distribuisce i turni di lettura che non aveva uno slot
+     * libero. Congestione, o database in aggiornamento. Nessuna correzione alla
+     * richiesta puo' rimediare a un server che in quel momento non risponde.
+     *
+     * Sono tutti server di cortesia, e si interrogano **in fila e uno per volta**:
+     * il secondo si prova solo se il primo non ha risposto, e alla prima risposta
+     * si smette. Una ricerca che riesce costa una richiesta, come prima.
+     *
+     * L'ordine mette per primo quello ufficiale — e' quello con i dati piu'
+     * freschi — e dopo due specchi pubblici che la comunita' OSM mantiene per
+     * questo. Se un giorno uno di questi chiude, gli altri restano: e' il senso
+     * di averne tre invece di uno.
      */
-    const val SERVIZIO = "https://overpass-api.de/api/interpreter"
+    val SERVIZI = listOf(
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.osm.ch/api/interpreter",
+    )
+
+    /** Come si chiama il server, per scriverlo nell'esito senza mezzo indirizzo. */
+    fun nomeServizio(indirizzo: String): String =
+        indirizzo.removePrefix("https://").substringBefore("/api")
+
+    /**
+     * Il messaggio che conta, dentro il corpo d'errore di Overpass.
+     *
+     * Un errore arriva avvolto in due righe di licenza ODbL sempre uguali, e in
+     * duecento caratteri quelle si mangiano la parte utile: si taglia da `Error`
+     * in poi, che e' dove il server dice cosa e' andato storto. Se quella parola
+     * non c'e', si tiene tutto — un messaggio inatteso e' proprio quello che non
+     * va buttato.
+     */
+    fun causa(corpo: String): String {
+        val pulito = corpo
+            .replace(Regex("<[^>]*>"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        val da = pulito.indexOf("Error")
+        return if (da >= 0) pulito.substring(da) else pulito
+    }
 
     /**
      * Dieci chilometri dal punto: quello che si raggiunge in un quarto d'ora
