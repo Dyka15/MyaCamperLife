@@ -55,6 +55,14 @@ fun TappeContent(
     onTappa: (Tappa) -> Unit,
     /** Carica un itinerario nuovo per il seguito del viaggio. */
     onSostituisci: () -> Unit,
+    /**
+     * Cos'e' diventato l'ultimo itinerario caricato.
+     *
+     * Sta **qui** e non solo nelle impostazioni perche' e' qui che nasce la
+     * domanda: si guarda questo elenco per vedere se il file ha fatto quello che
+     * si voleva, e se non l'ha fatto questa riga dice cos'ha fatto invece.
+     */
+    ultimoImport: String? = null,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -95,6 +103,14 @@ fun TappeContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    ultimoImport?.let { esito ->
+                        Text(
+                            text = stringResource(R.string.tappe_ultimo_import, esito),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
                 }
             }
         }

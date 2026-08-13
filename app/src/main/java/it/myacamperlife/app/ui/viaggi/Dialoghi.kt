@@ -312,10 +312,22 @@ fun SceltaImportDialog(
                 // quelli; mettere per primo «un viaggio nuovo» invitava a toccare
                 // per primo proprio quello che si voleva evitare.
                 viaggi.forEach { viaggio ->
-                    Column {
-                        TextButton(onClick = { onChiudi(); onSeguitoDi(viaggio) }) {
-                            Text(stringResource(R.string.scelta_seguito_di, viaggio.nome))
-                        }
+                    // **Tutta la riga si tocca, non solo il nome.** Con un
+                    // pulsante sopra e una riga di dettaglio sotto, il dito che
+                    // cade sul dettaglio non fa niente — e un tocco che non fa
+                    // niente, in un dialogo che si chiude toccando fuori, e' un
+                    // modo per non ottenere niente credendo di aver risposto.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChiudi(); onSeguitoDi(viaggio) }
+                            .padding(vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.scelta_seguito_di, viaggio.nome),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                         // **Due viaggi possono chiamarsi uguale**, e allora il nome
                         // non risponde alla domanda: la cartella e la data di
                         // creazione li distinguono.
@@ -327,7 +339,6 @@ fun SceltaImportDialog(
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),
                         )
                     }
                 }

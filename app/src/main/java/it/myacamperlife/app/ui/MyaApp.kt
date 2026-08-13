@@ -435,6 +435,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onSpesa = { spesaAperta = true },
                     onTappa = { tappaAperta = it.id },
                     onSostituisci = { scegliSostituzione.launch(arrayOf("*/*")) },
+                    ultimoImport = stato.impostazioni.importEsito,
                 )
 
                 scheda == Scheda.DIARIO -> DiarioContent(
