@@ -520,8 +520,11 @@ fun MyaApp(vista: ViaggiViewModel) {
         SceltaImportDialog(
             scelta = scelta,
             viaggi = stato.viaggi,
-            onViaggioNuovo = vista::viaggioNuovoDallaScelta,
-            onSeguitoDi = vista::seguitoDi,
+            // La scelta si passa alle azioni: chiudere il dialogo la cancella
+            // dallo stato, e un'azione che se la rileggesse da la' non
+            // troverebbe niente.
+            onViaggioNuovo = { vista.viaggioNuovoDallaScelta(scelta) },
+            onSeguitoDi = { viaggio -> vista.seguitoDi(scelta, viaggio) },
             onChiudi = vista::scartaScelta,
         )
     }
@@ -530,8 +533,8 @@ fun MyaApp(vista: ViaggiViewModel) {
         SostituisciTappeDialog(
             sostituzione = proposta,
             viaggio = proposta.bersaglio.nome,
-            onConferma = vista::confermaSostituzione,
-            onViaggioNuovo = vista::creaViaggioDaProposta,
+            onConferma = { vista.confermaSostituzione(proposta) },
+            onViaggioNuovo = { vista.creaViaggioDaProposta(proposta) },
             onChiudi = vista::scartaSostituzione,
         )
     }

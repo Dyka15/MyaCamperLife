@@ -657,9 +657,17 @@ class ViaggiViewModel(
     /**
      * «E' il seguito di questo viaggio»: si passa alla proposta, coi numeri di
      * **quel** viaggio.
+     *
+     * La scelta arriva **come parametro** e non si rilegge dallo stato. Non e' un
+     * dettaglio di stile: e' il difetto che ha reso inerte questa funzione dal
+     * primo giorno. Il pulsante del dialogo chiudeva e poi agiva — `onChiudi();
+     * onAzione()`, come tutti gli altri dialoghi dell'app — ma qui chiudere
+     * **cancella la domanda dallo stato**, e l'azione la rileggeva da la'
+     * trovando `null`: usciva in silenzio, senza scrivere niente e senza dirlo.
+     * Un dato che arriva come parametro non puo' essere cancellato da chi lo
+     * passa.
      */
-    fun seguitoDi(viaggio: Viaggio) = viewModelScope.launch {
-        val scelta = _stato.value.sceltaImport ?: return@launch
+    fun seguitoDi(scelta: SceltaImport, viaggio: Viaggio) = viewModelScope.launch {
         _stato.update { it.copy(sceltaImport = null, inCorso = true) }
 
         val proposta = withContext(Dispatchers.IO) {
@@ -685,8 +693,7 @@ class ViaggiViewModel(
     }
 
     /** «E' un viaggio nuovo»: dall'elenco, senza rileggere il file. */
-    fun viaggioNuovoDallaScelta() = viewModelScope.launch {
-        val scelta = _stato.value.sceltaImport ?: return@launch
+    fun viaggioNuovoDallaScelta(scelta: SceltaImport) = viewModelScope.launch {
         _stato.update { it.copy(sceltaImport = null) }
         crea(scelta.nome, scelta.nomeFile, scelta.punti, scelta.documento, scelta.scartate)
     }
@@ -701,8 +708,7 @@ class ViaggiViewModel(
      * Non rilegge il file — quello letto e' quello su cui si e' risposto — e non
      * tocca il viaggio aperto: lo lascia dov'e' e apre quello nuovo.
      */
-    fun creaViaggioDaProposta() = viewModelScope.launch {
-        val proposta = _stato.value.sostituzione ?: return@launch
+    fun creaViaggioDaProposta(proposta: Sostituzione) = viewModelScope.launch {
         _stato.update { it.copy(sostituzione = null) }
         crea(proposta.nome, proposta.nomeFile, proposta.punti, proposta.documento, proposta.scartate)
     }
@@ -763,9 +769,14 @@ class ViaggiViewModel(
     /**
      * Scrive la sostituzione proposta: le tappe da fare escono, quelle del file
      * nuovo entrano, tutto il resto resta dov'e'.
+     *
+     * La proposta arriva **come parametro** e non si rilegge dallo stato: il
+     * pulsante che la conferma chiude prima il dialogo, e chiudere cancella la
+     * proposta. Con la rilettura dallo stato questa funzione uscira' sempre
+     * subito — ed e' esattamente quello che ha fatto per due giri di
+     * segnalazioni, senza scrivere niente e senza dire niente.
      */
-    fun confermaSostituzione() = viewModelScope.launch {
-        val proposta = _stato.value.sostituzione ?: return@launch
+    fun confermaSostituzione(proposta: Sostituzione) = viewModelScope.launch {
         // Il viaggio della proposta, non quello aperto: la domanda puo' essere
         // arrivata dall'elenco, e la risposta va scritta dove si e' chiesto.
         val viaggio = proposta.bersaglio

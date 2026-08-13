@@ -1129,6 +1129,47 @@ Con lei, due dettagli che erano trappole:
 - **il messaggio dopo un import dice cosa ha fatto**: non più «Importate 13 tappe» — che non
   distingue le due cose — ma «Viaggio nuovo creato, con 13 tappe».
 
+### E il difetto vero: il pulsante che chiudeva la domanda prima di risponderle
+
+Al terzo giro sono arrivati i dati giusti: il dialogo compariva col file riconosciuto e coi
+numeri esatti — *escono 12 tappe, ne entrano 13, le 9 fatte restano* — l'utente toccava
+«Sostituisci», e nel `tappe.csv` non compariva nulla. Nessuna lapide, nessuna tappa nuova,
+nessun `itinerario-2.md`, nessun viaggio doppione, e la traccia dell'ultimo import vuota.
+**Tutte le strade non facevano niente**, ed è quel «tutte» a dire dove guardare: non in una
+delle due, ma in quello che avevano in comune.
+
+```kotlin
+onClick = { onChiudi(); onConferma() }     // il dialogo
+fun scartaSostituzione() = _stato.update { it.copy(sostituzione = null) }   // onChiudi
+fun confermaSostituzione() { val proposta = _stato.value.sostituzione ?: return }  // onConferma
+```
+
+`onChiudi()` **cancella la proposta dallo stato**, e `confermaSostituzione` la rileggeva da lì:
+trovava `null` e usciva. In silenzio, senza scrivere e senza dire. Il pattern
+`onChiudi(); onAzione()` è quello di tutti gli altri dialoghi dell'app ed è corretto in tutti:
+là dentro l'azione lavora su un dato **catturato dalla lambda** — la voce di diario, la tappa —
+che nessuno può azzerare. Qui la domanda *era* lo stato, e chiuderla la distruggeva.
+
+Il rimedio non è invertire due righe: è **passare il dato come parametro**.
+`confermaSostituzione(proposta)`, `seguitoDi(scelta, viaggio)`. Un dato che arriva come
+parametro non può essere cancellato da chi lo passa, e l'ordine dei due tocchi torna a non
+avere importanza. Invertire le righe avrebbe funzionato e avrebbe lasciato la trappola armata
+per il prossimo dialogo con una domanda dentro lo stato.
+
+**Tre lezioni, e la terza è la più scomoda:**
+
+- **un gesto che non fa niente non deve poter passare inosservato.** Se
+  `confermaSostituzione` avesse annotato «chiamata senza proposta» invece di uscire con
+  `?: return`, la prima segnalazione sarebbe finita in un giro.
+- **le prove coprivano `Archivio.sostituisciTappe` e non il filo che lo raggiunge.** La logica
+  era giusta, i nove casi sui file veri passavano, e la funzione era inerte: il codice non
+  testato non era quello complicato, era quello che sembrava troppo semplice per sbagliarsi.
+- **sono state necessarie tre segnalazioni** perché le prime due volte ho cercato il difetto
+  dove la mia attenzione era già stata — la scrittura, il gesto per arrivarci — invece di
+  chiedere subito i dati che lo avrebbero circoscritto. La diagnostica scritta (`importEsito`)
+  è servita, ma è servita di più il `tappe.csv` vero: **il file era la verità, e chiederlo
+  prima costava una frase**.
+
 **La lezione, che è la stessa di due giri prima con altre parole:** una funzione non esiste
 finché non esiste il gesto per invocarla, e «l'ho messo in fondo alla schermata giusta» non è
 un gesto. Vale doppio quando il gesto nuovo somiglia a uno che c'era già: se due cose diverse
