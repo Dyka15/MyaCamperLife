@@ -151,7 +151,6 @@ class ViaggiViewModel(
         val quiVicino: Coordinate? = null,
         val impostazioni: Impostazioni = Impostazioni(),
         /** L'ultimo contachilometri registrato: precompila la form. */
-        val ultimoKm: Int? = null,
         /**
          * Il programma giorno per giorno, dall'itinerario originale. Sta nello
          * stato per la stessa ragione del meteo: aprire la scheda di una tappa
@@ -409,7 +408,6 @@ class ViaggiViewModel(
                 meteo = archivio.meteo(slug),
                 dossier = archivio.dossier(slug),
                 quiVicino = archivio.dovePunto(slug),
-                ultimoKm = Consumi.ultimoChilometraggio(rifornimenti),
                 programma = archivio.programma(slug),
                 meteoIl = archivio.meteoAggiornatoIl(slug),
                 dintorniIl = archivio.dintorniAggiornatiIl(slug),
@@ -432,7 +430,6 @@ class ViaggiViewModel(
                 meteo = dati.meteo,
                 dossier = dati.dossier,
                 quiVicino = dati.quiVicino,
-                ultimoKm = dati.ultimoKm,
                 programma = dati.programma,
                 meteoIl = dati.meteoIl,
                 dintorniIl = dati.dintorniIl,
@@ -455,7 +452,6 @@ class ViaggiViewModel(
         val meteo: Meteo?,
         val dossier: List<Dossier>,
         val quiVicino: Coordinate?,
-        val ultimoKm: Int?,
         val programma: List<SezioneGiorno>,
         val meteoIl: OffsetDateTime?,
         val dintorniIl: OffsetDateTime?,
@@ -925,14 +921,14 @@ class ViaggiViewModel(
 
     fun correggiRifornimento(
         id: String,
-        km: Int,
+        kmDaPieno: Int,
         euro: Double,
         prezzoLitro: Double,
         pieno: Boolean,
         istante: OffsetDateTime,
     ) = operazione { slug ->
         val fatto = archivio.correggiRifornimento(
-            slug = slug, id = id, km = km, euro = euro, prezzoLitro = prezzoLitro,
+            slug = slug, id = id, kmDaPieno = kmDaPieno, euro = euro, prezzoLitro = prezzoLitro,
             pieno = pieno, istante = istante,
         )
         if (fatto) Avviso.VoceCorretta else null
@@ -983,7 +979,7 @@ class ViaggiViewModel(
     }
 
     fun registraRifornimento(
-        km: Int,
+        kmDaPieno: Int,
         euro: Double,
         prezzoLitro: Double,
         pieno: Boolean,
@@ -991,7 +987,7 @@ class ViaggiViewModel(
     ) = operazione { slug ->
         archivio.registraRifornimento(
             slug = slug,
-            km = km,
+            kmDaPieno = kmDaPieno,
             euro = euro,
             prezzoLitro = prezzoLitro,
             pieno = pieno,

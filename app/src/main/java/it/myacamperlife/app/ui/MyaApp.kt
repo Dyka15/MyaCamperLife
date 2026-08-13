@@ -601,7 +601,6 @@ fun MyaApp(vista: ViaggiViewModel) {
 
             Genere.RIFORNIMENTO -> stato.rifornimenti.firstOrNull { it.id == id }?.let { quello ->
                 RifornimentoDialog(
-                    ultimoKm = stato.ultimoKm,
                     adesso = remember { OffsetDateTime.now() },
                     iniziale = quello,
                     onSalva = { km, euro, prezzo, pieno, istante ->
@@ -656,7 +655,6 @@ fun MyaApp(vista: ViaggiViewModel) {
 
     if (rifornimentoAperto) {
         RifornimentoDialog(
-            ultimoKm = stato.ultimoKm,
             // L'adesso si prende all'apertura del dialogo e non a ogni
             // ricomposizione: se cambiasse sotto le dita, i campi precompilati
             // salterebbero mentre li stai correggendo.

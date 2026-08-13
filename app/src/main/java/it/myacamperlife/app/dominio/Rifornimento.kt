@@ -19,8 +19,29 @@ data class Rifornimento(
     val id: String,
     /** Quando hai fatto il rifornimento, non quando l'hai registrato. */
     val istante: OffsetDateTime,
-    /** Il contachilometri al momento del rifornimento. */
-    val km: Int,
+    /**
+     * Il contachilometri al momento del rifornimento, **per le righe scritte
+     * cosi'**.
+     *
+     * Nullo su quelle nuove: alla colonnina si azzera il totalizzatore parziale e
+     * si legge quello, non i sei numeri del contachilometri — e chi ha la pompa in
+     * una mano e il telefono nell'altra copia il numero corto. Le righe vecchie
+     * restano leggibili e continuano a valere: e' la stessa tolleranza con cui il
+     * prezzo al litro e' comparso dopo i litri.
+     */
+    val km: Int? = null,
+    /**
+     * I chilometri fatti **dal rifornimento precedente**: il totalizzatore
+     * parziale azzerato all'ultima colonnina.
+     *
+     * E' il numero che si legge davvero, ed e' anche quello che non si puo'
+     * sbagliare di mille: un contachilometri copiato male fa un tratto di
+     * ventimila chilometri, un parziale copiato male fa un tratto un po' storto.
+     *
+     * Fra due pieni si sommano, come i litri: un rabbocco in mezzo porta i suoi
+     * chilometri e i suoi litri nello stesso tratto, dove appartengono.
+     */
+    val kmDaPieno: Int? = null,
     val litri: Double,
     /** L'importo speso: e' il dato primario, quello scritto sullo scontrino. */
     val euro: Double? = null,

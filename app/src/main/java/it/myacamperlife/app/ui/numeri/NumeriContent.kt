@@ -201,8 +201,18 @@ private fun ConsumoCard(consumo: Consumo) {
 private fun RigaTratto(tratto: Segmento) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth()) {
+            // **Da dove a dove, solo se si sa.** Lo sa il tratto misurato col
+            // contachilometri; quello misurato col parziale conosce la propria
+            // lunghezza e non la propria posizione, e inventarne una sarebbe
+            // dire un numero che nessuno ha letto.
+            val da = tratto.daKm
+            val a = tratto.aKm
             Text(
-                stringResource(R.string.tratto_km, tratto.daKm, tratto.aKm),
+                text = if (da != null && a != null) {
+                    stringResource(R.string.tratto_km, da, a)
+                } else {
+                    stringResource(R.string.tratto_lungo, tratto.km)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )

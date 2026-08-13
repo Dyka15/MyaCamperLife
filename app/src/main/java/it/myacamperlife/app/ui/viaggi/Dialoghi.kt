@@ -839,7 +839,8 @@ private fun RigaIndirizzo(indirizzo: Indirizzo, onTocco: () -> Unit) {
 }
 
 /**
- * Un rifornimento: contachilometri, importo, prezzo al litro, pieno si'/no.
+ * Un rifornimento: i chilometri dal pieno precedente, importo, prezzo al litro,
+ * pieno si'/no.
  *
  * **I litri non si digitano, si calcolano.** Alla colonnina si legge quanto si
  * e' speso e il prezzo sul cartello; il volume non c'e' scritto da nessuna
@@ -847,18 +848,22 @@ private fun RigaIndirizzo(indirizzo: Indirizzo, onTocco: () -> Unit) {
  * pompa in una mano e il telefono nell'altra. I litri compaiono sotto i campi
  * mentre si scrive, cosi' una cifra sbagliata si vede subito.
  *
- * Il chilometraggio arriva precompilato con l'ultimo registrato, che di solito
- * va solo corretto nelle ultime cifre. La data e' quella di oggi e si puo'
- * cambiare: uno scontrino si ritrova in tasca due giorni dopo.
+ * **I chilometri sono quelli del parziale, non del contachilometri.** Alla
+ * colonnina si azzera il totalizzatore e alla successiva si legge quello: e' un
+ * numero di tre cifre invece di sei, che si copia senza sbagliare, e misura
+ * esattamente il tratto che serve al consumo. Le righe scritte col totale
+ * restano valide e continuano a contare: chi legge usa la misura che trova.
+ *
+ * La data e' quella di oggi e si puo' cambiare: uno scontrino si ritrova in
+ * tasca due giorni dopo.
  */
 @Composable
 fun RifornimentoDialog(
-    ultimoKm: Int?,
     adesso: OffsetDateTime,
     /** I valori da correggere, o `null` per un rifornimento nuovo. */
     iniziale: Rifornimento? = null,
     onSalva: (
-        km: Int,
+        kmDaPieno: Int,
         euro: Double,
         prezzoLitro: Double,
         pieno: Boolean,
@@ -866,12 +871,10 @@ fun RifornimentoDialog(
     ) -> Unit,
     onChiudi: () -> Unit,
 ) {
-    // Correggendo, il chilometraggio proposto e' **quello della riga**, non
-    // l'ultimo registrato: l'ultimo potrebbe essere proprio quello sbagliato che
-    // si sta venendo a correggere.
-    var km by remember {
-        mutableStateOf((iniziale?.km ?: ultimoKm)?.toString().orEmpty())
-    }
+    // Niente valore precompilato: il parziale e' un numero nuovo ogni volta.
+    // Correggendo una riga vecchia scritta col totale, il campo parte vuoto — e
+    // deve, perche' quel totale non e' la risposta a questa domanda.
+    var km by remember { mutableStateOf(iniziale?.kmDaPieno?.toString().orEmpty()) }
     var euro by remember { mutableStateOf(iniziale?.euro?.let { Csv.numero(it) }.orEmpty()) }
     var prezzo by remember {
         mutableStateOf(iniziale?.prezzoLitro?.let { Csv.numero(it, 3) }.orEmpty())
@@ -910,15 +913,7 @@ fun RifornimentoDialog(
                     value = km,
                     onValueChange = { km = it },
                     label = { Text(stringResource(R.string.rifornimento_km)) },
-                    // Con `ultimoKm?.let { { Text(...) } }` la lambda esce da
-                    // `let` come una funzione normale e non come @Composable,
-                    // e non e' assegnabile qui. Con un `if` in posizione di
-                    // argomento il tipo atteso si propaga nei rami.
-                    supportingText = if (ultimoKm == null) {
-                        null
-                    } else {
-                        { Text(stringResource(R.string.rifornimento_ultimo_km, ultimoKm)) }
-                    },
+                    supportingText = { Text(stringResource(R.string.rifornimento_km_aiuto)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),

@@ -251,6 +251,53 @@ class GiornataTest {
         assertFalse(archivio.tabellaNote(slug).vive().single().testo(NoteTabella.TESTO)!!.contains('\n'))
     }
 
+    // --- il luogo nell'intestazione della giornata ------------------------------
+
+    @Test
+    fun `un giorno senza arrivi resta dove eri, non dove sei adesso`() {
+        // Il difetto che questo sorveglia, visto su un diario vero: il 6 agosto
+        // non aveva arrivi, e l'intestazione portava il nome del posto in cui si
+        // era arrivati **una settimana dopo** — perche' il ripiego era la tappa
+        // corrente, cioe' l'adesso. Un diario di sei giorni prima non sa niente
+        // dell'adesso: se non ti sei mosso, quel giorno eri dove eri arrivato.
+        archivio.checkin(slug, tappa("Firenze"), adesso = ora(5, 14, 0))
+        archivio.registraNota(slug, "giornata di riposo", adesso = ora(6, 11, 0))
+        archivio.checkin(slug, tappa("Roma"), adesso = ora(7, 18, 0))
+
+        val diario = archivio.diario(slug).testo()
+        assertTrue(diario, diario.contains("## 2026-08-05 — mercoledì 5 agosto 2026, Firenze"))
+        // Il 6 si e' rimasti a Firenze, e l'intestazione lo dice.
+        assertTrue(diario, diario.contains("## 2026-08-06 — giovedì 6 agosto 2026, Firenze"))
+        assertTrue(diario, diario.contains("## 2026-08-07 — venerdì 7 agosto 2026, Roma"))
+    }
+
+    @Test
+    fun `prima del primo arrivo l'intestazione non inventa un luogo`() {
+        // Una nota registrata prima di qualunque check-in: dove si era non si sa,
+        // e una riga senza luogo e' meglio di una con un luogo sbagliato.
+        archivio.registraNota(slug, "partenza in ritardo", adesso = ora(5, 9, 0))
+        archivio.checkin(slug, tappa("Orvieto"), adesso = ora(6, 17, 0))
+
+        val diario = archivio.diario(slug).testo()
+        assertTrue(diario, diario.contains("## 2026-08-05 — mercoledì 5 agosto 2026\n"))
+        assertTrue(diario, diario.contains("## 2026-08-06 — giovedì 6 agosto 2026, Orvieto"))
+    }
+
+    @Test
+    fun `rigenerare il diario non cambia i luoghi delle giornate`() {
+        // La rigenerazione riscrive tutte le sezioni: se la regola del luogo
+        // dipendesse dall'adesso, ogni rigenerazione le riscriverebbe diverse — ed
+        // e' esattamente cosi' che il difetto si e' fatto notare, «anche dopo la
+        // rigenerazione le tappe non corrispondono».
+        archivio.checkin(slug, tappa("Firenze"), adesso = ora(5, 14, 0))
+        archivio.registraNota(slug, "riposo", adesso = ora(6, 11, 0))
+        val prima = archivio.diario(slug).testo()
+
+        archivio.rigeneraDiario(slug)
+
+        assertEquals(prima, archivio.diario(slug).testo())
+    }
+
     private companion object {
         val ORA_CREAZIONE: OffsetDateTime = OffsetDateTime.parse("2026-08-05T08:00:00+02:00")
     }

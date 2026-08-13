@@ -107,6 +107,11 @@ Numeri:
 
 - il rifornimento si registra come lo si legge alla colonnina: **importo e prezzo al
   litro**, e i litri li calcola l'app
+- i chilometri sono **quelli dal pieno precedente**, non il contachilometri: alla colonnina si
+  azzera il parziale e alla successiva si legge quello. Tre cifre invece di sei, che si copiano
+  senza sbagliare mentre si tiene la pompa, e misurano esattamente il tratto che serve al
+  consumo. Fra due pieni si sommano, come i litri; le righe vecchie scritte col contachilometri
+  continuano a contare
 - consumo **pieno-a-pieno**: km/l, litri e euro per 100 km, tratto per tratto e in media
   pesata sui chilometri
 - **autonomia residua stimata** dai km con un pieno, meno i chilometri dedotti da tutti i

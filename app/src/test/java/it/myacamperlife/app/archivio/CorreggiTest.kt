@@ -109,8 +109,8 @@ class CorreggiTest {
     @Test
     fun `cancellare un rifornimento lo toglie dai consumi`() {
         val s = slug
-        archivio.registraRifornimento(s, km = 1000, euro = 100.0, prezzoLitro = 1.7, adesso = oggi)
-        archivio.registraRifornimento(s, km = 1500, euro = 90.0, prezzoLitro = 1.7, adesso = oggi)
+        archivio.registraRifornimento(s, kmDaPieno = 400, euro = 100.0, prezzoLitro = 1.7, adesso = oggi)
+        archivio.registraRifornimento(s, kmDaPieno = 500, euro = 90.0, prezzoLitro = 1.7, adesso = oggi)
         val id = archivio.rifornimenti(s).last().id
 
         archivio.cancellaVoce(s, Genere.RIFORNIMENTO, id, adesso = oggi)
@@ -208,30 +208,32 @@ class CorreggiTest {
     }
 
     @Test
-    fun `correggere il chilometraggio di un rifornimento rifa' il consumo`() {
+    fun `correggere i chilometri di un rifornimento rifa' il consumo`() {
         val s = slug
-        archivio.registraRifornimento(s, km = 1000, euro = 100.0, prezzoLitro = 1.7, adesso = oggi)
-        // Mille e cinque invece di millecinquecento: il refuso da correggere.
-        archivio.registraRifornimento(s, km = 1005, euro = 85.0, prezzoLitro = 1.7, adesso = oggi)
+        archivio.registraRifornimento(s, kmDaPieno = 400, euro = 100.0, prezzoLitro = 1.7, adesso = oggi)
+        // Cinque invece di cinquecento: il refuso da correggere.
+        archivio.registraRifornimento(s, kmDaPieno = 5, euro = 85.0, prezzoLitro = 1.7, adesso = oggi)
         val id = archivio.rifornimenti(s).last().id
+        assertEquals("il tratto sbagliato entra nel consumo", 5, archivio.consumo(s).kmTotali)
 
         assertTrue(
             archivio.correggiRifornimento(
-                s, id, km = 1500, euro = 85.0, prezzoLitro = 1.7,
+                s, id, kmDaPieno = 500, euro = 85.0, prezzoLitro = 1.7,
                 pieno = true, istante = oggi, adesso = oggi,
             ),
         )
-        assertEquals(1500, archivio.rifornimenti(s).last().km)
+        assertEquals(500, archivio.rifornimenti(s).last().kmDaPieno)
+        assertEquals("e il consumo si rifa' sul numero corretto", 500, archivio.consumo(s).kmTotali)
     }
 
     @Test
     fun `correggere il prezzo rifa' i litri, che sono derivati`() {
         val s = slug
-        archivio.registraRifornimento(s, km = 1000, euro = 107.16, prezzoLitro = 1.72, adesso = oggi)
+        archivio.registraRifornimento(s, kmDaPieno = 500, euro = 107.16, prezzoLitro = 1.72, adesso = oggi)
         val id = archivio.rifornimenti(s).single().id
 
         archivio.correggiRifornimento(
-            s, id, km = 1000, euro = 107.16, prezzoLitro = 1.60,
+            s, id, kmDaPieno = 500, euro = 107.16, prezzoLitro = 1.60,
             pieno = true, istante = oggi, adesso = oggi,
         )
 
@@ -243,12 +245,12 @@ class CorreggiTest {
     @Test
     fun `un rifornimento con prezzo zero non si corregge`() {
         val s = slug
-        archivio.registraRifornimento(s, km = 1000, euro = 100.0, prezzoLitro = 1.7, adesso = oggi)
+        archivio.registraRifornimento(s, kmDaPieno = 500, euro = 100.0, prezzoLitro = 1.7, adesso = oggi)
         val id = archivio.rifornimenti(s).single().id
 
         assertTrue(
             !archivio.correggiRifornimento(
-                s, id, km = 1000, euro = 100.0, prezzoLitro = 0.0,
+                s, id, kmDaPieno = 500, euro = 100.0, prezzoLitro = 0.0,
                 pieno = true, istante = oggi, adesso = oggi,
             ),
         )

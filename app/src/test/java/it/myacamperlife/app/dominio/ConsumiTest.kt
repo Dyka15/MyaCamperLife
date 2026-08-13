@@ -11,15 +11,24 @@ class ConsumiTest {
 
     private var contatore = 0
 
-    private fun rif(km: Int, litri: Double, euro: Double? = null, pieno: Boolean = true) =
-        Rifornimento(
-            id = "r${contatore++}",
-            istante = OffsetDateTime.parse("2026-08-01T10:00:00+02:00").plusDays(contatore.toLong()),
-            km = km,
-            litri = litri,
-            euro = euro,
-            pieno = pieno,
-        )
+    private fun rif(
+        km: Int,
+        litri: Double,
+        euro: Double? = null,
+        pieno: Boolean = true,
+        istante: OffsetDateTime? = null,
+    ) = Rifornimento(
+        id = "r${contatore++}",
+        istante = istante
+            ?: OffsetDateTime.parse("2026-08-01T10:00:00+02:00").plusDays(contatore.toLong()),
+        km = km,
+        litri = litri,
+        euro = euro,
+        pieno = pieno,
+    )
+
+    private fun ora(giorno: Int): OffsetDateTime =
+        OffsetDateTime.parse("2026-08-%02dT10:00:00+02:00".format(giorno))
 
     @Test
     fun `due pieni danno un tratto e il consumo`() {
@@ -165,17 +174,37 @@ class ConsumiTest {
     }
 
     @Test
-    fun `l'ordine di inserimento non conta perche' si ordina per contachilometri`() {
+    fun `l'ordine di inserimento non conta perche' si ordina per ora`() {
+        // **Si ordina per ora, non piu' per contachilometri.** Era il
+        // contachilometri finche' era l'unica misura; un rifornimento che porta
+        // solo i chilometri fatti dall'ultima colonnina non si ordina su quelli,
+        // e l'ora del rifornimento c'e' sempre — e' la stessa che lo mette nel
+        // giorno giusto del diario.
         val mescolati = listOf(
-            rif(km = 1600, litri = 30.0),
-            rif(km = 1000, litri = 60.0),
-            rif(km = 1300, litri = 20.0, pieno = false),
+            rif(km = 1600, litri = 30.0, istante = ora(9)),
+            rif(km = 1000, litri = 60.0, istante = ora(5)),
+            rif(km = 1300, litri = 20.0, pieno = false, istante = ora(7)),
         )
 
         val consumo = Consumi.calcola(mescolati)
 
         assertEquals(600, consumo.segmenti.single().km)
         assertEquals(50.0, consumo.segmenti.single().litri, 1e-9)
+    }
+
+    @Test
+    fun `un contachilometri che torna indietro non produce un tratto`() {
+        // Una data sbagliata mette un rifornimento prima di uno che l'ha
+        // precedute: la differenza dei contachilometri viene negativa. Il tratto
+        // si scarta invece di entrare nella media con un numero impossibile — il
+        // rifornimento resta nel diario, dove si vede e si corregge.
+        val consumo = Consumi.calcola(
+            listOf(
+                rif(km = 1600, litri = 60.0, istante = ora(5)),
+                rif(km = 1000, litri = 50.0, istante = ora(7)),
+            ),
+        )
+        assertTrue(consumo.segmenti.isEmpty())
     }
 
     @Test
@@ -192,11 +221,101 @@ class ConsumiTest {
         assertEquals(listOf(600, 600), consumo.segmenti.map { it.km })
     }
 
-    @Test
-    fun `l'ultimo chilometraggio serve a precompilare la form`() {
-        val rifornimenti = listOf(rif(km = 1000, litri = 60.0), rif(km = 1600, litri = 50.0))
+    // --- i chilometri dal pieno precedente -------------------------------------
 
-        assertEquals(1600, Consumi.ultimoChilometraggio(rifornimenti))
-        assertNull(Consumi.ultimoChilometraggio(emptyList()))
+    /**
+     * Il modo nuovo di registrare: **il parziale azzerato alla colonnina**.
+     *
+     * Non e' una comodita' di digitazione. Un contachilometri e' un numero di sei
+     * cifre da copiare mentre si tiene la pompa, e sbagliarne una fa un tratto di
+     * ventimila chilometri; il parziale ne ha tre e misura esattamente
+     * l'intervallo che serve al consumo.
+     */
+    private fun daPieno(km: Int, litri: Double, euro: Double? = null, pieno: Boolean = true) =
+        Rifornimento(
+            id = "d${contatore++}",
+            istante = OffsetDateTime.parse("2026-08-01T10:00:00+02:00").plusDays(contatore.toLong()),
+            kmDaPieno = km,
+            litri = litri,
+            euro = euro,
+            pieno = pieno,
+        )
+
+    @Test
+    fun `il parziale del secondo pieno e' la lunghezza del tratto`() {
+        val consumo = Consumi.calcola(
+            listOf(
+                // Il parziale del primo pieno riguarda il tratto precedente, che
+                // non c'e': non entra in nessun conto.
+                daPieno(km = 700, litri = 60.0),
+                daPieno(km = 600, litri = 50.0),
+            ),
+        )
+
+        val tratto = consumo.segmenti.single()
+        assertEquals(600, tratto.km)
+        assertEquals(12.0, tratto.kmPerLitro, 1e-9)
+        // Da dove a dove non si sa, e non si inventa: il parziale dice quanto e'
+        // lungo il tratto, non dove sta nella vita del mezzo.
+        assertNull(tratto.daKm)
+        assertNull(tratto.aKm)
+    }
+
+    @Test
+    fun `i parziali di un rabbocco si sommano, come i litri`() {
+        // Pieno, 300 km, rabbocco, altri 300, pieno: il tratto e' 600 km e i
+        // litri sono quelli del rabbocco piu' quelli del pieno di chiusura.
+        val consumo = Consumi.calcola(
+            listOf(
+                daPieno(km = 500, litri = 60.0),
+                daPieno(km = 300, litri = 20.0, pieno = false),
+                daPieno(km = 300, litri = 30.0),
+            ),
+        )
+
+        val tratto = consumo.segmenti.single()
+        assertEquals(600, tratto.km)
+        assertEquals(50.0, tratto.litri, 1e-9)
+    }
+
+    @Test
+    fun `senza il parziale si ripiega sui contachilometri`() {
+        // Le righe scritte prima che il parziale esistesse continuano a contare.
+        val consumo = Consumi.calcola(
+            listOf(
+                rif(km = 48000, litri = 60.0),
+                rif(km = 48600, litri = 50.0),
+            ),
+        )
+        val tratto = consumo.segmenti.single()
+        assertEquals(600, tratto.km)
+        assertEquals(48000, tratto.daKm)
+        assertEquals(48600, tratto.aKm)
+    }
+
+    @Test
+    fun `passando dal totale al parziale il tratto si misura comunque`() {
+        // Il giorno del passaggio: il pieno di prima porta il contachilometri,
+        // quello nuovo il parziale. Il parziale misura proprio quel tratto, ed e'
+        // per questo che si guarda lui per primo.
+        val consumo = Consumi.calcola(
+            listOf(
+                rif(km = 48000, litri = 60.0),
+                daPieno(km = 620, litri = 50.0),
+            ),
+        )
+        assertEquals(620, consumo.segmenti.single().km)
+    }
+
+    @Test
+    fun `un tratto senza nessuna delle due misure si scarta`() {
+        val senzaNiente = Rifornimento(
+            id = "x", istante = OffsetDateTime.parse("2026-08-02T10:00:00+02:00"),
+            litri = 50.0, pieno = true,
+        )
+        val consumo = Consumi.calcola(listOf(rif(km = 48000, litri = 60.0), senzaNiente))
+        // Inventare i chilometri di un consumo vorrebbe dire inventare il consumo.
+        assertTrue(consumo.segmenti.isEmpty())
+        assertFalse(consumo.presente)
     }
 }

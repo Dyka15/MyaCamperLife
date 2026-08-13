@@ -5,13 +5,21 @@ package it.myacamperlife.app.dominio
  * ha senso.
  */
 data class Segmento(
-    val daKm: Int,
-    val aKm: Int,
+    val km: Int,
     val litri: Double,
     /** Nullo se anche un solo rifornimento del tratto non aveva l'importo. */
     val euro: Double?,
+    /**
+     * Da quale a quale contachilometri, **quando si sa**.
+     *
+     * Lo sanno solo i tratti misurati col totale: chi registra il parziale
+     * azzerato a ogni colonnina conosce la lunghezza del tratto e non la sua
+     * posizione nella vita del mezzo. Il consumo non ne ha bisogno — servono
+     * chilometri e litri — e mostrarlo quando c'e' e' solo un in piu'.
+     */
+    val daKm: Int? = null,
+    val aKm: Int? = null,
 ) {
-    val km: Int get() = aKm - daKm
     val kmPerLitro: Double get() = km / litri
     val litriPer100: Double get() = litri / km * 100
     val euroPer100: Double? get() = euro?.let { it / km * 100 }
@@ -64,15 +72,20 @@ data class Consumo(val segmenti: List<Segmento>) {
 object Consumi {
 
     fun calcola(rifornimenti: List<Rifornimento>): Consumo {
-        // In ordine di contachilometri: e' quello che definisce i tratti.
-        // A pari chilometraggio decide l'ora, cosi' l'ordine e' sempre uno.
-        val ordinati = rifornimenti.sortedWith(compareBy({ it.km }, { it.istante }))
+        // **In ordine di tempo**, non di contachilometri. Era il contachilometri
+        // finche' era l'unica misura possibile; adesso un rifornimento puo'
+        // portare solo i chilometri fatti dall'ultima colonnina, e su quelli non
+        // si ordina niente. L'ora del rifornimento c'e' sempre, ed e' la stessa
+        // che mette la voce nel giorno giusto del diario.
+        val ordinati = rifornimenti.sortedWith(compareBy({ it.istante }, { it.km ?: 0 }))
 
         val segmenti = mutableListOf<Segmento>()
         var inizio: Rifornimento? = null
         var litri = 0.0
         var euro = 0.0
+        var parziali = 0
         var importiCompleti = true
+        var parzialiCompleti = true
 
         ordinati.forEach { rifornimento ->
             if (inizio == null) {
@@ -83,31 +96,52 @@ object Consumi {
 
             litri += rifornimento.litri
             if (rifornimento.euro == null) importiCompleti = false else euro += rifornimento.euro
+            // I parziali si sommano come i litri: un rabbocco in mezzo porta i
+            // suoi chilometri nel tratto in cui li ha fatti.
+            val fatti = rifornimento.kmDaPieno
+            if (fatti == null) parzialiCompleti = false else parziali += fatti
 
             if (!rifornimento.pieno) return@forEach
 
             val da = inizio ?: return@forEach
-            val km = rifornimento.km - da.km
-            if (km > 0 && litri > 0) {
+            val chilometri = tratto(da, rifornimento, parziali, parzialiCompleti)
+            if (chilometri != null && chilometri > 0 && litri > 0) {
                 segmenti.add(
                     Segmento(
-                        daKm = da.km,
-                        aKm = rifornimento.km,
+                        km = chilometri,
                         litri = litri,
                         euro = if (importiCompleti) euro else null,
+                        daKm = da.km,
+                        aKm = rifornimento.km,
                     ),
                 )
             }
             inizio = rifornimento
             litri = 0.0
             euro = 0.0
+            parziali = 0
             importiCompleti = true
+            parzialiCompleti = true
         }
 
         return Consumo(segmenti)
     }
 
-    /** Il chilometraggio piu' alto registrato: serve a precompilare la form. */
-    fun ultimoChilometraggio(rifornimenti: List<Rifornimento>): Int? =
-        rifornimenti.maxOfOrNull { it.km }
+    /**
+     * Quanti chilometri ha fatto un tratto, con la misura che c'e'.
+     *
+     * **Prima i parziali, poi la differenza dei contachilometri.** Non e' una
+     * preferenza di gusto: il parziale azzerato alla colonnina misura
+     * esattamente l'intervallo che interessa, mentre la differenza fra due
+     * contachilometri lo misura solo se sono entrambi registrati e entrambi
+     * giusti. Se non c'e' ne' l'una ne' l'altra misura il tratto si scarta:
+     * inventare i chilometri di un consumo vorrebbe dire inventare il consumo.
+     */
+    private fun tratto(da: Rifornimento, a: Rifornimento, parziali: Int, completi: Boolean): Int? {
+        if (completi && parziali > 0) return parziali
+        val primo = da.km ?: return null
+        val secondo = a.km ?: return null
+        return secondo - primo
+    }
+
 }

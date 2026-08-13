@@ -727,7 +727,8 @@ class Archivio(private val radice: File) {
      */
     fun registraRifornimento(
         slug: String,
-        km: Int,
+        /** I chilometri fatti dal rifornimento precedente: il parziale. */
+        kmDaPieno: Int,
         euro: Double,
         prezzoLitro: Double,
         pieno: Boolean = true,
@@ -741,7 +742,7 @@ class Archivio(private val radice: File) {
                 Csv.ID to nuovoId(),
                 Csv.TS to ts(adesso),
                 RifornimentiTabella.ISTANTE to ts(istante),
-                RifornimentiTabella.KM to km.toString(),
+                RifornimentiTabella.KM_DA_PIENO to kmDaPieno.toString(),
                 RifornimentiTabella.EURO to Csv.numero(euro),
                 // Tre decimali: il gasolio costa 1,719 euro al litro, e
                 // arrotondare a due sposterebbe i litri di mezzo per cento.
@@ -934,7 +935,7 @@ class Archivio(private val radice: File) {
     fun correggiRifornimento(
         slug: String,
         id: String,
-        km: Int,
+        kmDaPieno: Int,
         euro: Double,
         prezzoLitro: Double,
         pieno: Boolean,
@@ -946,7 +947,11 @@ class Archivio(private val radice: File) {
             slug, Genere.RIFORNIMENTO, id, adesso,
             mapOf(
                 RifornimentiTabella.ISTANTE to ts(istante),
-                RifornimentiTabella.KM to km.toString(),
+                RifornimentiTabella.KM_DA_PIENO to kmDaPieno.toString(),
+                // Il totale si svuota: correggendo una riga vecchia si sceglie
+                // quale misura vale, e tenerle entrambe lascerebbe due numeri
+                // che dicono cose diverse sullo stesso tratto.
+                RifornimentiTabella.KM to "",
                 RifornimentiTabella.EURO to Csv.numero(euro),
                 RifornimentiTabella.PREZZO_LITRO to Csv.numero(prezzoLitro, 3),
                 RifornimentiTabella.LITRI to Csv.numero(litri, 2),
@@ -1067,7 +1072,12 @@ class Archivio(private val radice: File) {
         .mapNotNull { riga ->
             val id = riga.id ?: return@mapNotNull null
             val istante = riga.quando ?: return@mapNotNull null
-            val km = riga.intero(RifornimentiTabella.KM) ?: return@mapNotNull null
+            // Una delle due misure dei chilometri basta; nessuna delle due no —
+            // un rifornimento senza chilometri non entra in nessun consumo, e
+            // tenerlo vorrebbe dire un tratto inventato.
+            val km = riga.intero(RifornimentiTabella.KM)
+            val daPieno = riga.intero(RifornimentiTabella.KM_DA_PIENO)
+            if (km == null && daPieno == null) return@mapNotNull null
             val euro = riga.numero(RifornimentiTabella.EURO)
             val prezzo = riga.numero(RifornimentiTabella.PREZZO_LITRO)
             val litri = Carburante.litri(euro, prezzo)
@@ -1077,6 +1087,7 @@ class Archivio(private val radice: File) {
                 id = id,
                 istante = istante,
                 km = km,
+                kmDaPieno = daPieno,
                 litri = litri,
                 euro = euro,
                 prezzoLitro = prezzo ?: Carburante.prezzo(euro, litri),
@@ -1327,7 +1338,7 @@ class Archivio(private val radice: File) {
         diario(slug).aggiorna(
             giorno = giorno,
             voci = VociDelGiorno.delGiorno(tutte, giorno),
-            luogo = luogoDelGiorno(tutte, giorno) ?: luogo(slug),
+            luogo = VociDelGiorno.luogo(tutte, giorno),
             titolo = leggiViaggio(slug)?.nome,
         )
     }
@@ -1345,7 +1356,7 @@ class Archivio(private val radice: File) {
         diario(slug).scriviProsa(
             giorno = giorno,
             prosa = prosa,
-            luogo = luogoDelGiorno(tutte, giorno) ?: luogo(slug),
+            luogo = VociDelGiorno.luogo(tutte, giorno),
             titolo = leggiViaggio(slug)?.nome,
         )
     }
@@ -1355,16 +1366,6 @@ class Archivio(private val radice: File) {
         val tutte = voci(slug)
         VociDelGiorno.giorni(tutte).forEach { giorno -> aggiornaDiario(slug, giorno) }
     }
-
-    /**
-     * Il luogo da mettere nell'intestazione della giornata: l'ultimo arrivo di
-     * quel giorno. Se in quel giorno non si e' arrivati da nessuna parte, chi
-     * chiama usa la tappa corrente.
-     */
-    private fun luogoDelGiorno(voci: List<Voce>, giorno: LocalDate): String? =
-        VociDelGiorno.delGiorno(voci, giorno)
-            .lastOrNull { it.genere == Genere.ARRIVO && it.testo.isNotBlank() }
-            ?.testo
 
     /**
      * Dove sei secondo l'**itinerario**: il nome dell'ultima tappa spuntata.

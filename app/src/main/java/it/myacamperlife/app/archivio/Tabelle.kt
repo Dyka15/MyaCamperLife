@@ -106,7 +106,18 @@ object RifornimentiTabella {
      */
     const val ISTANTE = Csv.ISTANTE
 
+    /** Il contachilometri totale: lo portano le righe scritte prima del parziale. */
     const val KM = "km"
+
+    /**
+     * I chilometri fatti dal rifornimento precedente — il totalizzatore parziale.
+     *
+     * Colonna nuova accanto a quella vecchia, non al suo posto: le due misurano
+     * cose diverse, e un file scritto prima non va riscritto per far posto a una
+     * colonna. Chi legge usa quella che trova.
+     */
+    const val KM_DA_PIENO = "km_da_pieno"
+
     const val LITRI = "litri"
     const val EURO = "euro"
 
@@ -123,6 +134,6 @@ object RifornimentiTabella {
 
     val COLONNE = listOf(
         Csv.ID, Csv.TS, Csv.CANCELLATO, ISTANTE,
-        KM, EURO, PREZZO_LITRO, LITRI, PIENO, LUOGO, LAT, LON,
+        KM, KM_DA_PIENO, EURO, PREZZO_LITRO, LITRI, PIENO, LUOGO, LAT, LON,
     )
 }

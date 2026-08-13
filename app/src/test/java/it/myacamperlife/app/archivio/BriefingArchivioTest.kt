@@ -116,7 +116,7 @@ class BriefingArchivioTest {
     fun `senza i km con un pieno non c'e' avviso di rifornimento`() {
         val slug = creaToscana()
         archivio.registraRifornimento(
-            slug, km = 48000, euro = 100.0, prezzoLitro = 1.667,
+            slug, kmDaPieno = 480, euro = 100.0, prezzoLitro = 1.667,
             adesso = quando("2026-08-05"),
         )
 
@@ -131,7 +131,7 @@ class BriefingArchivioTest {
         archivio.salvaImpostazioni(Impostazioni(kmConUnPieno = 100))
         archivio.registraRifornimento(
             slug = slug,
-            km = 48000,
+            kmDaPieno = 480,
             euro = 100.0,
             prezzoLitro = 1.667,
             posizione = Posizione(43.7696, 11.2558), // Firenze
@@ -156,7 +156,7 @@ class BriefingArchivioTest {
         archivio.salvaImpostazioni(Impostazioni(kmConUnPieno = 900))
         archivio.registraRifornimento(
             slug = slug,
-            km = 48000,
+            kmDaPieno = 480,
             euro = 100.0,
             prezzoLitro = 1.667,
             posizione = Posizione(42.7185, 12.1112),

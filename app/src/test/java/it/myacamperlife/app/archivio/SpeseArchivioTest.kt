@@ -165,7 +165,7 @@ class SpeseArchivioTest {
             adesso = quando("2026-08-06", "20:00:00"),
         )
         archivio.registraRifornimento(
-            slug = slug, km = 48000, euro = 107.09, prezzoLitro = 1.719,
+            slug = slug, kmDaPieno = 480, euro = 107.09, prezzoLitro = 1.719,
             adesso = quando("2026-08-07", "08:40:00"),
         )
 
@@ -182,7 +182,7 @@ class SpeseArchivioTest {
         // Senza prezzo i litri non si possono calcolare, e un rifornimento
         // senza litri non serve a niente: la riga non si scrive affatto.
         archivio.registraRifornimento(
-            slug = slug, km = 48000, euro = 40.0, prezzoLitro = 0.0,
+            slug = slug, kmDaPieno = 480, euro = 40.0, prezzoLitro = 0.0,
             adesso = quando("2026-08-06"),
         )
         assertTrue(archivio.rifornimenti(slug).isEmpty())
@@ -320,7 +320,7 @@ class SpeseArchivioTest {
     fun `un rifornimento di ieri finisce nella giornata di ieri`() {
         archivio.registraRifornimento(
             slug = slug,
-            km = 48000,
+            kmDaPieno = 480,
             euro = 107.16,
             prezzoLitro = 1.72,
             adesso = quando("2026-08-07", "09:00:00"),

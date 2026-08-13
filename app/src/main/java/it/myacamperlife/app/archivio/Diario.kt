@@ -206,6 +206,26 @@ object VociDelGiorno {
         voci.filter { it.istante.toLocalDate() == giorno }
 
     /**
+     * Dove eri **quel giorno**: l'ultimo arrivo fino a quel giorno compreso.
+     *
+     * **Il fino a e' la correzione.** Prima si guardava solo dentro la giornata, e
+     * per un giorno senza arrivi — si resta dove si era, ed e' la meta' dei giorni
+     * di un viaggio — chi chiamava ripiegava sulla tappa corrente: cioe' su dove
+     * sei **adesso**. Cosi' il diario del 6 agosto finiva intestato col posto in
+     * cui sei arrivato una settimana dopo, e la rigenerazione lo riscriveva
+     * identico perche' il difetto non era nel file, era nella regola.
+     *
+     * Un arrivo del giorno prima e' la risposta giusta: se non ti sei mosso, sei
+     * ancora la'. E se non ci sono arrivi prima, non si sa: si torna `null`, e
+     * l'intestazione resta senza luogo — che e' meglio di un luogo inventato.
+     */
+    fun luogo(voci: List<Voce>, giorno: LocalDate): String? = voci
+        .filter { it.genere == Genere.ARRIVO && it.testo.isNotBlank() }
+        .filter { !it.istante.toLocalDate().isAfter(giorno) }
+        .maxByOrNull { it.istante }
+        ?.testo
+
+    /**
      * Quando e' accaduto il fatto, non quando la riga e' stata scritta.
      *
      * E' la differenza che permette di registrare stasera lo scontrino di ieri

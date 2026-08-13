@@ -1176,6 +1176,48 @@ un gesto. Vale doppio quando il gesto nuovo somiglia a uno che c'era già: se du
 si chiedono con lo stesso movimento — scegliere un file — l'app non deve indovinare quale, deve
 chiedere.
 
+### Il luogo di una giornata non è dove sei adesso
+
+Nel diario vero, l'intestazione del 6 agosto portava il nome di un posto in cui si è arrivati
+**una settimana dopo**. La regola era: l'ultimo arrivo *di quel giorno*, e per un giorno senza
+arrivi — la metà dei giorni di un viaggio, perché si resta dove si era — chi chiamava ripiegava
+sulla **tappa corrente**. Cioè sull'adesso, dentro un documento che parla del passato.
+
+Si vedeva anche dal sintomo che l'utente ha descritto: *«anche dopo la rigenerazione le tappe
+non corrispondono»*. Rigenerare riscriveva le sezioni con la stessa regola sbagliata, quindi il
+difetto tornava identico — la prova che non era nel file ma nella regola, e che una funzione
+"rigenera" non è una funzione "correggi".
+
+La regola giusta sta in una frase: **l'ultimo arrivo fino a quel giorno compreso**. Se non ti
+sei mosso, quel giorno eri ancora là. E se prima non ci sono arrivi, non si sa: l'intestazione
+resta senza luogo, che è meglio di un luogo inventato — la stessa scelta della linea d'aria
+dichiarata e del meteo scaduto che non si mostra.
+
+Una prova sorveglia proprio l'insidia: *rigenerare il diario non cambia i luoghi delle
+giornate*. Se la regola tornasse a dipendere dall'adesso, quella prova cadrebbe.
+
+### I chilometri di un rifornimento: il parziale, non il totale
+
+Chi viaggia ha chiesto di scrivere «i km fatti dal pieno precedente» invece del
+contachilometri. Non è una preferenza di digitazione, ed è più giusta di quella che c'era:
+
+- **il parziale misura esattamente il tratto che serve al consumo.** La differenza fra due
+  contachilometri lo misura solo se entrambi sono registrati e entrambi giusti.
+- **tre cifre invece di sei, con la pompa in mano.** Un contachilometri copiato male fa un
+  tratto di ventimila chilometri; un parziale copiato male fa un tratto un po' storto.
+
+La colonna nuova (`km_da_pieno`) sta **accanto** a quella vecchia, non al suo posto: misurano
+cose diverse, e un file scritto prima non si riscrive per fare spazio a una colonna. Chi legge
+usa la misura che trova, e fra le due preferisce il parziale — è quello che si riferisce
+davvero all'intervallo in questione, e vale anche nel giorno del passaggio, quando il pieno di
+prima porta il totale e quello nuovo il parziale.
+
+Una conseguenza non ovvia: **l'ordine dei rifornimenti diventa quello dell'ora**, non del
+contachilometri. Su un parziale non si ordina niente, e l'ora c'è sempre — è la stessa che
+mette la voce nel giorno giusto del diario. Un contachilometri che «torna indietro» perché una
+data è sbagliata non produce più un tratto negativo: quel tratto si scarta, e il rifornimento
+resta nel diario dove si vede e si corregge.
+
 ### Un giorno è un giorno anche se non ci si sposta
 
 Il riepilogo elencava solo i giorni che avevano una tappa, e un giorno fermo spariva: chi
