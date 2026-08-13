@@ -31,3 +31,6 @@ keystore.properties
 # Windows
 Thumbs.db
 desktop.ini
+
+# Il pacchetto della skill, generato da skill/android-offline-first/
+skill/*.skill
