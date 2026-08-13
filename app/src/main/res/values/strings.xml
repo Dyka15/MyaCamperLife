@@ -280,9 +280,15 @@
 
     <!-- Riscrivere il seguito del viaggio -->
     <string name="azione_sostituisci_itinerario">Carica un itinerario per il seguito</string>
+    <string name="sostituisci_gia_fatte">Escono anche le tappe di giorni già passati che non hai spuntato: per l\'app sono ancora da fare.</string>
     <string name="sostituisci_spiegazione">Sostituisce le tappe che restano da fare con quelle di un file nuovo. Le tappe già fatte, il diario, le spese e le foto non si toccano.</string>
-    <string name="sostituisci_titolo">Riscrivo il seguito del viaggio?</string>
-    <string name="sostituisci_conti">Escono %1$d tappe da fare, ne entrano %2$d. Le %3$d già fatte o saltate restano dove sono.</string>
+    <string name="scelta_titolo">Che itinerario è questo?</string>
+    <string name="scelta_spiegazione">Un file di itinerario può essere due cose, e l\'app non può indovinare quale: un viaggio nuovo, oppure il seguito di un viaggio che hai già — per esempio quando i piani cambiano a metà strada.</string>
+    <string name="scelta_viaggio_nuovo">Un viaggio nuovo</string>
+    <string name="scelta_seguito_di">Il seguito di «%1$s»</string>
+    <string name="sostituisci_titolo">Che itinerario è questo?</string>
+    <string name="sostituisci_conti">Se riscrive il seguito di «%1$s»: escono %2$d tappe ancora da fare, ne entrano %3$d, e le %4$d già fatte o saltate restano dove sono.</string>
+    <string name="sostituisci_viaggio_nuovo">Comincia un viaggio nuovo</string>
     <string name="sostituisci_dal">La prima tappa nuova è del %1$s.</string>
     <string name="sostituisci_resta">Diario, spese, rifornimenti, foto e chilometri non si toccano: sono di questo viaggio e restano. Nei file non si cancella niente — le tappe che escono restano scritte con una marca di annullamento.</string>
     <string name="sostituisci_scartate">%1$d punti del file non si sono saputi leggere e non entreranno.</string>

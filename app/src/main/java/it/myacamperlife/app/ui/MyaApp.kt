@@ -73,6 +73,7 @@ import it.myacamperlife.app.ui.viaggi.ImpostazioniDialog
 import it.myacamperlife.app.ui.viaggi.ModelliDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
 import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
+import it.myacamperlife.app.ui.viaggi.SceltaImportDialog
 import it.myacamperlife.app.ui.viaggi.SchedaTappaContent
 import it.myacamperlife.app.ui.viaggi.SostituisciTappeDialog
 import it.myacamperlife.app.ui.viaggi.SpostaDateDialog
@@ -155,7 +156,10 @@ fun MyaApp(vista: ViaggiViewModel) {
     // un viaggio nuovo quando volevi riscrivere questo.
     val scegliSostituzione = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> uri?.let(vista::preparaSostituzione) }
+        // Lambda e non riferimento: `preparaSostituzione` ha un secondo
+        // parametro con valore di riposo, e passare la funzione per nome
+        // costringerebbe chi legge a controllare che l'adattamento esista.
+    ) { uri -> uri?.let { scelto -> vista.preparaSostituzione(scelto) } }
 
     val scatta = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { riuscito ->
         val file = fotoInAttesa
@@ -285,6 +289,20 @@ fun MyaApp(vista: ViaggiViewModel) {
                     }
                 },
                 actions = {
+                    // **Caricare un itinerario si fa anche da dentro un viaggio.**
+                    // Prima il gesto stava solo fuori, sull'elenco dei viaggi, e
+                    // li' un file puo' voler dire una cosa sola: un viaggio nuovo.
+                    // Chi voleva riscrivere il seguito di questo doveva trovare un
+                    // pulsante in fondo all'elenco delle tappe, e chi non lo
+                    // trovava si ritrovava un doppione senza capire perche'.
+                    if (aperto != null && tappaScelta == null) {
+                        IconButton(onClick = { scegliSostituzione.launch(arrayOf("*/*")) }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_importa),
+                                contentDescription = stringResource(R.string.azione_sostituisci_itinerario),
+                            )
+                        }
+                    }
                     IconButton(onClick = { impostazioniAperte = true }) {
                         Icon(
                             painter = painterResource(R.drawable.ic_impostazioni),
@@ -497,10 +515,22 @@ fun MyaApp(vista: ViaggiViewModel) {
         )
     }
 
+    stato.sceltaImport?.let { scelta ->
+        SceltaImportDialog(
+            scelta = scelta,
+            viaggi = stato.viaggi,
+            onViaggioNuovo = vista::viaggioNuovoDallaScelta,
+            onSeguitoDi = vista::seguitoDi,
+            onChiudi = vista::scartaScelta,
+        )
+    }
+
     stato.sostituzione?.let { proposta ->
         SostituisciTappeDialog(
             sostituzione = proposta,
+            viaggio = proposta.bersaglio.nome,
             onConferma = vista::confermaSostituzione,
+            onViaggioNuovo = vista::creaViaggioDaProposta,
             onChiudi = vista::scartaSostituzione,
         )
     }

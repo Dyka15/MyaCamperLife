@@ -57,6 +57,11 @@ Itinerario:
 - **un giorno è un giorno anche se non ti sposti**: il riepilogo della sera non salta i
   giorni fermi, dice «si resta a Bolsena». E all'import, se l'itinerario salta dei giorni,
   te lo segnala — quasi sempre è una dimenticanza nel file
+- **e l'app chiede cos'è il file che carichi**, perché un itinerario può voler dire due cose:
+  un viaggio nuovo, o il seguito di uno che hai già. Prima ne assumeva una — viaggio nuovo — e
+  chi voleva l'altra si ritrovava un doppione col vecchio piano intatto, senza nessun errore da
+  nessuna parte. La domanda porta i numeri veri: «escono 12 tappe da fare, ne entrano 13, le 9
+  già fatte restano»
 - tiene più viaggi e li elenca dal più recente
 
 **La scheda di una tappa** — un tocco sulla tappa e c'è tutto quello che l'app sa di quel

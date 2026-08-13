@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Csv
 import it.myacamperlife.app.archivio.Impostazioni
+import it.myacamperlife.app.archivio.Viaggio
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.Carburante
 import it.myacamperlife.app.dominio.Coordinate
@@ -268,21 +269,82 @@ fun AnnullaCheckinDialog(tappa: Tappa, onAnnulla: () -> Unit, onChiudi: () -> Un
 }
 
 /**
- * Sostituisco il seguito del viaggio con questo itinerario?
+ * Hai caricato un itinerario dall'elenco: **un viaggio nuovo, o il seguito di uno
+ * che hai giA?**
+ *
+ * E' la domanda che mancava, e la sua assenza e' stata un difetto vero: dall'elenco
+ * il gesto «carica un file» poteva significare una cosa sola — viaggio nuovo — e
+ * chi voleva riscrivere il seguito di un viaggio in corso si ritrovava un doppione
+ * col vecchio piano intatto. Nessun errore da nessuna parte: solo una funzione che
+ * «non funziona».
+ *
+ * I viaggi si elencano invece di indovinare il piu' recente: dopo un import di
+ * troppo il piu' recente e' proprio il doppione, e indovinare avrebbe sbagliato
+ * esattamente nel caso in cui serve.
+ */
+@Composable
+fun SceltaImportDialog(
+    scelta: ViaggiViewModel.SceltaImport,
+    viaggi: List<Viaggio>,
+    onViaggioNuovo: () -> Unit,
+    onSeguitoDi: (Viaggio) -> Unit,
+    onChiudi: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(stringResource(R.string.scelta_titolo)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                scelta.nomeFile?.let { nome ->
+                    Text(nome, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    stringResource(R.string.scelta_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { onChiudi(); onViaggioNuovo() }) {
+                    Text(stringResource(R.string.scelta_viaggio_nuovo))
+                }
+                // Un viaggio per riga, col suo nome: «il seguito di quale?» si
+                // risponde leggendo, non ricordando.
+                viaggi.forEach { viaggio ->
+                    TextButton(onClick = { onChiudi(); onSeguitoDi(viaggio) }) {
+                        Text(stringResource(R.string.scelta_seguito_di, viaggio.nome))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
+
+/**
+ * Hai caricato un itinerario mentre un viaggio e' aperto: **cosa vuoi che sia?**
+ *
+ * Due risposte legittime allo stesso gesto — riscrivere il seguito di questo
+ * viaggio, o cominciarne uno nuovo — e l'app non puo' indovinare quale. Prima ne
+ * assumeva una, e chi voleva l'altra si ritrovava un doppione col vecchio piano
+ * intatto: nessun errore da nessuna parte, e la funzione che «non funziona».
  *
  * **La domanda porta i numeri veri**, contati sulle tappe e non stimati: quante
- * escono, quante entrano, quante restano. «Sostituisco l'itinerario» non è una
- * domanda a cui si possa rispondere; «tolgo le 8 tappe da fare, ne metto 10, le 5
- * fatte restano» sì.
+ * escono, quante entrano, quante restano. «Sostituisco l'itinerario» non e' una
+ * domanda a cui si possa rispondere; «tolgo le 12 tappe da fare, ne metto 13, le
+ * 9 fatte restano» si'.
  *
- * Le due righe sotto dicono cosa **non** succede, che è la parte che preoccupa:
- * il diario, le spese, le foto e i chilometri non si toccano, e le righe delle
- * tappe che escono restano scritte nel file con una marca di annullamento.
+ * Le righe sotto dicono cosa **non** succede, che e' la parte che preoccupa: il
+ * diario, le spese, le foto e i chilometri non si toccano, e le righe delle tappe
+ * che escono restano scritte nel file con una marca di annullamento.
  */
 @Composable
 fun SostituisciTappeDialog(
     sostituzione: ViaggiViewModel.Sostituzione,
+    /** Come si chiama il viaggio aperto: e' l'altra metà della domanda. */
+    viaggio: String,
     onConferma: () -> Unit,
+    onViaggioNuovo: () -> Unit,
     onChiudi: () -> Unit,
 ) {
     AlertDialog(
@@ -296,6 +358,7 @@ fun SostituisciTappeDialog(
                 Text(
                     stringResource(
                         R.string.sostituisci_conti,
+                        viaggio,
                         sostituzione.sostituite,
                         sostituzione.nuove,
                         sostituzione.tenute,
@@ -314,6 +377,16 @@ fun SostituisciTappeDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Sorprende, quindi si dice prima: una tappa di tre giorni fa che
+                // nessuno ha spuntato per l'app e' ancora da fare, e la
+                // sostituzione se la porta via.
+                if (sostituzione.arretrate > 0) {
+                    Text(
+                        stringResource(R.string.sostituisci_gia_fatte),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (sostituzione.scartate > 0) {
                     Text(
                         stringResource(R.string.sostituisci_scartate, sostituzione.scartate),
@@ -321,17 +394,23 @@ fun SostituisciTappeDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+
+                // Le due risposte stanno **nel corpo**, impilate: sono due azioni
+                // diverse e nessuna delle due e' "annulla", che e' quello che ci si
+                // aspetta dai pulsanti in fondo. E in italiano non stanno in fila.
+                TextButton(
+                    // Un itinerario senza tappe non sostituisce niente: il pulsante
+                    // resta spento invece di far succedere nulla in silenzio.
+                    enabled = sostituzione.nuove > 0,
+                    onClick = { onChiudi(); onConferma() },
+                ) { Text(stringResource(R.string.sostituisci_conferma)) }
+                TextButton(
+                    enabled = sostituzione.nuove > 0,
+                    onClick = { onChiudi(); onViaggioNuovo() },
+                ) { Text(stringResource(R.string.sostituisci_viaggio_nuovo)) }
             }
         },
         confirmButton = {
-            TextButton(
-                // Un itinerario senza tappe non sostituisce niente: il pulsante
-                // resta spento invece di far succedere nulla in silenzio.
-                enabled = sostituzione.nuove > 0,
-                onClick = { onChiudi(); onConferma() },
-            ) { Text(stringResource(R.string.sostituisci_conferma)) }
-        },
-        dismissButton = {
             TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
         },
     )

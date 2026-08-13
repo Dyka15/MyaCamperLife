@@ -21,6 +21,7 @@ import it.myacamperlife.app.dominio.Dintorni
 import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.Esplora
 import it.myacamperlife.app.dominio.GiorniDelViaggio
+import it.myacamperlife.app.dominio.GiornoTappa
 import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Consumi
@@ -169,6 +170,8 @@ class ViaggiViewModel(
          * numeri veri si sanno solo dopo aver letto il file.
          */
         val sostituzione: Sostituzione? = null,
+        /** Un itinerario letto dall'elenco, di cui non si sa ancora cosa sia. */
+        val sceltaImport: SceltaImport? = null,
         val avviso: Avviso? = null,
     ) {
         val kmConUnPieno: Int? get() = impostazioni.kmConUnPieno
@@ -241,11 +244,46 @@ class ViaggiViewModel(
      */
     data class Sostituzione(
         val nomeFile: String?,
+        /** Il titolo scritto nel file, per il caso in cui diventi un viaggio nuovo. */
+        val nome: String?,
+        /**
+         * Il viaggio che verrebbe riscritto.
+         *
+         * Sta dentro la proposta e non si legge da «il viaggio aperto»: la
+         * domanda arriva anche dall'elenco, dove nessun viaggio e' aperto, e
+         * rispondere «sostituisci» dovrebbe comunque sapere a chi.
+         */
+        val bersaglio: Viaggio,
         val nuove: Int,
         val sostituite: Int,
         val tenute: Int,
         /** Il giorno della prima tappa nuova, come lo scrive il file. */
         val dal: String?,
+        val scartate: Int,
+        /**
+         * Quante delle tappe che escono erano datate **prima di oggi** e non
+         * spuntate.
+         *
+         * Si dice perche' sorprende: per l'app una tappa di tre giorni fa che
+         * nessuno ha spuntato e' ancora «da fare», quindi la sostituzione se la
+         * porta via. Quasi sempre e' giusto — non la farai piu' — ma va detto
+         * prima, non scoperto dopo.
+         */
+        val arretrate: Int,
+        internal val punti: List<Waypoint>,
+        internal val documento: String,
+    )
+
+    /**
+     * Un itinerario letto dall'elenco dei viaggi, in attesa di sapere **cos'e'**.
+     *
+     * Dall'elenco un file puo' voler dire due cose e i viaggi sono piu' d'uno:
+     * prima si scopre quale, poi si contano le tappe di quello. Contarle per tutti
+     * in anticipo sarebbe lavoro buttato per tutti tranne uno.
+     */
+    data class SceltaImport(
+        val nomeFile: String?,
+        val nome: String?,
         val scartate: Int,
         internal val punti: List<Waypoint>,
         internal val documento: String,
@@ -435,7 +473,31 @@ class ViaggiViewModel(
         ricarica()
     }
 
+    /**
+     * Carica un file di itinerario.
+     *
+     * **Con un viaggio aperto lo stesso gesto ha due significati**, e l'app non
+     * puo' indovinare quale: «un viaggio nuovo» oppure «riscrivi il seguito di
+     * questo». Prima ne assumeva uno — creava un viaggio nuovo — e chi voleva
+     * l'altro si ritrovava con un doppione e col vecchio piano intatto, senza
+     * capire cosa non aveva funzionato. Ora si chiede, coi numeri davanti.
+     *
+     * Fuori da un viaggio la domanda non esiste: non c'e' un seguito da
+     * riscrivere, e si crea.
+     */
     fun importa(uri: Uri) = viewModelScope.launch {
+        val aperto = _stato.value.aperto
+        if (aperto != null) {
+            preparaSostituzione(uri, aperto)
+            return@launch
+        }
+        // Dall'elenco, con dei viaggi in casa, la stessa domanda: viaggio nuovo o
+        // seguito di uno di questi? Solo col primo viaggio in assoluto non c'e'
+        // niente da chiedere.
+        if (_stato.value.viaggi.isNotEmpty()) {
+            preparaScelta(uri)
+            return@launch
+        }
         _stato.update { it.copy(caricamento = true, avviso = null) }
 
         val esito = withContext(Dispatchers.IO) {
@@ -445,9 +507,7 @@ class ViaggiViewModel(
             when (val letto = Itinerario.leggi(documento.testo)) {
                 is Itinerario.Esito.Fallito -> Esito(avviso = Avviso.ImportFallito(letto.motivo))
                 is Itinerario.Esito.Riuscito -> {
-                    val nome = letto.nome
-                        ?: documento.nome?.substringBeforeLast('.')?.trim()?.takeUnless { it.isEmpty() }
-                        ?: "Viaggio senza nome"
+                    val nome = nomeViaggio(letto.nome, documento.nome)
                     archivio.prepara()
                     val viaggio = archivio.creaViaggio(
                         nome = nome,
@@ -498,8 +558,8 @@ class ViaggiViewModel(
      * scelto da un gestore file — dove il nome sbagliato e' un dito di distanza —
      * sarebbe un gesto senza rete di sicurezza.
      */
-    fun preparaSostituzione(uri: Uri) = viewModelScope.launch {
-        val viaggio = _stato.value.aperto ?: return@launch
+    fun preparaSostituzione(uri: Uri, bersaglio: Viaggio? = null) = viewModelScope.launch {
+        val viaggio = bersaglio ?: _stato.value.aperto ?: return@launch
         _stato.update { it.copy(inCorso = true, avviso = null) }
 
         // `Any?` perche' le due uscite sono di tipi diversi: una proposta da
@@ -512,8 +572,14 @@ class ViaggiViewModel(
                     // I conti si fanno sulle tappe vere, non si stimano: e' il
                     // numero che finisce nella domanda.
                     val prova = Rinnovi.componi(archivio.tappe(viaggio.slug), letto.tappe) { "" }
+                    val oggi = LocalDate.now()
                     Sostituzione(
                         nomeFile = documento.nome,
+                        nome = letto.nome,
+                        bersaglio = viaggio,
+                        arretrate = prova.sostituite.count { tappa ->
+                            GiornoTappa.leggi(tappa.giorno, oggi)?.isBefore(oggi) == true
+                        },
                         nuove = prova.nuove.size,
                         sostituite = prova.sostituite.size,
                         tenute = prova.tenute.size,
@@ -533,16 +599,149 @@ class ViaggiViewModel(
         }
     }
 
+    /**
+     * Legge l'itinerario scelto dall'elenco e **chiede cos'e'**.
+     *
+     * Il file si legge una volta sola: la risposta — viaggio nuovo, o seguito di
+     * quello — arriva dopo, e rileggere vorrebbe dire rispondere a una domanda
+     * fatta su un file che nel frattempo puo' essere cambiato.
+     */
+    private fun preparaScelta(uri: Uri) = viewModelScope.launch {
+        _stato.update { it.copy(caricamento = true, avviso = null) }
+
+        val esito: Any? = withContext(Dispatchers.IO) {
+            val documento = documenti.leggi(uri) ?: return@withContext null
+            when (val letto = Itinerario.leggi(documento.testo)) {
+                is Itinerario.Esito.Fallito -> Avviso.ImportFallito(letto.motivo)
+                is Itinerario.Esito.Riuscito -> SceltaImport(
+                    nomeFile = documento.nome,
+                    nome = letto.nome,
+                    scartate = letto.scartati,
+                    punti = letto.tappe,
+                    documento = documento.testo,
+                )
+            }
+        }
+
+        when (esito) {
+            null -> _stato.update {
+                it.copy(caricamento = false, avviso = Avviso.ImportFallito(null))
+            }
+            is SceltaImport -> _stato.update { it.copy(caricamento = false, sceltaImport = esito) }
+            is Avviso -> _stato.update { it.copy(caricamento = false, avviso = esito) }
+        }
+    }
+
+    fun scartaScelta() = _stato.update { it.copy(sceltaImport = null) }
+
+    /**
+     * «E' il seguito di questo viaggio»: si passa alla proposta, coi numeri di
+     * **quel** viaggio.
+     */
+    fun seguitoDi(viaggio: Viaggio) = viewModelScope.launch {
+        val scelta = _stato.value.sceltaImport ?: return@launch
+        _stato.update { it.copy(sceltaImport = null, inCorso = true) }
+
+        val proposta = withContext(Dispatchers.IO) {
+            val prova = Rinnovi.componi(archivio.tappe(viaggio.slug), scelta.punti) { "" }
+            val oggi = LocalDate.now()
+            Sostituzione(
+                nomeFile = scelta.nomeFile,
+                nome = scelta.nome,
+                bersaglio = viaggio,
+                arretrate = prova.sostituite.count { tappa ->
+                    GiornoTappa.leggi(tappa.giorno, oggi)?.isBefore(oggi) == true
+                },
+                nuove = prova.nuove.size,
+                sostituite = prova.sostituite.size,
+                tenute = prova.tenute.size,
+                dal = scelta.punti.firstOrNull()?.giorno,
+                scartate = scelta.scartate,
+                punti = scelta.punti,
+                documento = scelta.documento,
+            )
+        }
+        _stato.update { it.copy(inCorso = false, sostituzione = proposta) }
+    }
+
+    /** «E' un viaggio nuovo»: dall'elenco, senza rileggere il file. */
+    fun viaggioNuovoDallaScelta() = viewModelScope.launch {
+        val scelta = _stato.value.sceltaImport ?: return@launch
+        _stato.update { it.copy(sceltaImport = null) }
+        crea(scelta.nome, scelta.nomeFile, scelta.punti, scelta.documento, scelta.scartate)
+    }
+
     /** Chiude la domanda senza toccare niente. */
     fun scartaSostituzione() = _stato.update { it.copy(sostituzione = null) }
+
+    /**
+     * L'altra risposta alla stessa domanda: **un viaggio nuovo**, dai punti gia'
+     * letti.
+     *
+     * Non rilegge il file — quello letto e' quello su cui si e' risposto — e non
+     * tocca il viaggio aperto: lo lascia dov'e' e apre quello nuovo.
+     */
+    fun creaViaggioDaProposta() = viewModelScope.launch {
+        val proposta = _stato.value.sostituzione ?: return@launch
+        _stato.update { it.copy(sostituzione = null) }
+        crea(proposta.nome, proposta.nomeFile, proposta.punti, proposta.documento, proposta.scartate)
+    }
+
+    /**
+     * Crea un viaggio da punti **gia' letti**, e lo apre.
+     *
+     * La coda dell'import, condivisa da tutte le strade che portano a un viaggio
+     * nuovo: dall'elenco, dalla domanda dell'elenco, o dalla proposta di
+     * sostituzione a cui si e' risposto «no, e' un viaggio nuovo».
+     */
+    private suspend fun crea(
+        titolo: String?,
+        nomeFile: String?,
+        punti: List<Waypoint>,
+        documento: String,
+        scartate: Int,
+    ) {
+        _stato.update { it.copy(caricamento = true, avviso = null) }
+
+        val esito = withContext(Dispatchers.IO) {
+            archivio.prepara()
+            val viaggio = archivio.creaViaggio(
+                nome = nomeViaggio(titolo, nomeFile),
+                punti = punti,
+                importatoDa = nomeFile,
+                documento = documento,
+            )
+            val buchi = GiorniDelViaggio.buchi(archivio.tappe(viaggio.slug), LocalDate.now())
+            Esito(viaggio, Avviso.ImportRiuscito(punti.size, scartate, buchi.size))
+        }
+
+        _stato.update { it.copy(caricamento = false, avviso = esito.avviso) }
+        ricarica(apri = esito.viaggio)
+
+        esito.viaggio?.let { viaggio ->
+            val scorte = scorte ?: return@let
+            if (scorte.aggiornaTratte(viaggio.slug)) aggiornaViaggio(viaggio)
+        }
+    }
+
+    /**
+     * Come si chiama un viaggio: il titolo dell'itinerario, o il nome del file,
+     * o un ripiego. Mai vuoto — un viaggio senza nome non si ritrova in un
+     * elenco.
+     */
+    private fun nomeViaggio(titolo: String?, nomeFile: String?): String = titolo
+        ?: nomeFile?.substringBeforeLast('.')?.trim()?.takeUnless { it.isEmpty() }
+        ?: "Viaggio senza nome"
 
     /**
      * Scrive la sostituzione proposta: le tappe da fare escono, quelle del file
      * nuovo entrano, tutto il resto resta dov'e'.
      */
     fun confermaSostituzione() = viewModelScope.launch {
-        val viaggio = _stato.value.aperto ?: return@launch
         val proposta = _stato.value.sostituzione ?: return@launch
+        // Il viaggio della proposta, non quello aperto: la domanda puo' essere
+        // arrivata dall'elenco, e la risposta va scritta dove si e' chiesto.
+        val viaggio = proposta.bersaglio
         _stato.update { it.copy(sostituzione = null, inCorso = true, avviso = null) }
 
         val rinnovo = withContext(Dispatchers.IO) {

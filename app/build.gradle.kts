@@ -117,6 +117,19 @@ android {
         buildConfig = true
     }
 
+    // Gli itinerari di `esempi/` entrano nel classpath delle prove.
+    //
+    // **Sono i file veri**, quelli che chi viaggia carica davvero: la prova che
+    // conta non e' su un documento inventato da chi scrive il codice, ma su
+    // trentatre kilobyte di Markdown scritto da un altro. Aggiunti come cartella
+    // di risorse invece di copiati: due copie dello stesso file divergono, e la
+    // copia sarebbe quella che le prove leggono.
+    sourceSets {
+        getByName("test") {
+            resources.srcDir("../esempi")
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

@@ -1085,6 +1085,41 @@ Due dettagli che non erano ovvi:
   quindi hanno la stessa età: ripetere «meteo di ieri» su tre righe è rumore, ometterlo è far
   credere a un dato fermo da due giorni. Sta sulla prima riga di meteo e basta.
 
+### La funzione che c'era e non si trovava
+
+Riscrivere il seguito del viaggio è stato realizzato, verificato e spinto in un APK. Poi:
+*«non funziona, ho caricato il file ma il piano mostra ancora Norimberga»*.
+
+La prima cosa è stata provare la catena vera: l'itinerario di diciotto giorni, i check-in fino
+al 12 agosto, il file di riprogrammazione dal 13, e le tappe risultanti. **Funzionava**: 12
+tappe fuori, 13 dentro, Norimberga sparita, il diario intatto. Quella prova ora sta nel repo
+(`RinnovoRealeTest`) e legge i due file veri da `esempi/`, messi sul classpath delle prove
+invece di essere copiati — due copie dello stesso file divergono, e a divergere sarebbe quella
+che le prove leggono.
+
+Il difetto era **nel gesto per arrivarci**. Il pulsante «Importa» esiste solo sull'elenco dei
+viaggi, cioè fuori da un viaggio, dove un file può voler dire una cosa sola: viaggio nuovo. Il
+gesto nuovo stava in fondo alla lista delle tappe, dopo ventidue righe da scorrere. Chi ha
+caricato il file ha fatto la cosa naturale — il pulsante che conosceva — e ha ottenuto
+esattamente quello che quel pulsante fa: un viaggio nuovo, col vecchio piano intatto accanto.
+**Nessun errore da nessuna parte, e una funzione che «non funziona».**
+
+Tre rimedi, in ordine di importanza:
+
+- **l'app chiede cos'è il file.** Dall'elenco, con dei viaggi in casa: «un viaggio nuovo,
+  oppure il seguito di quale?», coi viaggi elencati per nome. I viaggi si elencano invece di
+  indovinare il più recente: dopo un import di troppo il più recente è proprio il doppione, e
+  indovinare sbaglierebbe nel caso in cui serve.
+- **caricare un itinerario si fa anche da dentro un viaggio**, dalla barra in alto. Lì la
+  domanda ha un bersaglio ovvio, e i numeri sono quelli di quel viaggio.
+- il pulsante in fondo all'itinerario resta: chi lo conosce lo trova dove lo lasciava.
+
+**La lezione, che è la stessa di due giri prima con altre parole:** una funzione non esiste
+finché non esiste il gesto per invocarla, e «l'ho messo in fondo alla schermata giusta» non è
+un gesto. Vale doppio quando il gesto nuovo somiglia a uno che c'era già: se due cose diverse
+si chiedono con lo stesso movimento — scegliere un file — l'app non deve indovinare quale, deve
+chiedere.
+
 ### Un giorno è un giorno anche se non ci si sposta
 
 Il riepilogo elencava solo i giorni che avevano una tappa, e un giorno fermo spariva: chi
