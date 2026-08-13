@@ -40,6 +40,14 @@ Itinerario:
   dove sei, la prossima tappa, il riepilogo della sera e il nome delle foto
 - salta una tappa e ripristinala: lo stesso comando fa le due cose
 - aggiungi una tappa scegliendo dove inserirla, con le coordinate dal GPS o digitate
+- **riscrivi il seguito del viaggio caricando un itinerario nuovo.** Sei al 13 agosto, i
+  piani per i dieci giorni che restano sono cambiati: carichi un file che copre dal 13 al 23
+  e le tappe da fare vengono sostituite. Le tappe **già fatte** e quelle saltate restano
+  dove sono, e diario, spese, rifornimenti, foto e chilometri non si toccano — sono di questo
+  viaggio. Nei file non si cancella niente: le tappe che escono restano scritte con una marca
+  di annullamento, e il vecchio `itinerario.md` resta accanto al nuovo, perché il programma
+  dei giorni che hai vissuto sta scritto solo lì. Sui giorni di cui parlano entrambi vince
+  l'ultimo caricato
 - **ritardi e anticipi**: se fai check-in in un giorno diverso da quello previsto, l'app te
   lo dice e propone di spostare di conseguenza le tappe che restano. Chiede, non fa: magari
   il giorno perso lo recuperi domani. Le tappe già fatte non si toccano

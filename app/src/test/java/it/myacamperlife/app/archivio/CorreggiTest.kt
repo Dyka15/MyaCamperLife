@@ -435,6 +435,136 @@ class CorreggiTest {
         assertEquals(StatoTappa.DA_FARE, archivio.tappe(s).first().stato)
     }
 
+    // --- riscrivere il seguito del viaggio ------------------------------------
+
+    /**
+     * Un viaggio a meta': una tappa fatta, una nota, una spesa, un rifornimento.
+     * E' lo stato in cui si carica un itinerario nuovo, ed e' quello che **non
+     * deve perdersi**.
+     */
+    private fun viaggioAMeta(): String {
+        val s = archivio.creaViaggio(
+            nome = "Baviera",
+            punti = listOf(
+                Waypoint("Lonigo", 45.3866, 11.3878, giorno = "2026-08-06"),
+                Waypoint("Garmisch", 47.4919, 11.0954, giorno = "2026-08-07"),
+                Waypoint("Rothenburg", 49.3776, 10.1790, giorno = "2026-08-11"),
+                Waypoint("Wurzburg", 49.7913, 9.9534, giorno = "2026-08-13"),
+                Waypoint("Praga", 50.0755, 14.4378, giorno = "2026-08-15"),
+            ),
+            oggi = LocalDate.parse("2026-08-06"),
+            adesso = OffsetDateTime.parse("2026-08-06T09:00:00+02:00"),
+            documento = "# Baviera\n\n## 6/8 — Giovedì\n\nPartenza da Lonigo.\n\n## 13/8 — Giovedì\n\nWurzburg, vecchio programma.\n",
+        ).slug
+        archivio.checkin(s, archivio.tappe(s).first { it.nome == "Lonigo" }, adesso = ieri)
+        archivio.registraNota(s, "Vignette comprata al confine", adesso = ieri)
+        archivio.registraSpesa(
+            slug = s, categoria = Categoria.SOSTA, importo = 18.0,
+            modalita = Modalita.CONTANTI, descrizione = "Campeggio", adesso = ieri,
+        )
+        return s
+    }
+
+    private val nuoveTappe = listOf(
+        Waypoint("Bamberga", 49.8988, 10.9028, giorno = "2026-08-13"),
+        Waypoint("Bayreuth", 49.9456, 11.5713, giorno = "2026-08-14"),
+    )
+
+    @Test
+    fun `un itinerario nuovo sostituisce il seguito e lascia il resto`() {
+        val s = viaggioAMeta()
+
+        val rinnovo = archivio.sostituisciTappe(s, nuoveTappe, adesso = oggi)
+
+        assertEquals(1, rinnovo.tenute.size)
+        assertEquals(4, rinnovo.sostituite.size)
+        assertEquals(2, rinnovo.nuove.size)
+
+        // L'itinerario vivo: la tappa fatta, poi le due nuove, numerate in fila.
+        assertEquals(
+            listOf("Lonigo", "Bamberga", "Bayreuth"),
+            archivio.tappe(s).map { it.nome },
+        )
+        assertEquals(listOf(1, 2, 3), archivio.tappe(s).map { it.ordine })
+    }
+
+    @Test
+    fun `quello che era registrato non si perde`() {
+        val s = viaggioAMeta()
+        archivio.sostituisciTappe(s, nuoveTappe, adesso = oggi)
+
+        // **La promessa della funzione, verificata dove conta.** Gli eventi
+        // vivono in altre tabelle e non hanno motivo di cambiare: "sono arrivato
+        // a Lonigo" resta vero qualunque cosa dica l'itinerario di domani.
+        assertTrue(archivio.voci(s).any { it.genere == Genere.ARRIVO })
+        assertTrue(archivio.voci(s).any { it.genere == Genere.NOTA })
+        assertEquals(1, archivio.spese(s).size)
+        assertEquals(StatoTappa.FATTA, archivio.tappe(s).first { it.nome == "Lonigo" }.stato)
+        // E il diario continua a raccontare la giornata.
+        assertTrue(archivio.diario(s).testo().contains("Vignette"))
+    }
+
+    @Test
+    fun `le tappe che escono restano scritte nel file`() {
+        val s = viaggioAMeta()
+        archivio.sostituisciTappe(s, nuoveTappe, adesso = oggi)
+
+        // Lapidi, non cancellazioni: chi rileggesse il CSV fra un anno
+        // troverebbe anche il piano che avevi cambiato.
+        val testo = File(archivio.cartellaViaggio(s), TappeTabella.NOME_FILE).readText()
+        assertTrue(testo, testo.contains("Praga"))
+        assertTrue(archivio.tappe(s).none { it.nome == "Praga" })
+    }
+
+    @Test
+    fun `l'itinerario nuovo si affianca al vecchio, e vince sui giorni suoi`() {
+        val s = viaggioAMeta()
+        archivio.sostituisciTappe(
+            slug = s,
+            punti = nuoveTappe,
+            documento = "# Seguito\n\n## 13/8 — Giovedì\n\nBamberga, programma nuovo.\n",
+            adesso = oggi,
+        )
+
+        // Due file, non uno sovrascritto: il programma dei giorni gia' vissuti
+        // sta scritto solo nel primo.
+        assertEquals(2, archivio.fileItinerari(s).size)
+
+        val programma = archivio.programma(s, LocalDate.parse("2026-08-06"))
+        val sesto = programma.first { it.giorno == LocalDate.parse("2026-08-06") }
+        assertTrue(sesto.testo, sesto.testo.contains("Partenza da Lonigo"))
+        // Sul 13 agosto parlano entrambi, e ha ragione il nuovo.
+        val tredici = programma.first { it.giorno == LocalDate.parse("2026-08-13") }
+        assertTrue(tredici.testo, tredici.testo.contains("programma nuovo"))
+        assertTrue(tredici.testo, !tredici.testo.contains("vecchio programma"))
+    }
+
+    @Test
+    fun `un file senza tappe non tocca niente`() {
+        val s = viaggioAMeta()
+        val prima = archivio.tappe(s)
+
+        val rinnovo = archivio.sostituisciTappe(s, emptyList(), adesso = oggi)
+
+        assertTrue(rinnovo.vuoto)
+        assertEquals(prima, archivio.tappe(s))
+        assertEquals(1, archivio.fileItinerari(s).size)
+    }
+
+    @Test
+    fun `con l'orologio indietro la sostituzione vale comunque`() {
+        val s = viaggioAMeta()
+        // Le lapidi e le rinumerazioni sostituiscono righe scritte prima: con un
+        // `ts` piu' vecchio perderebbero la risoluzione «vince l'ultima», e la
+        // funzione riferirebbe una sostituzione che non c'e' stata.
+        archivio.sostituisciTappe(s, nuoveTappe, adesso = OffsetDateTime.parse("2026-08-05T08:00:00+02:00"))
+
+        assertEquals(
+            listOf("Lonigo", "Bamberga", "Bayreuth"),
+            archivio.tappe(s).map { it.nome },
+        )
+    }
+
     @Test
     fun `con l'orologio indietro l'annullamento vale comunque`() {
         val s = slug

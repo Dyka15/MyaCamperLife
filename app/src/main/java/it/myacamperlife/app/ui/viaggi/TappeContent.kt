@@ -53,6 +53,8 @@ fun TappeContent(
     onLitri: () -> Unit,
     onSpesa: () -> Unit,
     onTappa: (Tappa) -> Unit,
+    /** Carica un itinerario nuovo per il seguito del viaggio. */
+    onSostituisci: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -75,6 +77,25 @@ fun TappeContent(
                     modifier = Modifier.padding(24.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        // **In fondo all'itinerario, dove la domanda nasce.** Si arriva qui
+        // scorrendo le tappe che restano, ed e' guardandole che uno si accorge
+        // che non sono piu' quelle che vuole fare.
+        if (tappe.any { it.stato == StatoTappa.DA_FARE }) {
+            item {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
+                    TextButton(onClick = onSostituisci) {
+                        Text(stringResource(R.string.azione_sostituisci_itinerario))
+                    }
+                    Text(
+                        stringResource(R.string.sostituisci_spiegazione),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

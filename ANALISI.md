@@ -1023,6 +1023,51 @@ formato non perdeva niente — i dati erano tutti lì, e si potevano perfino rim
 modificando il CSV nella cartella e risincronizzando — ma «non hai perso i dati» non è una
 risposta a «ho sbagliato un tocco».
 
+### Riscrivere il seguito di un viaggio
+
+Richiesta di chi viaggia: *sono al 13 agosto, i piani per i dieci giorni che restano sono
+cambiati, voglio caricare un file nuovo che copre dal 13 al 23 — e non deve perdersi niente
+di quello che ho registrato.*
+
+Le due strade sbagliate erano entrambe a portata di mano. **Creare un viaggio nuovo** avrebbe
+spezzato in due un viaggio solo: le spese, i chilometri, il consumo pieno-a-pieno e il diario
+sono di *questo* viaggio, e dividerli renderebbe falsi tutti i totali. **Ritoccare a mano**
+sono dieci tappe da cancellare e dieci da aggiungere, con l'ordine da rifare: il genere di
+lavoro in cui si sbaglia.
+
+La regola sta in una frase che il progetto aveva già scritto altrove: **le tappe fatte sono
+storia, quelle da fare sono ipotesi.** Le prime restano, le seconde si sostituiscono. Con un
+corollario che vale la pena dire: **le saltate restano con le fatte**, perché saltare è una
+decisione presa e non un'ipotesi, e cancellarla vorrebbe dire dimenticare una scelta.
+
+Tre proprietà, tutte già nel formato:
+
+- **niente si cancella.** Le tappe che escono prendono una lapide, la riga che le descriveva
+  resta scritta, e chi rileggesse il CSV fra un anno troverebbe anche il piano che avevi
+  cambiato. È lo stesso meccanismo di «correggi» e «cancella» su una voce di diario.
+- **niente di registrato viene toccato.** Non per attenzione, ma per struttura: gli eventi
+  vivono in altre tabelle. «Sono arrivato a Rothenburg il 12 agosto» resta vero qualunque
+  cosa dica l'itinerario di domani, ed è la ragione per cui questa funzione si può offrire
+  senza timori.
+- **il documento vecchio non si butta.** Il programma di una giornata si rilegge da
+  `itinerario.md`, e quel file è l'unico posto dove sta scritto cosa avevi programmato per i
+  giorni che hai già fatto. Il nuovo si affianca come `itinerario-2.md`, e sui giorni di cui
+  parlano in due **vince l'ultimo**: riscrivere il seguito significa che quei giorni li hai
+  ripensati.
+
+Due scelte di interfaccia che non erano ovvie:
+
+- **si legge, si conta, poi si chiede.** La domanda porta i numeri veri — «escono 8 tappe da
+  fare, ne entrano 10, le 5 fatte restano» — e non si possono sapere prima di aver letto il
+  file. «Sostituisco l'itinerario?» non è una domanda a cui si possa rispondere.
+- **il gesto sta in fondo all'itinerario**, non nelle impostazioni: ci si arriva scorrendo le
+  tappe che restano, ed è guardandole che uno si accorge che non sono più quelle che vuole
+  fare.
+
+E un lanciatore di file separato da quello dell'import, per un motivo che non è pulizia:
+sono lo stesso gesto — scegli un `.md` — con due esiti molto diversi, e confonderli
+significherebbe creare un viaggio nuovo quando volevi riscrivere questo.
+
 ### Il meteo di tutti e tre i giorni
 
 Il riepilogo scaricava tre giorni di previsioni e ne mostrava uno. Non era una scelta:

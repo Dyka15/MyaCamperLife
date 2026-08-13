@@ -278,6 +278,17 @@
     <string name="scheda_programma">Il programma della giornata</string>
     <string name="scheda_programma_giorno">Dall\'itinerario, giornata del %1$s</string>
 
+    <!-- Riscrivere il seguito del viaggio -->
+    <string name="azione_sostituisci_itinerario">Carica un itinerario per il seguito</string>
+    <string name="sostituisci_spiegazione">Sostituisce le tappe che restano da fare con quelle di un file nuovo. Le tappe già fatte, il diario, le spese e le foto non si toccano.</string>
+    <string name="sostituisci_titolo">Riscrivo il seguito del viaggio?</string>
+    <string name="sostituisci_conti">Escono %1$d tappe da fare, ne entrano %2$d. Le %3$d già fatte o saltate restano dove sono.</string>
+    <string name="sostituisci_dal">La prima tappa nuova è del %1$s.</string>
+    <string name="sostituisci_resta">Diario, spese, rifornimenti, foto e chilometri non si toccano: sono di questo viaggio e restano. Nei file non si cancella niente — le tappe che escono restano scritte con una marca di annullamento.</string>
+    <string name="sostituisci_scartate">%1$d punti del file non si sono saputi leggere e non entreranno.</string>
+    <string name="sostituisci_conferma">Sostituisci</string>
+    <string name="tappe_sostituite">Itinerario riscritto: %1$d tappe nuove, %2$d sostituite, %3$d restate.</string>
+
     <!-- Annullare un check-in, e spostare le date a mano -->
     <string name="annulla_checkin_titolo">Annullo il check-in?</string>
     <string name="annulla_checkin_domanda">%1$s torna fra le tappe da fare, e l\'arrivo esce dal diario.</string>

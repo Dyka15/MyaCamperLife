@@ -74,6 +74,7 @@ import it.myacamperlife.app.ui.viaggi.ModelliDialog
 import it.myacamperlife.app.ui.viaggi.NotaDialog
 import it.myacamperlife.app.ui.viaggi.RifornimentoDialog
 import it.myacamperlife.app.ui.viaggi.SchedaTappaContent
+import it.myacamperlife.app.ui.viaggi.SostituisciTappeDialog
 import it.myacamperlife.app.ui.viaggi.SpostaDateDialog
 import it.myacamperlife.app.ui.viaggi.SpesaDialog
 import it.myacamperlife.app.ui.viaggi.TappeContent
@@ -148,6 +149,13 @@ fun MyaApp(vista: ViaggiViewModel) {
         // modi diversi: filtrare per tipo nasconderebbe il file da scegliere.
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(vista::importa) }
+
+    // Un lanciatore a parte da quello dell'import: lo stesso gesto — scegli un
+    // file .md — con due esiti molto diversi, e confonderli vorrebbe dire creare
+    // un viaggio nuovo quando volevi riscrivere questo.
+    val scegliSostituzione = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(vista::preparaSostituzione) }
 
     val scatta = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { riuscito ->
         val file = fotoInAttesa
@@ -408,6 +416,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onLitri = { rifornimentoAperto = true },
                     onSpesa = { spesaAperta = true },
                     onTappa = { tappaAperta = it.id },
+                    onSostituisci = { scegliSostituzione.launch(arrayOf("*/*")) },
                 )
 
                 scheda == Scheda.DIARIO -> DiarioContent(
@@ -485,6 +494,14 @@ fun MyaApp(vista: ViaggiViewModel) {
             didascalia = voce.testo,
             onApriFuori = { vista.allegato(voce)?.let { apriFuori(contesto, it) } },
             onChiudi = { fotoAperta = null },
+        )
+    }
+
+    stato.sostituzione?.let { proposta ->
+        SostituisciTappeDialog(
+            sostituzione = proposta,
+            onConferma = vista::confermaSostituzione,
+            onChiudi = vista::scartaSostituzione,
         )
     }
 
@@ -847,6 +864,18 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     ViaggiViewModel.Avviso.ImpostazioniSalvate -> stringResource(R.string.impostazioni_salvate)
     ViaggiViewModel.Avviso.ScortaAggiornata -> stringResource(R.string.scorta_aggiornata)
     ViaggiViewModel.Avviso.ScortaNonAggiornata -> stringResource(R.string.scorta_non_aggiornata)
+    is ViaggiViewModel.Avviso.TappeSostituite -> {
+        val conti = stringResource(
+            R.string.tappe_sostituite,
+            avviso.nuove,
+            avviso.sostituite,
+            avviso.tenute,
+        )
+        // I giorni saltati si dicono attaccati all'esito, come all'import: sono
+        // quasi sempre una dimenticanza nel file, e si scoprono meglio adesso.
+        if (avviso.buchi == 0) conti
+        else conti + " " + stringResource(R.string.import_buchi, avviso.buchi)
+    }
     is ViaggiViewModel.Avviso.CheckinAnnullato ->
         stringResource(R.string.checkin_annullato, avviso.tappa)
     ViaggiViewModel.Avviso.NienteDaSpostare -> stringResource(R.string.niente_da_spostare)

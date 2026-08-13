@@ -86,6 +86,26 @@ object Programmi {
         giorno?.let { data -> sezioni.firstOrNull { it.giorno == data } }
 
     /**
+     * Le giornate di piu' documenti, dove **l'ultimo vince** sui giorni che
+     * copre.
+     *
+     * Un viaggio puo' avere piu' di un itinerario: arrivato al 13 agosto
+     * riscrivi i dieci giorni che restano e carichi un file nuovo. Il vecchio
+     * non si butta — racconta i giorni che hai vissuto, e quelli sono nel diario
+     * — ma sui giorni di cui parlano entrambi ha ragione il nuovo: e' l'ultima
+     * cosa che hai deciso.
+     *
+     * Ordine: i documenti arrivano dal piu' vecchio al piu' recente, come sono
+     * stati scritti.
+     */
+    fun fondi(documenti: List<List<SezioneGiorno>>): List<SezioneGiorno> =
+        documenti
+            .flatten()
+            .associateBy { it.giorno }
+            .values
+            .sortedBy { it.giorno }
+
+    /**
      * L'intestazione di secondo livello di una riga, o `null`.
      *
      * Solo il secondo livello: il primo e' il titolo del documento e il terzo e'

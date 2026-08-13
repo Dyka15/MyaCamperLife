@@ -35,6 +35,7 @@ import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.PoiVicino
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.Rinnovi
 import it.myacamperlife.app.dominio.Schede
 import it.myacamperlife.app.dominio.SezioneGiorno
 import it.myacamperlife.app.dominio.SchedaTappa
@@ -47,6 +48,7 @@ import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
 import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
+import it.myacamperlife.app.dominio.Waypoint
 import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.rete.Assistente
 import it.myacamperlife.app.rete.EsitoAi
@@ -159,6 +161,14 @@ class ViaggiViewModel(
         val meteoIl: OffsetDateTime? = null,
         val dintorniIl: OffsetDateTime? = null,
         val inCorso: Boolean = false,
+        /**
+         * L'itinerario nuovo, letto e non ancora scritto.
+         *
+         * Sta nello stato perche' e' una **domanda in sospeso**: sostituire dieci
+         * tappe e' un gesto che si mostra prima di farlo, coi numeri veri, e i
+         * numeri veri si sanno solo dopo aver letto il file.
+         */
+        val sostituzione: Sostituzione? = null,
         val avviso: Avviso? = null,
     ) {
         val kmConUnPieno: Int? get() = impostazioni.kmConUnPieno
@@ -221,6 +231,26 @@ class ViaggiViewModel(
         )
     }
 
+    /**
+     * Un itinerario nuovo letto dal file, pronto a sostituire il seguito del
+     * viaggio — e i numeri per poterlo chiedere.
+     *
+     * I waypoint e il documento viaggiano dentro: leggere due volte lo stesso
+     * file vorrebbe dire che fra la domanda e la risposta il file puo' essere
+     * cambiato, e la risposta sarebbe a una domanda diversa.
+     */
+    data class Sostituzione(
+        val nomeFile: String?,
+        val nuove: Int,
+        val sostituite: Int,
+        val tenute: Int,
+        /** Il giorno della prima tappa nuova, come lo scrive il file. */
+        val dal: String?,
+        val scartate: Int,
+        internal val punti: List<Waypoint>,
+        internal val documento: String,
+    )
+
     /** Un messaggio da mostrare una volta e poi scartare. */
     sealed interface Avviso {
         data class ImportRiuscito(
@@ -230,6 +260,17 @@ class ViaggiViewModel(
             val buchi: Int = 0,
         ) : Avviso
         data class ImportFallito(val motivo: Itinerario.Motivo?) : Avviso
+
+        /**
+         * Il seguito del viaggio e' stato riscritto: quante tappe sono entrate,
+         * quante sono uscite, quante sono restate.
+         */
+        data class TappeSostituite(
+            val nuove: Int,
+            val sostituite: Int,
+            val tenute: Int,
+            val buchi: Int = 0,
+        ) : Avviso
         data object PosizioneAssente : Avviso
         data object PosizioneRegistrata : Avviso
         data object PermessoPosizioneNegato : Avviso
@@ -447,6 +488,88 @@ class ViaggiViewModel(
             // chiede — dove il risultato si vede subito e un guasto si nota.
             if (tratte) aggiornaViaggio(viaggio)
         }
+    }
+
+    /**
+     * Legge un itinerario nuovo e **chiede** se sostituire il seguito del viaggio.
+     *
+     * Due tempi di proposito: qui si legge e si contano le tappe, la scrittura la
+     * fa [confermaSostituzione]. Sostituire dieci tappe al primo tocco su un file
+     * scelto da un gestore file — dove il nome sbagliato e' un dito di distanza —
+     * sarebbe un gesto senza rete di sicurezza.
+     */
+    fun preparaSostituzione(uri: Uri) = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+
+        // `Any?` perche' le due uscite sono di tipi diversi: una proposta da
+        // mostrare, oppure un avviso da dire. Il `when` sotto le separa.
+        val esito: Any? = withContext(Dispatchers.IO) {
+            val documento = documenti.leggi(uri) ?: return@withContext null
+            when (val letto = Itinerario.leggi(documento.testo)) {
+                is Itinerario.Esito.Fallito -> Avviso.ImportFallito(letto.motivo)
+                is Itinerario.Esito.Riuscito -> {
+                    // I conti si fanno sulle tappe vere, non si stimano: e' il
+                    // numero che finisce nella domanda.
+                    val prova = Rinnovi.componi(archivio.tappe(viaggio.slug), letto.tappe) { "" }
+                    Sostituzione(
+                        nomeFile = documento.nome,
+                        nuove = prova.nuove.size,
+                        sostituite = prova.sostituite.size,
+                        tenute = prova.tenute.size,
+                        dal = letto.tappe.firstOrNull()?.giorno,
+                        scartate = letto.scartati,
+                        punti = letto.tappe,
+                        documento = documento.testo,
+                    )
+                }
+            }
+        }
+
+        when (esito) {
+            null -> _stato.update { it.copy(inCorso = false, avviso = Avviso.ImportFallito(null)) }
+            is Sostituzione -> _stato.update { it.copy(inCorso = false, sostituzione = esito) }
+            is Avviso -> _stato.update { it.copy(inCorso = false, avviso = esito) }
+        }
+    }
+
+    /** Chiude la domanda senza toccare niente. */
+    fun scartaSostituzione() = _stato.update { it.copy(sostituzione = null) }
+
+    /**
+     * Scrive la sostituzione proposta: le tappe da fare escono, quelle del file
+     * nuovo entrano, tutto il resto resta dov'e'.
+     */
+    fun confermaSostituzione() = viewModelScope.launch {
+        val viaggio = _stato.value.aperto ?: return@launch
+        val proposta = _stato.value.sostituzione ?: return@launch
+        _stato.update { it.copy(sostituzione = null, inCorso = true, avviso = null) }
+
+        val rinnovo = withContext(Dispatchers.IO) {
+            archivio.sostituisciTappe(viaggio.slug, proposta.punti, proposta.documento)
+        }
+        val buchi = withContext(Dispatchers.IO) {
+            GiorniDelViaggio.buchi(archivio.tappe(viaggio.slug), LocalDate.now()).size
+        }
+
+        aggiornaViaggio(viaggio)
+        _stato.update {
+            it.copy(
+                inCorso = false,
+                avviso = Avviso.TappeSostituite(
+                    nuove = rinnovo.nuove.size,
+                    sostituite = rinnovo.sostituite.size,
+                    tenute = rinnovo.tenute.size,
+                    buchi = buchi,
+                ),
+            )
+        }
+        rispecchia()
+
+        // Le distanze su strada delle tappe nuove: come all'import, si chiedono
+        // adesso — di solito si riscrive un itinerario dove c'e' campo, e da qui
+        // in poi sono un dato locale.
+        scorte?.let { if (it.aggiornaTratte(viaggio.slug)) aggiornaViaggio(viaggio) }
     }
 
     // --- la giornata --------------------------------------------------------

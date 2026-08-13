@@ -23,6 +23,8 @@ import it.myacamperlife.app.dominio.PuntoMeteo
 import it.myacamperlife.app.dominio.PuntoTratta
 import it.myacamperlife.app.dominio.RispostaMeteo
 import it.myacamperlife.app.dominio.Rifornimento
+import it.myacamperlife.app.dominio.Rinnovi
+import it.myacamperlife.app.dominio.Rinnovo
 import it.myacamperlife.app.dominio.SezioneGiorno
 import it.myacamperlife.app.dominio.Slittamenti
 import it.myacamperlife.app.dominio.RispostaModello
@@ -365,15 +367,116 @@ class Archivio(private val radice: File) {
         }
 
     /**
-     * Il programma giorno per giorno, letto dall'itinerario originale.
+     * Tutti gli itinerari di un viaggio, dal primo all'ultimo caricato.
      *
-     * Si rilegge dal file invece di essere copiato nelle righe delle tappe: e' lo
+     * Piu' di uno perche' un viaggio si riscrive: arrivato al 13 agosto carichi
+     * un file nuovo per i dieci giorni che restano, e il primo **non si butta** —
+     * racconta i giorni che hai vissuto, che sono nel diario e nelle tappe fatte.
+     * I nomi sono `itinerario.md`, `itinerario-2.md`, `itinerario-3.md`, e
+     * l'ordine e' quello: il numero dice quando e' arrivato.
+     */
+    fun fileItinerari(slug: String): List<File> {
+        val cartella = cartellaViaggio(slug)
+        val primo = File(cartella, NOME_ITINERARIO).takeIf { it.isFile }
+        val altri = cartella.listFiles()
+            ?.mapNotNull { file -> numeroItinerario(file.name)?.let { it to file } }
+            ?.sortedBy { it.first }
+            ?.map { it.second }
+            .orEmpty()
+        return listOfNotNull(primo) + altri
+    }
+
+    /**
+     * Scrive un itinerario **accanto** a quelli che c'erano, e ne torna il nome.
+     *
+     * Non sovrascrive: due file da trentatre kilobyte costano niente, e il
+     * documento vecchio e' l'unico posto dove sta scritto cosa avevi programmato
+     * per i giorni che hai gia' fatto.
+     */
+    fun aggiungiItinerario(slug: String, documento: String): String {
+        cartellaViaggio(slug).mkdirs()
+        if (!fileItinerario(slug).isFile) {
+            scriviItinerario(slug, documento)
+            return NOME_ITINERARIO
+        }
+        val prossimo = (fileItinerari(slug).size + 1).coerceAtLeast(2)
+        val nome = "$RADICE_ITINERARIO-$prossimo.md"
+        File(cartellaViaggio(slug), nome).writeText(documento, Charsets.UTF_8)
+        return nome
+    }
+
+    /**
+     * Sostituisce le tappe **da fare** con quelle di un itinerario nuovo.
+     *
+     * Il gesto per cui esiste: sei al 13 agosto, i piani per i dieci giorni che
+     * restano sono cambiati, e hai un file nuovo. Non e' un viaggio nuovo — le
+     * spese, le foto, i chilometri e il diario sono di questo — e non e' un
+     * ritocco a mano, perche' sono dieci tappe.
+     *
+     * **Niente di registrato viene toccato.** Le tappe fatte e quelle saltate
+     * restano dove sono; gli eventi vivono in altre tabelle e non hanno motivo di
+     * cambiare: «sono arrivato a Rothenburg il 12 agosto» resta vero qualunque
+     * cosa dica l'itinerario di domani.
+     *
+     * **Niente si cancella dal file**: le tappe che spariscono prendono una
+     * lapide, e la riga che le descriveva resta scritta. Chi rileggesse il CSV fra
+     * un anno troverebbe anche il piano che avevi cambiato.
+     *
+     * Il documento si affianca ai precedenti con [aggiungiItinerario], perche' il
+     * programma dei giorni gia' vissuti sta scritto solo la'.
+     *
+     * @return cosa e' cambiato, per poterlo dire; [Rinnovo.vuoto] se il file non
+     *   portava nessuna tappa — e in quel caso non si scrive niente.
+     */
+    fun sostituisciTappe(
+        slug: String,
+        punti: List<Waypoint>,
+        documento: String? = null,
+        adesso: OffsetDateTime = OffsetDateTime.now(),
+    ): Rinnovo {
+        val rinnovo = Rinnovi.componi(tappe(slug), punti) { nuovoId() }
+        // Sostituire con niente non e' un piano: meglio non fare nulla che
+        // lasciare un viaggio senza il suo seguito.
+        if (rinnovo.vuoto) return rinnovo
+
+        // Un solo `ts` per tutte le righe, e deve vincere sulle esistenti: lapidi
+        // e rinumerazioni sostituiscono righe scritte prima, e con un orologio
+        // indietro perderebbero la risoluzione «vince l'ultima».
+        val ts = ts(dopoLeTappe(slug, adesso))
+        tabellaTappe(slug).accodaTutte(
+            rinnovo.sostituite.map { TappeTabella.riga(it, ts, cancellata = true) } +
+                rinnovo.rinumerate.map { TappeTabella.riga(it, ts) } +
+                rinnovo.nuove.map { TappeTabella.riga(it, ts) },
+        )
+        documento?.let { aggiungiItinerario(slug, it) }
+        return rinnovo
+    }
+
+    /**
+     * Il programma giorno per giorno, letto dagli itinerari del viaggio.
+     *
+     * Si rilegge dai file invece di essere copiato nelle righe delle tappe: e' lo
      * stesso testo per tutte le tappe di una giornata, e duplicarlo in ogni riga
      * gonfierebbe `tappe.csv` di qualche kilobyte per tappa senza aggiungere
      * niente.
+     *
+     * Con piu' di un itinerario **vince l'ultimo** sui giorni di cui parla:
+     * riscrivere il seguito del viaggio vuol dire che quei giorni li hai
+     * ripensati, e il file vecchio resta buono per i giorni che ha visto passare.
      */
     fun programma(slug: String, oggi: LocalDate = LocalDate.now()): List<SezioneGiorno> =
-        itinerario(slug)?.let { Programmi.sezioni(it, oggi) }.orEmpty()
+        Programmi.fondi(
+            fileItinerari(slug).mapNotNull { file ->
+                runCatching { file.readText(Charsets.UTF_8) }.getOrNull()
+                    ?.let { Programmi.sezioni(it, oggi) }
+            },
+        )
+
+    /** `itinerario-3.md` -> 3. Qualunque altro nome: `null`. */
+    private fun numeroItinerario(nome: String): Int? {
+        val trovato = NUMERO_ITINERARIO.matchEntire(nome) ?: return null
+        return trovato.groupValues[1].toIntOrNull()
+    }
 
     fun tappe(slug: String): List<Tappa> = tabellaTappe(slug)
         .vive()
@@ -478,6 +581,20 @@ class Archivio(private val radice: File) {
     private fun dopoLaTappa(slug: String, tappa: Tappa, adesso: OffsetDateTime): OffsetDateTime {
         val riga = tabellaTappe(slug).vive().firstOrNull { it.id == tappa.id } ?: return adesso
         return dopoDi(riga, adesso)
+    }
+
+    /**
+     * Un istante che viene dopo **l'ultima riga di tutte le tappe**.
+     *
+     * Serve quando si riscrive mezzo itinerario in un colpo: le righe da battere
+     * sono tante, e il `ts` deve vincere su tutte.
+     */
+    private fun dopoLeTappe(slug: String, adesso: OffsetDateTime): OffsetDateTime {
+        val ultima = tabellaTappe(slug).vive()
+            .mapNotNull { runCatching { OffsetDateTime.parse(it.ts) }.getOrNull() }
+            .maxOrNull()
+            ?: return adesso
+        return if (adesso.isAfter(ultima)) adesso else ultima.plusNanos(1_000_000)
     }
 
     /**
@@ -1473,7 +1590,9 @@ class Archivio(private val radice: File) {
     companion object {
         const val NOME_CARTELLA = "MyaCamperLife"
         private const val NOME_VIAGGIO = "viaggio.json"
-        private const val NOME_ITINERARIO = "itinerario.md"
+        private const val RADICE_ITINERARIO = "itinerario"
+        private const val NOME_ITINERARIO = "$RADICE_ITINERARIO.md"
+        private val NUMERO_ITINERARIO = "$RADICE_ITINERARIO-(\\d+)\\.md".toRegex()
         private const val NOME_IMPOSTAZIONI = "impostazioni.json"
 
         /**

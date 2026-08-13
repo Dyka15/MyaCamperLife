@@ -268,6 +268,76 @@ fun AnnullaCheckinDialog(tappa: Tappa, onAnnulla: () -> Unit, onChiudi: () -> Un
 }
 
 /**
+ * Sostituisco il seguito del viaggio con questo itinerario?
+ *
+ * **La domanda porta i numeri veri**, contati sulle tappe e non stimati: quante
+ * escono, quante entrano, quante restano. «Sostituisco l'itinerario» non è una
+ * domanda a cui si possa rispondere; «tolgo le 8 tappe da fare, ne metto 10, le 5
+ * fatte restano» sì.
+ *
+ * Le due righe sotto dicono cosa **non** succede, che è la parte che preoccupa:
+ * il diario, le spese, le foto e i chilometri non si toccano, e le righe delle
+ * tappe che escono restano scritte nel file con una marca di annullamento.
+ */
+@Composable
+fun SostituisciTappeDialog(
+    sostituzione: ViaggiViewModel.Sostituzione,
+    onConferma: () -> Unit,
+    onChiudi: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text(stringResource(R.string.sostituisci_titolo)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                sostituzione.nomeFile?.let { nome ->
+                    Text(nome, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    stringResource(
+                        R.string.sostituisci_conti,
+                        sostituzione.sostituite,
+                        sostituzione.nuove,
+                        sostituzione.tenute,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                sostituzione.dal?.let { giorno ->
+                    Text(
+                        stringResource(R.string.sostituisci_dal, giorno),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    stringResource(R.string.sostituisci_resta),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (sostituzione.scartate > 0) {
+                    Text(
+                        stringResource(R.string.sostituisci_scartate, sostituzione.scartate),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                // Un itinerario senza tappe non sostituisce niente: il pulsante
+                // resta spento invece di far succedere nulla in silenzio.
+                enabled = sostituzione.nuove > 0,
+                onClick = { onChiudi(); onConferma() },
+            ) { Text(stringResource(R.string.sostituisci_conferma)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_annulla)) }
+        },
+    )
+}
+
+/**
  * Sposta le date di questa tappa e delle successive, di un giorno.
  *
  * Il gesto che mancava: lo slittamento esisteva **solo** dentro la proposta che

@@ -99,6 +99,7 @@ foglio di calcolo senza conversioni.
 | `viaggi/<viaggio>/foto.csv` | Nome file, didascalia, coordinate |
 | `viaggi/<viaggio>/foto/*.jpg` | Le foto, nominate `foto_AAAAMMGG_HHMMSS[_localita].jpg` come oggi |
 | `viaggi/<viaggio>/itinerario.md` | **Il file dell'itinerario come è arrivato**, per intero: da qui si rilegge il programma di ogni giornata |
+| `viaggi/<viaggio>/itinerario-2.md`, `-3.md`… | Gli itinerari caricati dopo, quando si riscrive il seguito del viaggio. Il primo non si butta: racconta i giorni già vissuti. Sui giorni di cui parlano in due vince il più recente |
 | `viaggi/<viaggio>/diario.md` | **Il diario del viaggio, un unico file** |
 | `viaggi/<viaggio>/dossier.csv` | L'indice delle risposte del modello: domanda, tappa, chi ha risposto |
 | `viaggi/<viaggio>/dossier/*.md` | Le risposte per esteso, con le fonti e il contesto che l'app aveva passato |
@@ -168,6 +169,7 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Saltare una tappa, e ripristinarla: lo stesso comando fa le due cose a seconda di com'è adesso | 2 |
 | **Spostare l'itinerario** quando si arriva in ritardo o in anticipo di almeno un giorno: l'app lo misura al check-in e lo propone | 14 |
 | Aggiungere una tappa scegliendo dove inserirla nell'itinerario | 2 |
+| **Riscrivere il seguito del viaggio** caricando un itinerario nuovo: le tappe da fare vengono sostituite, quelle fatte e saltate restano, e niente di registrato si perde | 15 |
 | Vedere distanza e tempo di guida verso la prossima tappa | 6 |
 | Aprire una tappa nell'app di mappe installata, per la navigazione vera | 2 |
 | Tenere più viaggi, e riaprire quelli passati in sola consultazione | 1 |
