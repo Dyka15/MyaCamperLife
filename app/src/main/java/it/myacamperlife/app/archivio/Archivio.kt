@@ -239,6 +239,24 @@ class Archivio(private val radice: File) {
     }
 
     /**
+     * Annota cos'e' diventato l'ultimo itinerario caricato, e quando.
+     *
+     * Come [annotaDintorni], e per la stessa ragione: quando quello che compare
+     * sullo schermo non e' quello che si aspettava, serve sapere cos'ha fatto
+     * l'app — non indovinarlo. Qui in piu' conta **su quale viaggio** ha scritto:
+     * due viaggi possono avere lo stesso nome, e allora la domanda diventa
+     * «quale?».
+     */
+    fun annotaImport(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        salvaImpostazioni(
+            impostazioni().copy(
+                importEsito = esito.take(300),
+                importProvatoIl = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            ),
+        )
+    }
+
+    /**
      * Come si chiama il posto dove sei, senza rete.
      *
      * Il toponimo vince sul nome della tappa quando c'e': "3 km da Bolsena"

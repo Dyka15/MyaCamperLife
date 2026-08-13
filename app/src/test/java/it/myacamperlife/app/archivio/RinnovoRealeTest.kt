@@ -185,6 +185,29 @@ class RinnovoRealeTest {
         assertTrue(testo.contains("Norimberga"))
     }
 
+    // --- la traccia di cosa e' successo ----------------------------------------
+
+    @Test
+    fun `la sostituzione lascia scritto cosa ha fatto e su quale viaggio`() {
+        // **La riga che risponde alla domanda «cos'ha fatto?»**. Un file caricato
+        // puo' diventare un viaggio nuovo o il seguito di uno che c'era, e quando
+        // sullo schermo compare altro da quello che si aspettava non c'e' nessun
+        // altro posto dove guardare — non su un telefono, in viaggio.
+        archivio.annotaImport("seguito di «Baviera» ($slug): 12 fuori, 13 dentro, 9 restate")
+
+        val impostazioni = archivio.impostazioni()
+        assertTrue(impostazioni.importEsito!!, impostazioni.importEsito!!.contains("12 fuori"))
+        assertTrue(impostazioni.importEsito!!.contains(slug))
+        assertNotNull(impostazioni.importProvatoIl)
+    }
+
+    @Test
+    fun `annotare l'import non cancella le altre impostazioni`() {
+        archivio.salvaImpostazioni(archivio.impostazioni().copy(kmConUnPieno = 700))
+        archivio.annotaImport("viaggio nuovo")
+        assertEquals(700, archivio.impostazioni().kmConUnPieno)
+    }
+
     // --- il programma delle giornate -------------------------------------------
 
     @Test

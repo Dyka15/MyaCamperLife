@@ -502,10 +502,16 @@ class ViaggiViewModel(
 
         val esito = withContext(Dispatchers.IO) {
             val documento = documenti.leggi(uri)
-                ?: return@withContext Esito(avviso = Avviso.ImportFallito(null))
+            if (documento == null) {
+                archivio.annotaImport("file non leggibile")
+                return@withContext Esito(avviso = Avviso.ImportFallito(null))
+            }
 
             when (val letto = Itinerario.leggi(documento.testo)) {
-                is Itinerario.Esito.Fallito -> Esito(avviso = Avviso.ImportFallito(letto.motivo))
+                is Itinerario.Esito.Fallito -> {
+                    archivio.annotaImport("file non capito (${letto.motivo}): ${documento.nome}")
+                    Esito(avviso = Avviso.ImportFallito(letto.motivo))
+                }
                 is Itinerario.Esito.Riuscito -> {
                     val nome = nomeViaggio(letto.nome, documento.nome)
                     archivio.prepara()
@@ -565,9 +571,16 @@ class ViaggiViewModel(
         // `Any?` perche' le due uscite sono di tipi diversi: una proposta da
         // mostrare, oppure un avviso da dire. Il `when` sotto le separa.
         val esito: Any? = withContext(Dispatchers.IO) {
-            val documento = documenti.leggi(uri) ?: return@withContext null
+            val documento = documenti.leggi(uri)
+            if (documento == null) {
+                archivio.annotaImport("file non leggibile")
+                return@withContext null
+            }
             when (val letto = Itinerario.leggi(documento.testo)) {
-                is Itinerario.Esito.Fallito -> Avviso.ImportFallito(letto.motivo)
+                is Itinerario.Esito.Fallito -> {
+                    archivio.annotaImport("file non capito (${letto.motivo}): ${documento.nome}")
+                    Avviso.ImportFallito(letto.motivo)
+                }
                 is Itinerario.Esito.Riuscito -> {
                     // I conti si fanno sulle tappe vere, non si stimano: e' il
                     // numero che finisce nella domanda.
@@ -610,9 +623,16 @@ class ViaggiViewModel(
         _stato.update { it.copy(caricamento = true, avviso = null) }
 
         val esito: Any? = withContext(Dispatchers.IO) {
-            val documento = documenti.leggi(uri) ?: return@withContext null
+            val documento = documenti.leggi(uri)
+            if (documento == null) {
+                archivio.annotaImport("file non leggibile")
+                return@withContext null
+            }
             when (val letto = Itinerario.leggi(documento.testo)) {
-                is Itinerario.Esito.Fallito -> Avviso.ImportFallito(letto.motivo)
+                is Itinerario.Esito.Fallito -> {
+                    archivio.annotaImport("file non capito (${letto.motivo}): ${documento.nome}")
+                    Avviso.ImportFallito(letto.motivo)
+                }
                 is Itinerario.Esito.Riuscito -> SceltaImport(
                     nomeFile = documento.nome,
                     nome = letto.nome,
@@ -711,6 +731,13 @@ class ViaggiViewModel(
                 importatoDa = nomeFile,
                 documento = documento,
             )
+            // La traccia dice **cosa** e' diventato il file e **dove** e' andato:
+            // e' la risposta alla domanda che nasce quando sullo schermo compare
+            // altro da quello che si aspettava.
+            archivio.annotaImport(
+                "viaggio nuovo «${viaggio.nome}» (${viaggio.slug}): ${punti.size} tappe" +
+                    (nomeFile?.let { ", da $it" } ?: ""),
+            )
             val buchi = GiorniDelViaggio.buchi(archivio.tappe(viaggio.slug), LocalDate.now())
             Esito(viaggio, Avviso.ImportRiuscito(punti.size, scartate, buchi.size))
         }
@@ -745,7 +772,13 @@ class ViaggiViewModel(
         _stato.update { it.copy(sostituzione = null, inCorso = true, avviso = null) }
 
         val rinnovo = withContext(Dispatchers.IO) {
-            archivio.sostituisciTappe(viaggio.slug, proposta.punti, proposta.documento)
+            val fatto = archivio.sostituisciTappe(viaggio.slug, proposta.punti, proposta.documento)
+            archivio.annotaImport(
+                "seguito di «${viaggio.nome}» (${viaggio.slug}): " +
+                    "${fatto.sostituite.size} fuori, ${fatto.nuove.size} dentro, " +
+                    "${fatto.tenute.size} restate" + (proposta.nomeFile?.let { ", da $it" } ?: ""),
+            )
+            fatto
         }
         val buchi = withContext(Dispatchers.IO) {
             GiorniDelViaggio.buchi(archivio.tappe(viaggio.slug), LocalDate.now()).size

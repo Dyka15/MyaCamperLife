@@ -36,8 +36,8 @@
     <string name="elimina_spiegazione">Vengono cancellati la cartella di %1$s e tutti i suoi file. Non si torna indietro.</string>
 
     <!-- Esito dell'importazione -->
-    <string name="import_riuscito">Importate %1$d tappe</string>
-    <string name="import_riuscito_con_scarti">Importate %1$d tappe, %2$d saltate perché senza coordinate</string>
+    <string name="import_riuscito">Viaggio nuovo creato, con %1$d tappe</string>
+    <string name="import_riuscito_con_scarti">Viaggio nuovo creato, con %1$d tappe; %2$d saltate perché senza coordinate</string>
     <string name="import_senza_json">Nel file non c\'è nessun blocco JSON</string>
     <string name="import_senza_waypoints">Il file non contiene waypoints</string>
     <string name="import_senza_coordinate">Nessuna tappa ha coordinate valide</string>
@@ -286,6 +286,7 @@
     <string name="scelta_spiegazione">Un file di itinerario può essere due cose, e l\'app non può indovinare quale: un viaggio nuovo, oppure il seguito di un viaggio che hai già — per esempio quando i piani cambiano a metà strada.</string>
     <string name="scelta_viaggio_nuovo">Un viaggio nuovo</string>
     <string name="scelta_seguito_di">Il seguito di «%1$s»</string>
+    <string name="scelta_quale_viaggio">%1$s · creato il %2$s</string>
     <string name="sostituisci_titolo">Che itinerario è questo?</string>
     <string name="sostituisci_conti">Se riscrive il seguito di «%1$s»: escono %2$d tappe ancora da fare, ne entrano %3$d, e le %4$d già fatte o saltate restano dove sono.</string>
     <string name="sostituisci_viaggio_nuovo">Comincia un viaggio nuovo</string>
@@ -314,6 +315,9 @@
     <string name="impostazioni_meteo_preso">Meteo scaricato: %1$s</string>
     <string name="impostazioni_dintorni_presi">Dintorni salvati: %1$s</string>
     <string name="impostazioni_dintorni_esito">Ultima ricerca (%1$s): %2$s</string>
+    <string name="impostazioni_import">L\'ultimo itinerario caricato</string>
+    <string name="impostazioni_import_esito">%1$s: %2$s</string>
+    <string name="impostazioni_import_mai">Nessun file di itinerario caricato da questa installazione.</string>
 
     <!-- La cartella: assegnarla e sincronizzarla -->
     <string name="invito_cartella_titolo">Scegli dove tenere i file</string>

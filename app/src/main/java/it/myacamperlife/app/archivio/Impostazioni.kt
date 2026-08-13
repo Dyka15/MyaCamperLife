@@ -71,6 +71,19 @@ data class Impostazioni(
     val dintorniProvatoIl: String? = null,
 
     /**
+     * Cos'e' diventato l'ultimo file di itinerario caricato, e quando.
+     *
+     * **Stessa medicina della riga dei dintorni, per la stessa malattia.** Un
+     * file caricato puo' diventare due cose — un viaggio nuovo, o il seguito di
+     * uno che c'era — e quando quello che si vede sullo schermo non e' quello che
+     * si aspettava, l'unica domanda che conta e' «cos'ha fatto?». Una notifica
+     * dura tre secondi; questa riga si rilegge dalle impostazioni, e dice anche
+     * **su quale viaggio** ha scritto.
+     */
+    val importEsito: String? = null,
+    val importProvatoIl: String? = null,
+
+    /**
      * Quale modello si prova per primo. L'altro fa da riserva.
      */
     val principale: String = "gemini",

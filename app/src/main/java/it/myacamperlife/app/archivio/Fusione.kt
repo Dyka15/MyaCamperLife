@@ -229,6 +229,8 @@ class Fusione(private val archivio: Archivio) {
             sincronizzatoIl = null,
             dintorniEsito = null,
             dintorniProvatoIl = null,
+            importEsito = null,
+            importProvatoIl = null,
         )
         if (intatte != Impostazioni()) return EsitoFusione()
 
@@ -241,6 +243,8 @@ class Fusione(private val archivio: Archivio) {
                 sincronizzatoIl = nostre.sincronizzatoIl,
                 dintorniEsito = nostre.dintorniEsito,
                 dintorniProvatoIl = nostre.dintorniProvatoIl,
+                importEsito = nostre.importEsito,
+                importProvatoIl = nostre.importProvatoIl,
             ),
         )
         return EsitoFusione(impostazioni = true)

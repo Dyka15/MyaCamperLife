@@ -1114,6 +1114,21 @@ Tre rimedi, in ordine di importanza:
   domanda ha un bersaglio ovvio, e i numeri sono quelli di quel viaggio.
 - il pulsante in fondo all'itinerario resta: chi lo conosce lo trova dove lo lasciava.
 
+E al secondo giro — il file caricato, e sullo schermo ancora il piano vecchio — è servita la
+stessa medicina dei dintorni: **una traccia scritta**. `importEsito` nelle impostazioni dice
+cos'è diventato l'ultimo file caricato e **su quale viaggio** ha scritto, col nome della
+cartella e la data di creazione, perché due viaggi possono chiamarsi uguale e allora il nome
+non risponde alla domanda. Come per il 504 di Overpass, quella riga trasforma «non funziona»
+in un fatto verificabile, e un fatto si corregge.
+
+Con lei, due dettagli che erano trappole:
+
+- **i viaggi vengono prima, «un viaggio nuovo» dopo.** Chi ha dei viaggi in casa e carica un
+  itinerario di solito sta riscrivendo uno di quelli: mettere per primo «un viaggio nuovo»
+  invitava a toccare per primo proprio l'esito da evitare.
+- **il messaggio dopo un import dice cosa ha fatto**: non più «Importate 13 tappe» — che non
+  distingue le due cose — ma «Viaggio nuovo creato, con 13 tappe».
+
 **La lezione, che è la stessa di due giri prima con altre parole:** una funzione non esiste
 finché non esiste il gesto per invocarla, e «l'ho messo in fondo alla schermata giusta» non è
 un gesto. Vale doppio quando il gesto nuovo somiglia a uno che c'era già: se due cose diverse

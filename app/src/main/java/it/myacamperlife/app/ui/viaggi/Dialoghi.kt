@@ -165,6 +165,10 @@ fun AzioniVoceDialog(
     )
 }
 
+/** "13 agosto, 20:01", o il testo grezzo se non si sa leggere. */
+private fun creato(iso: String): String =
+    runCatching { OffsetDateTime.parse(iso).format(VOCE_QUANDO) }.getOrNull() ?: iso
+
 private val VOCE_QUANDO: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEE d MMMM, HH:mm", java.util.Locale.ITALIAN)
 
@@ -303,15 +307,32 @@ fun SceltaImportDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // **I viaggi prima, il viaggio nuovo dopo.** Chi ha dei viaggi in
+                // casa e carica un itinerario di solito sta riscrivendo uno di
+                // quelli; mettere per primo «un viaggio nuovo» invitava a toccare
+                // per primo proprio quello che si voleva evitare.
+                viaggi.forEach { viaggio ->
+                    Column {
+                        TextButton(onClick = { onChiudi(); onSeguitoDi(viaggio) }) {
+                            Text(stringResource(R.string.scelta_seguito_di, viaggio.nome))
+                        }
+                        // **Due viaggi possono chiamarsi uguale**, e allora il nome
+                        // non risponde alla domanda: la cartella e la data di
+                        // creazione li distinguono.
+                        Text(
+                            text = stringResource(
+                                R.string.scelta_quale_viaggio,
+                                viaggio.slug,
+                                creato(viaggio.creatoIl),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),
+                        )
+                    }
+                }
                 TextButton(onClick = { onChiudi(); onViaggioNuovo() }) {
                     Text(stringResource(R.string.scelta_viaggio_nuovo))
-                }
-                // Un viaggio per riga, col suo nome: «il seguito di quale?» si
-                // risponde leggendo, non ricordando.
-                viaggi.forEach { viaggio ->
-                    TextButton(onClick = { onChiudi(); onSeguitoDi(viaggio) }) {
-                        Text(stringResource(R.string.scelta_seguito_di, viaggio.nome))
-                    }
                 }
             }
         },
@@ -1207,9 +1228,37 @@ fun ImpostazioniDialog(
                 // dura tre secondi e la domanda «perche' non carica niente?»
                 // arriva il giorno dopo, in mezzo al nulla. Questa riga si
                 // rilegge quando serve, e dice quello che ha detto il server.
-                EsitoScritto(impostazioni.dintorniEsito, impostazioni.dintorniProvatoIl)
+                EsitoScritto(
+                    R.string.impostazioni_dintorni_esito,
+                    impostazioni.dintorniEsito,
+                    impostazioni.dintorniProvatoIl,
+                )
                 TextButton(onClick = { onChiudi(); onScaricaDintorni() }, enabled = scortaDisponibile) {
                     Text(stringResource(R.string.impostazioni_scarica_dintorni))
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // **Cos'e' diventato l'ultimo itinerario caricato.** Un file puo'
+                // diventare un viaggio nuovo o il seguito di uno che c'era, e
+                // quando sullo schermo compare altro da quello che si aspettava
+                // questa riga e' l'unica cosa che risponde — dice anche su quale
+                // viaggio ha scritto, perche' due viaggi possono chiamarsi uguale.
+                Text(
+                    stringResource(R.string.impostazioni_import),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                EsitoScritto(
+                    R.string.impostazioni_import_esito,
+                    impostazioni.importEsito,
+                    impostazioni.importProvatoIl,
+                )
+                if (impostazioni.importEsito == null) {
+                    Text(
+                        stringResource(R.string.impostazioni_import_mai),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1862,13 +1911,13 @@ private fun Quando(etichetta: Int, istante: OffsetDateTime?) {
  * timestamp brutto e' meglio di una riga senza data.
  */
 @Composable
-private fun EsitoScritto(esito: String?, quando: String?) {
+private fun EsitoScritto(etichetta: Int, esito: String?, quando: String?) {
     val testo = esito?.trim()?.takeUnless { it.isEmpty() } ?: return
     val letta = quando
         ?.let { runCatching { OffsetDateTime.parse(it).format(LETTA) }.getOrNull() ?: it }
         ?: stringResource(R.string.impostazioni_mai)
     Text(
-        text = stringResource(R.string.impostazioni_dintorni_esito, letta, testo),
+        text = stringResource(etichetta, letta, testo),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
