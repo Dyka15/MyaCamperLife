@@ -59,21 +59,48 @@ object Rete {
         intestazioni: Map<String, String> = emptyMap(),
         tipo: String = JSON,
         massimoCaratteri: Int = MASSIMO_CARATTERI,
+    ): EsitoHttp = conEsito(indirizzo, corpo, intestazioni, tipo, massimoCaratteri)
+
+    /**
+     * Una GET che riporta **anche l'errore**, con le intestazioni che le si danno.
+     *
+     * Serve dove la domanda va a un servizio autenticato e la risposta negativa
+     * e' essa stessa l'informazione: «quali modelli vede questa chiave» ha tre
+     * esiti utili — l'elenco, «chiave non valida», «quota finita» — e ridurli
+     * tutti a `null`, come fanno le chiamate mute dell'app, lascerebbe a
+     * indovinare quale dei tre.
+     */
+    suspend fun prendiConEsito(
+        indirizzo: String,
+        intestazioni: Map<String, String> = emptyMap(),
+        massimoCaratteri: Int = MASSIMO_CARATTERI,
+    ): EsitoHttp = conEsito(indirizzo, corpo = null, intestazioni, JSON, massimoCaratteri)
+
+    private suspend fun conEsito(
+        indirizzo: String,
+        corpo: String?,
+        intestazioni: Map<String, String>,
+        tipo: String,
+        massimoCaratteri: Int,
     ): EsitoHttp = withContext(Dispatchers.IO) {
         var connessione: HttpURLConnection? = null
         try {
             connessione = (URL(indirizzo).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
+                requestMethod = if (corpo == null) "GET" else "POST"
                 connectTimeout = ATTESA_CONNESSIONE
-                readTimeout = ATTESA_LETTURA_LUNGA
+                readTimeout = if (corpo == null) ATTESA_LETTURA else ATTESA_LETTURA_LUNGA
                 instanceFollowRedirects = true
-                doOutput = true
                 setRequestProperty("User-Agent", AGENTE)
                 setRequestProperty("Accept", "application/json")
-                setRequestProperty("Content-Type", tipo)
+                if (corpo != null) {
+                    doOutput = true
+                    setRequestProperty("Content-Type", tipo)
+                }
                 intestazioni.forEach { (nome, valore) -> setRequestProperty(nome, valore) }
             }
-            connessione.outputStream.use { it.write(corpo.toByteArray(Charsets.UTF_8)) }
+            corpo?.let { testo ->
+                connessione.outputStream.use { it.write(testo.toByteArray(Charsets.UTF_8)) }
+            }
 
             val codice = connessione.responseCode
             if (codice in 200..299) {

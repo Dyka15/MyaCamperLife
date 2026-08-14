@@ -141,6 +141,118 @@ class AiTest {
         assertTrue(corpo, corpo.contains("search_parameters"))
     }
 
+    // --- Groq -----------------------------------------------------------------
+
+    /**
+     * Una risposta di un `compound`, con lo strumento eseguito che riporta i
+     * risultati **come stringa JSON**: e' la forma che rende inutile cercare le
+     * fonti in un punto preciso.
+     */
+    private val groq = """
+        {
+          "choices": [{
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "A Rothenburg il museo del Natale apre alle 10.",
+              "executed_tools": [{
+                "type": "search",
+                "output": "{\"results\":[{\"url\":\"https://rothenburg.de/museo\",\"title\":\"Museo\"},{\"url\":\"https://esempio.de/orari\"}]}"
+              }]
+            }
+          }],
+          "model": "groq/compound-mini"
+        }
+    """.trimIndent()
+
+    @Test
+    fun `il testo di Groq sta dove lo mette OpenAI`() {
+        val risposta = Ai.leggiGroq(groq)!!
+        assertEquals("A Rothenburg il museo del Natale apre alle 10.", risposta.testo)
+        assertEquals(Modello.GROQ, risposta.modello)
+    }
+
+    @Test
+    fun `le fonti di Groq si trovano anche dentro un JSON messo in una stringa`() {
+        val fonti = Ai.leggiGroq(groq)!!.fonti
+        assertEquals(2, fonti.size)
+        assertEquals("Museo", fonti.first().titolo)
+        assertEquals("https://rothenburg.de/museo", fonti.first().indirizzo)
+    }
+
+    @Test
+    fun `una risposta di Groq senza ricerca non ha fonti ma ha il testo`() {
+        // E' il caso di un modello secco tipo openai/gpt-oss-120b: risponde a
+        // memoria. Deve funzionare, e deve essere evidente che fonti non ce ne
+        // sono — non un errore.
+        val secco = """{"choices":[{"message":{"content":"Non lo so con certezza."}}]}"""
+        val risposta = Ai.leggiGroq(secco)!!
+        assertEquals("Non lo so con certezza.", risposta.testo)
+        assertTrue(risposta.fonti.isEmpty())
+    }
+
+    @Test
+    fun `una risposta di Groq rotta non fa cadere niente`() {
+        assertNull(Ai.leggiGroq(""))
+        assertNull(Ai.leggiGroq("""{"choices":[]}"""))
+        assertNull(Ai.leggiGroq("""{"choices":[{"message":{"content":"   "}}]}"""))
+    }
+
+    @Test
+    fun `il corpo per Groq non chiede la ricerca`() {
+        // Su Groq la ricerca e' una proprieta' del modello, non della richiesta:
+        // un parametro inventato tornerebbe come 400, che sembra un problema di
+        // chiave.
+        val corpo = Ai.corpoGroq("groq/compound-mini", "sistema", "domanda")
+        assertTrue(corpo, corpo.contains("\"model\":\"groq/compound-mini\""))
+        assertTrue(corpo, corpo.contains("\"role\":\"system\""))
+        assertTrue(corpo, !corpo.contains("search_parameters"))
+        assertTrue(corpo, !corpo.contains("tools"))
+    }
+
+    // --- quali modelli vede la chiave -----------------------------------------
+
+    @Test
+    fun `l'elenco compatibile con OpenAI si legge da data id`() {
+        val corpo = """
+            {"object":"list","data":[
+              {"id":"openai/gpt-oss-120b","object":"model"},
+              {"id":"groq/compound-mini","object":"model"},
+              {"id":"groq/compound","object":"model"}]}
+        """.trimIndent()
+        assertEquals(
+            listOf("groq/compound", "groq/compound-mini", "openai/gpt-oss-120b"),
+            Ai.leggiModelli(corpo),
+        )
+    }
+
+    @Test
+    fun `l'elenco di Gemini si legge da models name senza il prefisso`() {
+        val corpo = """
+            {"models":[
+              {"name":"models/gemini-flash-latest","displayName":"Flash"},
+              {"name":"models/gemini-pro-latest"}]}
+        """.trimIndent()
+        assertEquals(
+            listOf("gemini-flash-latest", "gemini-pro-latest"),
+            Ai.leggiModelli(corpo),
+        )
+    }
+
+    @Test
+    fun `un elenco che non si capisce e' vuoto, non un guasto`() {
+        assertTrue(Ai.leggiModelli("").isEmpty())
+        assertTrue(Ai.leggiModelli("""{"data":[]}""").isEmpty())
+        assertTrue(Ai.leggiModelli("""{"error":{"message":"Invalid API Key"}}""").isEmpty())
+    }
+
+    @Test
+    fun `ogni fornitore ha il suo indirizzo per l'elenco dei modelli`() {
+        assertEquals("https://api.groq.com/openai/v1/models", Ai.indirizzoModelli(Modello.GROQ))
+        assertEquals("https://api.x.ai/v1/models", Ai.indirizzoModelli(Modello.GROK))
+        assertTrue(Ai.indirizzoModelli(Modello.GEMINI).endsWith("/v1beta/models"))
+    }
+
     // --- gli errori -----------------------------------------------------------
 
     @Test
@@ -186,7 +298,18 @@ class AiTest {
     fun `un codice di modello sconosciuto non da un modello`() {
         assertEquals(Modello.GEMINI, Modello.da("gemini"))
         assertEquals(Modello.GROK, Modello.da("GROK"))
+        assertEquals(Modello.GROQ, Modello.da("groq"))
         assertNull(Modello.da("llama"))
         assertNull(Modello.da(null))
+    }
+
+    @Test
+    fun `Groq e Grok restano due fornitori distinti`() {
+        // Una lettera di differenza, due servizi che non c'entrano niente: se un
+        // giorno qualcuno unificasse i due codici, le chiavi finirebbero
+        // scambiate e il guasto sarebbe incomprensibile.
+        assertTrue(Modello.GROQ != Modello.GROK)
+        assertTrue(Modello.GROQ.codice != Modello.GROK.codice)
+        assertEquals("groq/compound-mini", Modello.GROQ.modelloDiRiposo)
     }
 }

@@ -98,6 +98,19 @@ data class Impostazioni(
      */
     val modelloGemini: String = "gemini-flash-latest",
     val modelloGrok: String = "grok-4-fast",
+    val modelloGroq: String = "groq/compound-mini",
+
+    /**
+     * Quali modelli ha visto l'ultima verifica, e quando.
+     *
+     * **Stessa medicina delle righe dei dintorni e dell'import.** Un
+     * identificativo ritirato si presenta come un 404 che sembra un problema di
+     * chiave; questa riga porta l'elenco che il fornitore ha dichiarato, e da qui
+     * si copia il nome giusto nel campo di sopra. Sono nomi di modelli e codici
+     * HTTP: niente di riservato, quindi puo' stare in un file rispecchiato.
+     */
+    val modelliEsito: String? = null,
+    val modelliProvatoIl: String? = null,
 
     /**
      * Il prompt di sistema di Esplora. Vuoto significa "usa quello di riposo",
@@ -111,6 +124,7 @@ data class Impostazioni(
     fun modello(modello: Modello): String = when (modello) {
         Modello.GEMINI -> modelloGemini
         Modello.GROK -> modelloGrok
+        Modello.GROQ -> modelloGroq
     }.trim().ifEmpty { modello.modelloDiRiposo }
 
     /** Il prompt di Esplora: il tuo se c'e', altrimenti quello di riposo. */

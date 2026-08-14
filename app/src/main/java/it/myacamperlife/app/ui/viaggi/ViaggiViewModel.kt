@@ -55,6 +55,7 @@ import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.rete.Assistente
 import it.myacamperlife.app.rete.EsitoAi
 import it.myacamperlife.app.rete.EsitoDintorni
+import it.myacamperlife.app.rete.EsitoModelli
 import it.myacamperlife.app.rete.Geocodifica
 import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.rete.Scorte
@@ -360,6 +361,9 @@ class ViaggiViewModel(
         data object ScortaNonAggiornata : Avviso
         data class DintorniAggiornati(val poi: Int, val luoghi: Int) : Avviso
         data class DintorniFalliti(val esito: EsitoDintorni) : Avviso
+
+        /** Quali modelli vede una chiave: l'elenco, o perche' non si sa. */
+        data class ModelliVerificati(val esito: EsitoModelli) : Avviso
         data class SpecchioScelto(val cartella: String) : Avviso
         data class SpecchioFatto(val file: Int) : Avviso
         data class CartellaFusa(val esito: EsitoFusione) : Avviso
@@ -1254,11 +1258,15 @@ class ViaggiViewModel(
 
     // --- il modello -----------------------------------------------------------
 
+    /**
+     * Se c'e' **almeno una** chiave configurata, qualunque sia il fornitore.
+     *
+     * Prima guardava il principale e il primo diverso da lui: con due fornitori
+     * era l'insieme di tutti, con tre lasciava fuori il terzo — e chi aveva
+     * configurato solo quello si vedeva l'app dire che l'AI non c'era.
+     */
     fun aiConfigurata(): Boolean =
-        assistente?.configurato(_stato.value.impostazioni.modelloPrincipale) == true ||
-            assistente?.configurato(
-                Modello.entries.first { it != _stato.value.impostazioni.modelloPrincipale },
-            ) == true
+        Modello.entries.any { assistente?.configurato(it) == true }
 
     fun chiaviDisponibili(): Boolean = assistente?.chiaviDisponibili() == true
 
@@ -1267,6 +1275,33 @@ class ViaggiViewModel(
     fun salvaChiave(modello: Modello, chiave: String?) {
         assistente?.salvaChiave(modello, chiave)
         _stato.update { it.copy(avviso = Avviso.ImpostazioniSalvate) }
+    }
+
+    /**
+     * Chiede al fornitore quali modelli vede questa chiave, e **scrive l'esito**.
+     *
+     * La scrittura non e' un extra: e' il motivo per cui la funzione serve. Chi
+     * usa l'app ha un telefono e nient'altro, e la domanda «quale identificativo
+     * devo scrivere» si presenta di sera, in mezzo al nulla, dopo un 404 che
+     * sembrava un problema di chiave. L'elenco finisce in `impostazioni.json`
+     * accanto alle altre tracce, quindi si rilegge anche dopo aver chiuso tutto —
+     * e nell'elenco non c'e' niente di riservato, solo nomi di modelli.
+     */
+    fun verificaModelli(modello: Modello) = viewModelScope.launch {
+        val assistente = assistente ?: return@launch
+        _stato.update { it.copy(inCorso = true, avviso = null) }
+        val esito = assistente.modelliVisibili(modello)
+        val impostazioni = withContext(Dispatchers.IO) {
+            archivio.annotaModelli(esito.riassunto())
+            archivio.impostazioni()
+        }
+        _stato.update {
+            it.copy(
+                inCorso = false,
+                impostazioni = impostazioni,
+                avviso = Avviso.ModelliVerificati(esito),
+            )
+        }
     }
 
     /**

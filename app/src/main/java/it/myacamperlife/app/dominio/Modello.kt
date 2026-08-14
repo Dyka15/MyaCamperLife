@@ -1,12 +1,12 @@
 package it.myacamperlife.app.dominio
 
 /**
- * I due modelli: uno principale, uno di riserva.
+ * I fornitori di modelli: uno principale, gli altri di riserva.
  *
- * **Perche' due.** Una funzione che dipende da un solo fornitore e' una funzione
- * che sparisce quando quel fornitore ha una brutta giornata — e succede a tutti.
- * Il codice del client e' lo stesso; cambiano l'indirizzo, la forma del corpo e
- * dove sta la risposta dentro il JSON.
+ * **Perche' piu' di uno.** Una funzione che dipende da un solo fornitore e' una
+ * funzione che sparisce quando quel fornitore ha una brutta giornata — e succede
+ * a tutti. Il codice del client e' lo stesso; cambiano l'indirizzo, la forma del
+ * corpo e dove sta la risposta dentro il JSON.
  *
  * **L'identificativo del modello e' un'impostazione, non una costante.** I nomi
  * dei modelli cambiano ogni pochi mesi e vengono ritirati; se fosse compilato
@@ -32,6 +32,27 @@ enum class Modello(val codice: String, val nome: String, val modelloDiRiposo: St
         codice = "grok",
         nome = "Grok",
         modelloDiRiposo = "grok-4-fast",
+    ),
+
+    /**
+     * Groq: la fascia gratuita senza carta di credito.
+     *
+     * **Non e' Grok con una lettera diversa**: Grok e' il modello di xAI, Groq e'
+     * un servizio che esegue modelli aperti su hardware proprio. I due nomi si
+     * confondono a occhio e non c'entrano niente l'uno con l'altro.
+     *
+     * Di riposo un sistema `compound` e non un modello secco, e la ragione e' una
+     * regola di questa app: Esplora mostra **le fonti** di una risposta, perche'
+     * una risposta su un'area di sosta che non si puo' verificare vale meno di
+     * nessuna risposta. Su Groq la ricerca web ce l'hanno solo i `compound`; un
+     * `openai/gpt-oss-120b` risponderebbe a memoria, senza un link da
+     * controllare. Chi preferisce la velocita' alla verificabilita' cambia
+     * l'identificativo dalle impostazioni.
+     */
+    GROQ(
+        codice = "groq",
+        nome = "Groq",
+        modelloDiRiposo = "groq/compound-mini",
     );
 
     companion object {

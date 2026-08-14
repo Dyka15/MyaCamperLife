@@ -1706,7 +1706,7 @@ fun DossierDialog(titolo: String, testo: String?, onChiudi: () -> Unit) {
 }
 
 /**
- * I due modelli: chiavi, identificativi, e il prompt di Esplora.
+ * I fornitori di modelli: chiavi, identificativi, e il prompt di Esplora.
  *
  * **Le chiavi si mostrano per le ultime quattro cifre.** Mostrarle intere in una
  * schermata di impostazioni e' un invito a fotografarle per sbaglio insieme al
@@ -1722,15 +1722,20 @@ fun ModelliDialog(
     chiaviDisponibili: Boolean,
     coda: (Modello) -> String?,
     onChiave: (Modello, String?) -> Unit,
+    /** Chiede al fornitore quali modelli vede questa chiave. Serve rete. */
+    onVerifica: (Modello) -> Unit,
+    inCorso: Boolean,
     onSalva: (Impostazioni) -> Unit,
     onChiudi: () -> Unit,
 ) {
     var principale by remember { mutableStateOf(impostazioni.modelloPrincipale) }
     var nomeGemini by remember { mutableStateOf(impostazioni.modelloGemini) }
     var nomeGrok by remember { mutableStateOf(impostazioni.modelloGrok) }
+    var nomeGroq by remember { mutableStateOf(impostazioni.modelloGroq) }
     var prompt by remember { mutableStateOf(impostazioni.promptEsplora) }
     var chiaveGemini by remember { mutableStateOf("") }
     var chiaveGrok by remember { mutableStateOf("") }
+    var chiaveGroq by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onChiudi,
@@ -1766,9 +1771,11 @@ fun ModelliDialog(
                     nome = nomeGemini,
                     chiave = chiaveGemini,
                     coda = coda(Modello.GEMINI),
+                    inCorso = inCorso,
                     onNome = { nomeGemini = it },
                     onChiave = { chiaveGemini = it },
                     onDimentica = { onChiave(Modello.GEMINI, null); chiaveGemini = "" },
+                    onVerifica = { onVerifica(Modello.GEMINI) },
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1778,9 +1785,40 @@ fun ModelliDialog(
                     nome = nomeGrok,
                     chiave = chiaveGrok,
                     coda = coda(Modello.GROK),
+                    inCorso = inCorso,
                     onNome = { nomeGrok = it },
                     onChiave = { chiaveGrok = it },
                     onDimentica = { onChiave(Modello.GROK, null); chiaveGrok = "" },
+                    onVerifica = { onVerifica(Modello.GROK) },
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                RigaModello(
+                    modello = Modello.GROQ,
+                    nome = nomeGroq,
+                    chiave = chiaveGroq,
+                    coda = coda(Modello.GROQ),
+                    inCorso = inCorso,
+                    onNome = { nomeGroq = it },
+                    onChiave = { chiaveGroq = it },
+                    onDimentica = { onChiave(Modello.GROQ, null); chiaveGroq = "" },
+                    onVerifica = { onVerifica(Modello.GROQ) },
+                )
+                // Groq non e' Grok con una lettera in meno, e la confusione
+                // costerebbe una chiave incollata nel campo sbagliato.
+                Text(
+                    stringResource(R.string.modelli_groq_spiegazione),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                // L'elenco dell'ultima verifica: sta qui, dove si scrive
+                // l'identificativo, perche' e' qui che serve copiarne uno.
+                EsitoScritto(
+                    R.string.modelli_visibili_esito,
+                    impostazioni.modelliEsito,
+                    impostazioni.modelliProvatoIl,
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1816,11 +1854,14 @@ fun ModelliDialog(
                         ?.let { onChiave(Modello.GEMINI, it) }
                     chiaveGrok.trim().takeUnless { it.isEmpty() }
                         ?.let { onChiave(Modello.GROK, it) }
+                    chiaveGroq.trim().takeUnless { it.isEmpty() }
+                        ?.let { onChiave(Modello.GROQ, it) }
                     onSalva(
                         impostazioni.copy(
                             principale = principale.codice,
                             modelloGemini = nomeGemini.trim(),
                             modelloGrok = nomeGrok.trim(),
+                            modelloGroq = nomeGroq.trim(),
                             promptEsplora = prompt.trim(),
                         ),
                     )
@@ -1853,9 +1894,11 @@ private fun RigaModello(
     nome: String,
     chiave: String,
     coda: String?,
+    inCorso: Boolean,
     onNome: (String) -> Unit,
     onChiave: (String) -> Unit,
     onDimentica: () -> Unit,
+    onVerifica: () -> Unit,
 ) {
     Text(modello.nome, style = MaterialTheme.typography.titleSmall)
     OutlinedTextField(
@@ -1880,8 +1923,15 @@ private fun RigaModello(
         modifier = Modifier.fillMaxWidth(),
     )
     if (coda != null) {
-        TextButton(onClick = onDimentica) {
-            Text(stringResource(R.string.modelli_dimentica))
+        Row {
+            TextButton(onClick = onDimentica) {
+                Text(stringResource(R.string.modelli_dimentica))
+            }
+            // Il pulsante compare solo con una chiave salvata: senza, la
+            // risposta sarebbe sempre la stessa e non serve chiederla.
+            TextButton(onClick = onVerifica, enabled = !inCorso) {
+                Text(stringResource(R.string.modelli_visibili))
+            }
         }
     }
 }

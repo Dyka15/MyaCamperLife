@@ -384,12 +384,15 @@
     <string name="impostazioni_apri_modelli">Configura i modelli</string>
     <string name="modelli_titolo">Modelli</string>
     <string name="modelli_principale">Quale si prova per primo</string>
-    <string name="modelli_principale_spiegazione">L\'altro fa da riserva: si prova quando il primo rifiuta, per quota finita o modello ritirato.</string>
+    <string name="modelli_principale_spiegazione">Gli altri fanno da riserva: si provano in ordine quando il primo rifiuta, per quota finita o modello ritirato.</string>
     <string name="modelli_identificativo">Identificativo del modello</string>
     <string name="modelli_chiave">Chiave API</string>
     <string name="modelli_chiave_assente">nessuna chiave</string>
     <string name="modelli_chiave_presente">configurata, finisce con %1$s</string>
     <string name="modelli_dimentica">Dimentica la chiave</string>
+    <string name="modelli_visibili">Quali modelli vedo?</string>
+    <string name="modelli_visibili_esito">Ultima verifica (%1$s): %2$s</string>
+    <string name="modelli_groq_spiegazione">Groq non è Grok: è un servizio che esegue modelli aperti, con una fascia gratuita senza carta. Per Esplora serve un modello che cerchi sul web — i «compound» lo fanno, gli altri rispondono a memoria e senza fonti.</string>
     <string name="modelli_prompt">Il prompt di Esplora</string>
     <string name="modelli_prompt_vuoto">Vuoto: si usa quello predefinito</string>
     <string name="modelli_prompt_spiegazione">Lascialo vuoto per usare quello dell\'app, che migliora con gli aggiornamenti. Scrivendone uno tuo, vale il tuo.</string>

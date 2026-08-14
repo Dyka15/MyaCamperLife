@@ -2,6 +2,7 @@ package it.myacamperlife.app.dominio
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
@@ -16,7 +17,7 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * Il corpo della richiesta e la lettura della risposta, per i due modelli.
+ * Il corpo della richiesta e la lettura della risposta, per ogni fornitore.
  *
  * **Sta nel dominio, come i parser di Open-Meteo e di Overpass**, e per la
  * stessa ragione: comporre un JSON e leggerne un altro sono trasformazioni pure,
@@ -24,10 +25,12 @@ import kotlinx.serialization.json.putJsonObject
  * pagamento per ogni prova. Il giorno che un fornitore cambia la forma della
  * risposta, lo scopre un test.
  *
- * **La ricerca web e' compresa nel modello.** Sia Gemini sia Grok la eseguono
- * lato server: l'app manda una domanda, il modello cerca da se' e risponde con
- * le fonti. Non c'e' nessun motore di ricerca da integrare, ed e' il dettaglio
- * che rende questa fase piccola invece che enorme.
+ * **La ricerca web e' compresa nel modello.** L'app manda una domanda, il
+ * modello cerca da se' e risponde con le fonti: nessun motore di ricerca da
+ * integrare, ed e' il dettaglio che rende questa parte piccola invece che
+ * enorme. Come si chiede pero' cambia da fornitore a fornitore — Gemini vuole
+ * uno strumento dichiarato, Grok un parametro, Groq **niente**, perche' li' la
+ * ricerca e' una proprieta' del modello scelto e non della richiesta.
  */
 object Ai {
 
@@ -150,6 +153,147 @@ object Ai {
         }
 
         return RispostaModello(testo, fonti.distinctBy { it.indirizzo }, Modello.GROK)
+    }
+
+    // --- Groq -----------------------------------------------------------------
+
+    /** Anche Groq parla la lingua di OpenAI: stesso corpo, stesso posto per il testo. */
+    fun indirizzoGroq(): String = "https://api.groq.com/openai/v1/chat/completions"
+
+    /**
+     * Il corpo per Groq.
+     *
+     * **Nessun parametro di ricerca**, al contrario di Grok: su Groq la ricerca
+     * web non si chiede, ce l'hanno di natura i sistemi `compound` e non ce
+     * l'hanno gli altri. Un parametro inventato verrebbe rifiutato con un 400 —
+     * e peggio: sembrerebbe un problema di chiave.
+     *
+     * Il che rende la ricerca una **scelta di modello** e non di richiesta: per
+     * Esplora un `compound`, per la prosa del diario — che non deve cercare
+     * niente — va bene un modello secco. Si sceglie dalle impostazioni.
+     */
+    fun corpoGroq(modello: String, sistema: String, domanda: String): String = buildJsonObject {
+        put("model", modello.trim())
+        putJsonArray("messages") {
+            if (sistema.isNotBlank()) {
+                addJsonObject {
+                    put("role", "system")
+                    put("content", sistema)
+                }
+            }
+            addJsonObject {
+                put("role", "user")
+                put("content", domanda)
+            }
+        }
+    }.toString()
+
+    /**
+     * Testo in `choices[0].message.content`; le fonti **dove capita**.
+     *
+     * I `compound` riportano gli strumenti che hanno eseguito, e i risultati
+     * della ricerca stanno dentro quel ramo — in una forma che e' cambiata piu'
+     * di una volta e che non ho potuto verificare contro una risposta vera.
+     * Invece di scommettere su un percorso preciso si raccolgono gli indirizzi
+     * **da tutto il sottoalbero del messaggio**: se domani i risultati cambiano
+     * posto, le fonti continuano a comparire.
+     *
+     * Il prezzo di questa scelta e' qualche indirizzo di troppo; il prezzo
+     * dell'altra sarebbe una colonna vuota senza che nessuno se ne accorga.
+     */
+    fun leggiGroq(corpo: String): RispostaModello? {
+        val radice = oggetto(corpo) ?: return null
+        val scelta = (radice["choices"] as? JsonArray)?.firstOrNull() as? JsonObject
+            ?: return null
+        val messaggio = scelta["message"] as? JsonObject ?: return null
+        val testo = stringa(messaggio, "content")?.trim()?.takeUnless { it.isEmpty() }
+            ?: return null
+
+        val fonti = (indirizzi(messaggio) + indirizzi(radice["citations"]))
+            .distinctBy { it.indirizzo }
+        return RispostaModello(testo, fonti, Modello.GROQ)
+    }
+
+    /**
+     * Tutti gli indirizzi web in un pezzo di JSON, col titolo se c'e'.
+     *
+     * Scende in oggetti e array, e **prova a leggere le stringhe come JSON**: uno
+     * strumento eseguito riporta il proprio risultato come testo, e un JSON
+     * dentro una stringa e' ancora un JSON.
+     */
+    private fun indirizzi(elemento: JsonElement?, profondita: Int = 0): List<Fonte> {
+        if (elemento == null || profondita > PROFONDITA) return emptyList()
+        return when (elemento) {
+            is JsonObject -> {
+                val mio = stringa(elemento, "url")
+                    ?: stringa(elemento, "uri")
+                    ?: stringa(elemento, "link")
+                val qui = mio
+                    ?.takeIf { it.startsWith("http") }
+                    ?.let { listOf(Fonte(stringa(elemento, "title"), it)) }
+                    .orEmpty()
+                qui + elemento.values.flatMap { indirizzi(it, profondita + 1) }
+            }
+            is JsonArray -> elemento.flatMap { indirizzi(it, profondita + 1) }
+            else -> {
+                val testo = runCatching { elemento.jsonPrimitive.contentOrNull }.getOrNull()
+                    ?: return emptyList()
+                val potato = testo.trimStart()
+                when {
+                    testo.startsWith("http") -> listOf(Fonte(null, testo))
+                    potato.startsWith("{") || potato.startsWith("[") ->
+                        runCatching { json.parseToJsonElement(testo) }.getOrNull()
+                            ?.let { indirizzi(it, profondita + 1) }
+                            .orEmpty()
+                    else -> emptyList()
+                }
+            }
+        }
+    }
+
+    /** Otto livelli: oltre non c'e' JSON di risposta, c'e' un ciclo o un guasto. */
+    private const val PROFONDITA = 8
+
+    // --- quali modelli vede la chiave -----------------------------------------
+
+    /**
+     * L'indirizzo che elenca i modelli visibili a una chiave.
+     *
+     * **E' la sola risposta autorevole a "quale identificativo devo scrivere".**
+     * I nomi cambiano ogni pochi mesi, le guide restano ferme, e un nome ritirato
+     * si manifesta come un 404 che sembra un problema di chiave. Qui l'elenco lo
+     * dice il fornitore, e lo dice alla chiave che ce l'ha davvero.
+     */
+    fun indirizzoModelli(modello: Modello): String = when (modello) {
+        Modello.GEMINI -> "https://generativelanguage.googleapis.com/v1beta/models"
+        Modello.GROK -> "https://api.x.ai/v1/models"
+        Modello.GROQ -> "https://api.groq.com/openai/v1/models"
+    }
+
+    /**
+     * Gli identificativi dei modelli in una risposta d'elenco.
+     *
+     * Due forme, perche' i fornitori ne usano due: `{"data":[{"id":…}]}` per
+     * chiunque imiti OpenAI, `{"models":[{"name":"models/…"}]}` per Gemini — e li'
+     * il prefisso `models/` si toglie, perche' quello che va scritto nelle
+     * impostazioni e' il nome nudo.
+     *
+     * In ordine alfabetico: un elenco di trenta righe si legge solo se e' ordinato.
+     */
+    fun leggiModelli(corpo: String): List<String> {
+        val radice = oggetto(corpo) ?: return emptyList()
+        val elenco = (radice["data"] as? JsonArray)
+            ?: (radice["models"] as? JsonArray)
+            ?: return emptyList()
+        return elenco
+            .mapNotNull { voce ->
+                val oggetto = voce as? JsonObject ?: return@mapNotNull null
+                (stringa(oggetto, "id") ?: stringa(oggetto, "name"))
+                    ?.removePrefix("models/")
+                    ?.takeUnless { it.isBlank() }
+            }
+            .distinct()
+            .sorted()
     }
 
     // --- l'errore -------------------------------------------------------------

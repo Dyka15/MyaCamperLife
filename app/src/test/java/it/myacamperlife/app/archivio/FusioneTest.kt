@@ -236,6 +236,22 @@ class FusioneTest {
         assertEquals("content://nuova", app.impostazioni().cartellaSpecchio)
     }
 
+    @Test
+    fun `una traccia di diagnostica non conta come impostazione toccata`() {
+        // Le righe di esito le scrive l'app, non l'utente: contarle renderebbe
+        // l'archivio "gia' toccato" sempre, e la fusione non scatterebbe mai —
+        // il difetto peggiore, perche' silenzioso.
+        app.annotaModelli("Groq: 3 visibili — groq/compound")
+        altro.salvaImpostazioni(Impostazioni(kmConUnPieno = 850))
+
+        val esito = fondi()
+        assertTrue(esito.impostazioni)
+        assertEquals(850, app.impostazioni().kmConUnPieno)
+        // E la traccia resta quella di **questa** installazione: e' la
+        // diagnostica di questo telefono, non di quello di prima.
+        assertTrue(app.impostazioni().modelliEsito!!.startsWith("Groq: 3 visibili"))
+    }
+
     // --- gli allegati ---------------------------------------------------------
 
     @Test

@@ -257,6 +257,24 @@ class Archivio(private val radice: File) {
     }
 
     /**
+     * Annota quali modelli ha visto l'ultima verifica, e quando.
+     *
+     * **Il tetto qui e' piu' alto** che per le altre tracce: l'elenco dei modelli
+     * non e' un messaggio d'errore da riassumere, e' la cosa da leggere — venti
+     * identificativi con le barre e i numeri di versione passano i trecento
+     * caratteri, e tagliarli a meta' renderebbe la riga inutile proprio nel punto
+     * in cui serve copiarne uno.
+     */
+    fun annotaModelli(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        salvaImpostazioni(
+            impostazioni().copy(
+                modelliEsito = esito.take(1_000),
+                modelliProvatoIl = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            ),
+        )
+    }
+
+    /**
      * Come si chiama il posto dove sei, senza rete.
      *
      * Il toponimo vince sul nome della tappa quando c'e': "3 km da Bolsena"

@@ -809,6 +809,8 @@ fun MyaApp(vista: ViaggiViewModel) {
             chiaviDisponibili = vista.chiaviDisponibili(),
             coda = vista::codaChiave,
             onChiave = vista::salvaChiave,
+            onVerifica = { modello -> vista.verificaModelli(modello) },
+            inCorso = stato.inCorso,
             onSalva = vista::salvaImpostazioni,
             onChiudi = { modelliAperti = false },
         )
@@ -1013,6 +1015,10 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
         }
         is EsitoDintorni.Riuscito -> stringResource(R.string.dintorni_aggiornati, esito.poi, esito.luoghi)
     }
+    // Il riassunto arriva da EsitoModelli e non dalle stringhe: e' un elenco di
+    // identificativi, o il codice HTTP con la frase del servizio. Tradurlo
+    // vorrebbe dire perdere proprio la parte da copiare.
+    is ViaggiViewModel.Avviso.ModelliVerificati -> avviso.esito.riassunto()
     is ViaggiViewModel.Avviso.SpecchioScelto ->
         stringResource(R.string.specchio_scelto, avviso.cartella)
     is ViaggiViewModel.Avviso.SpecchioFatto ->

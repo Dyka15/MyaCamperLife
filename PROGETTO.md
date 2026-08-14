@@ -76,7 +76,7 @@ Nessuno di questi input è necessario al funzionamento: sono scorta.
 | **Distanze e tempi di guida** | OSRM | All'import dell'itinerario, e quando si aggiunge una tappa | "Prossima tappa: 34 km, 45 min", e i km previsti per domani |
 | **Punti di interesse** | OpenStreetMap via Overpass, in un corridoio di quindici chilometri intorno all'itinerario | Una volta per viaggio, all'import o col pulsante nelle impostazioni | Aree di sosta, campeggi, carico/scarico, acqua, distributori, supermercati, cose da vedere |
 | **Toponimi** | La stessa richiesta: i paesi lungo il percorso arrivano insieme ai punti di interesse | Una volta per viaggio | Dare un nome alla posizione senza rete |
-| **Risposte del modello** | API Gemini sul piano gratuito, con Grok di riserva facoltativa | Su richiesta | Esplora, diario in prosa |
+| **Risposte del modello** | API Gemini sul piano gratuito, con Grok e Groq di riserva facoltativa | Su richiesta | Esplora, diario in prosa |
 
 Non c'è import di dati preesistenti: si parte dal viaggio in corso.
 
@@ -263,7 +263,8 @@ rete.
 | **Sincronizzare** con la cartella: quello che c'è lì e qui manca entra, poi si ricopia tutto fuori | 13 |
 | Vedere **quando** meteo e dintorni sono stati scaricati, e quando la cartella è stata sincronizzata | 14 |
 | Vedere **la versione dell'app**, il numero di build e il commit | 15 |
-| Inserire la chiave del modello, e quella della riserva se la si vuole | 8 |
+| Inserire la chiave del modello, e quella delle riserve se le si vuole | 8 / 15 |
+| Chiedere al fornitore **quali modelli vede la mia chiave**, e ritrovare l'elenco scritto nelle impostazioni | 15 |
 | Modificare il prompt di Esplora | 8 |
 | Sistemare i permessi e le impostazioni HyperOS, con pulsanti che portano dove serve | 5 |
 | Aggiornare meteo e distanze adesso, prima di entrare in una zona senza campo | 6 |
@@ -289,40 +290,50 @@ lasciarlo scoprire usando l'app:
 ## 5. I due modelli
 
 Le funzioni generative — Esplora e la prosa del diario — chiamano un modello via rete.
-Sono configurati **due modelli**, con ruoli diversi:
+Sono configurati **tre fornitori**, con ruoli diversi:
 
-| | |
-|---|---|
-| **Principale** | Gemini |
-| **Riserva** | Grok |
+| | | |
+|---|---|---|
+| **Principale** | Gemini | `gemini-flash-latest` |
+| **Riserva** | Grok (xAI) | `grok-4-fast` |
+| **Riserva gratuita** | Groq | `groq/compound-mini` |
 
 Si parte sul **piano gratuito**: un Gemini di fascia Flash, che ha una quota giornaliera
 gratuita e include 5.000 richieste di ricerca al mese. Per un'app usata in vacanza quel
 tetto non si vede.
 
+**Groq non è Grok**, nonostante la lettera: il primo è un servizio che esegue modelli
+aperti su hardware proprio, con una fascia gratuita senza carta di credito. Di riposo si usa
+un sistema `compound` e non un modello secco, e la ragione è una regola di questa app:
+Esplora mostra **le fonti** di una risposta, e su Groq la ricerca web ce l'hanno solo i
+`compound` — un `openai/gpt-oss-120b` risponderebbe a memoria, senza un link da controllare.
+Chi preferisce la velocità alla verificabilità cambia l'identificativo.
+
 **Gli identificativi dei modelli si cambiano dalle impostazioni**, e non sono compilati
-dentro l'app: `gemini-flash-latest` e `grok-4-fast` sono i valori di partenza, non una
-scelta definitiva. I nomi dei modelli vengono ritirati ogni pochi mesi, e un ritiro non
-deve rendere l'app muta fino al prossimo aggiornamento: quando succede, la schermata mostra
-**l'errore del servizio così com'è** e l'identificativo si corregge in dieci secondi. Per
-la stessa ragione il prompt di Esplora è un'impostazione e non una costante.
+dentro l'app: quelli in tabella sono i valori di partenza, non una scelta definitiva. I nomi
+dei modelli vengono ritirati ogni pochi mesi, e un ritiro non deve rendere l'app muta fino
+al prossimo aggiornamento: quando succede, la schermata mostra **l'errore del servizio così
+com'è** e l'identificativo si corregge in dieci secondi. Per la stessa ragione il prompt di
+Esplora è un'impostazione e non una costante.
 
-xAI non ha un equivalente gratuito stabile, quindi all'inizio **la riserva è prevista ma
-spenta**: la si accende inserendo la chiave, quando ci sarà motivo di pagarla. Finché manca,
-l'app lo dice e lavora con un modello solo.
+E per sapere *cosa* scrivere in quel campo c'è **«Quali modelli vedo?»**: chiede al
+fornitore l'elenco che quella chiave vede davvero e lo scrive in `impostazioni.json` accanto
+alle altre tracce. È la sola risposta autorevole — le guide in rete restano ferme a nomi
+ritirati, e un nome ritirato si presenta come un 404 che sembra un problema di chiave.
 
-Quando ci sono entrambe, la riserva **scatta da sola**, senza chiedere niente, quando il
-principale dà errore, va in timeout o ha esaurito la quota. La risposta dice sempre quale
-dei due ha risposto: se il tono di una pagina di diario cambia, si deve poter capire
-perché.
+Le riserve **scattano da sole**, senza chiedere niente, quando il principale dà errore, va
+in timeout o ha esaurito la quota: si provano in ordine, saltando quelle senza chiave. La
+risposta dice sempre chi ha risposto: se il tono di una pagina di diario cambia, si deve
+poter capire perché.
 
-Un solo client per entrambi: cambiano l'indirizzo, il formato della richiesta e la chiave.
-La ricerca web è compresa in entrambi come strumento eseguito lato server, quindi non c'è
-un motore di ricerca da integrare.
+Un solo client per tutti: cambiano l'indirizzo, il formato della richiesta e la chiave. La
+ricerca web è compresa nel modello e non c'è un motore di ricerca da integrare — ma **come
+si chiede cambia**: Gemini vuole uno strumento dichiarato, Grok un parametro, Groq niente,
+perché lì è una proprietà del modello scelto.
 
-Le due chiavi si inseriscono nelle impostazioni. Se ne è inserita una sola, non c'è
-riserva e basta dirlo; se non ce n'è nessuna, le funzioni AI non compaiono e tutto il
-resto funziona come sempre.
+Le chiavi si inseriscono nelle impostazioni, e non ne serve più di una: se non c'è riserva
+l'app lo dice; se non c'è nessuna chiave, le funzioni AI non compaiono e tutto il resto
+funziona come sempre.
 
 ---
 
