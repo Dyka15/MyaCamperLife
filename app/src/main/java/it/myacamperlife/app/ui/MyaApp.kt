@@ -46,6 +46,7 @@ import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.Sistema
 import it.myacamperlife.app.rete.EsitoDintorni
 import it.myacamperlife.app.dominio.Briefing
+import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.Genere
@@ -53,11 +54,15 @@ import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.GuaioAi
 import it.myacamperlife.app.dominio.Modello
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.Luoghi
+import it.myacamperlife.app.dominio.Mappe
+import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.Slittamenti
 import it.myacamperlife.app.dominio.Spesa
 import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.ui.diario.DiarioContent
+import it.myacamperlife.app.ui.dintorni.ElencoCategoriaContent
 import it.myacamperlife.app.ui.esplora.EsploraContent
 import it.myacamperlife.app.ui.foto.FotoDialog
 import it.myacamperlife.app.ui.numeri.NumeriContent
@@ -115,6 +120,10 @@ fun MyaApp(vista: ViaggiViewModel) {
     // gli oggetti sono nuovi, mentre l'id resta. Tenendo la tappa, la scheda
     // mostrerebbe ancora "da fare" su una tappa appena spuntata.
     var tappaAperta by rememberSaveable { mutableStateOf<String?>(null) }
+    // La categoria dei dintorni di cui si sta leggendo l'elenco completo: si
+    // tiene il codice e non il valore dell'enum, perche' questo stato deve
+    // sopravvivere a una rotazione e le stringhe si salvano da se'.
+    var categoriaAperta by rememberSaveable { mutableStateOf<String?>(null) }
     var notaAperta by remember { mutableStateOf(false) }
     var aggiungiAperto by remember { mutableStateOf(false) }
     var coordinateGps by remember { mutableStateOf<Coordinate?>(null) }
@@ -257,10 +266,20 @@ fun MyaApp(vista: ViaggiViewModel) {
     // all'elenco invece di restare su una schermata orfana.
     val tappaScelta = tappaAperta?.let { id -> stato.tappe.firstOrNull { it.id == id } }
 
-    // Indietro chiude prima la scheda e poi il viaggio: sono due livelli, e
-    // saltarne uno farebbe uscire dal viaggio da dentro una tappa.
+    // L'elenco di una categoria vive dentro la scheda di una tappa: se la tappa
+    // non c'e' piu', non c'e' piu' nemmeno il punto da cui si guardava.
+    val categoriaScelta = categoriaAperta
+        ?.let { CategoriaPoi.da(it) }
+        ?.takeIf { tappaScelta != null }
+
+    // Indietro chiude un livello per volta — elenco, scheda, viaggio: saltarne
+    // uno farebbe uscire dal viaggio da dentro una tappa.
     BackHandler(enabled = aperto != null || tappaScelta != null) {
-        if (tappaScelta != null) tappaAperta = null else vista.chiudi()
+        when {
+            categoriaScelta != null -> categoriaAperta = null
+            tappaScelta != null -> tappaAperta = null
+            else -> vista.chiudi()
+        }
     }
 
     // L'Uri della cartella scelta, letto dalle impostazioni. Puo' essere
@@ -274,12 +293,23 @@ fun MyaApp(vista: ViaggiViewModel) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(tappaScelta?.nome ?: aperto?.nome ?: stringResource(R.string.app_name))
+                    Text(
+                        categoriaScelta?.nome
+                            ?: tappaScelta?.nome
+                            ?: aperto?.nome
+                            ?: stringResource(R.string.app_name),
+                    )
                 },
                 navigationIcon = {
                     if (aperto != null) {
                         IconButton(
-                            onClick = { if (tappaScelta != null) tappaAperta = null else vista.chiudi() },
+                            onClick = {
+                                when {
+                                    categoriaScelta != null -> categoriaAperta = null
+                                    tappaScelta != null -> tappaAperta = null
+                                    else -> vista.chiudi()
+                                }
+                            },
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_indietro),
@@ -324,7 +354,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                             // toccare una linguetta ne esce: nascondere le schede
                             // li' dentro sarebbe un vicolo con una sola uscita.
                             selected = scheda == voce && tappaScelta == null,
-                            onClick = { tappaAperta = null; scheda = voce },
+                            onClick = { categoriaAperta = null; tappaAperta = null; scheda = voce },
                             icon = {
                                 Icon(
                                     painter = painterResource(voce.icona),
@@ -386,6 +416,24 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onScegliCartella = { scegliCartella.launch(null) },
                 )
 
+                // L'elenco di una categoria sta sopra alla scheda della tappa da
+                // cui si e' aperto: e' il seguito di quella riga, non un'altra
+                // schermata dell'app.
+                tappaScelta != null && categoriaScelta != null -> ElencoCategoriaContent(
+                    categoria = categoriaScelta,
+                    intorno = tappaScelta.nome,
+                    // Qualche migliaio di distanze: si ricalcola quando cambiano
+                    // i punti o la tappa, non a ogni ricomposizione.
+                    elenco = remember(stato.poi, tappaScelta, categoriaScelta) {
+                        stato.tuttiDi(tappaScelta, categoriaScelta)
+                    },
+                    luoghi = stato.luoghi,
+                    onMappa = { vicino ->
+                        apriNellaMappa(contesto, vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
+                    },
+                    onMaps = { vicino -> apriInGoogleMaps(contesto, vicino.poi, stato.luoghi) },
+                )
+
                 // La scheda di una tappa sta sopra a tutte le schede: si e'
                 // arrivati qui da una tappa, e si torna indietro da dove si e'
                 // venuti.
@@ -412,6 +460,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                         }
                     },
                     onScarica = vista::cercaDintorniDi,
+                    onCategoria = { _, categoria -> categoriaAperta = categoria.codice },
                     onAnnullaCheckin = { tappa -> checkinDaAnnullare = tappa },
                     onSpostaDate = { tappa -> dateDaSpostare = tappa },
                     onTappaCambiata = { tappa -> tappaAperta = tappa.id },
@@ -460,6 +509,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                 else -> EsploraContent(
                     perCategoria = stato.perCategoria,
                     risultati = stato::vicini,
+                    luoghi = stato.luoghi,
                     haScorta = stato.poi.isNotEmpty(),
                     dossier = stato.dossier,
                     aiConfigurata = vista.aiConfigurata(),
@@ -468,6 +518,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     onApri = { vicino ->
                         apriNellaMappa(contesto, vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
                     },
+                    onMaps = { vicino -> apriInGoogleMaps(contesto, vicino.poi, stato.luoghi) },
                     onChiedi = vista::chiedi,
                     onDossier = { salvato ->
                         ambito.launch {
@@ -814,15 +865,39 @@ private fun apriNellaMappa(
     lon: Double,
     nome: String,
 ) {
-    val gradiLat = String.format(java.util.Locale.ROOT, "%.6f", lat)
-    val gradiLon = String.format(java.util.Locale.ROOT, "%.6f", lon)
-    val etichetta = Uri.encode(nome)
     val intento = android.content.Intent(
         android.content.Intent.ACTION_VIEW,
-        Uri.parse("geo:$gradiLat,$gradiLon?q=$gradiLat,$gradiLon($etichetta)"),
+        Uri.parse(Mappe.geo(lat, lon, nome)),
     )
     // Se non c'e' nessuna app di mappe non si fa niente, invece di cadere.
     if (intento.resolveActivity(contesto.packageManager) != null) contesto.startActivity(intento)
+}
+
+/**
+ * Apre la scheda di un punto su Google Maps.
+ *
+ * **Non sostituisce l'intent `geo:`, gli sta accanto.** Quello dice *dove* e
+ * funziona senza rete; questo dice *cos'e'* — orari, foto, recensioni — ed e' il
+ * motivo per cui uno vuole quel collegamento invece di una coppia di coordinate.
+ * Chi ha rete tocca il pulsante, chi non ce l'ha tocca la riga.
+ *
+ * La ricerca va per nome, col paese accanto a disambiguare: il toponimo lo danno
+ * i luoghi salvati, senza rete. `runCatching` e non `resolveActivity`: da Android
+ * 11 quest'ultimo risponde `null` per le app non dichiarate in `<queries>`, e il
+ * pulsante sembrerebbe rotto su un telefono che ha Maps installato.
+ */
+private fun apriInGoogleMaps(contesto: android.content.Context, poi: Poi, luoghi: Luoghi) {
+    val indirizzo = Mappe.google(
+        lat = poi.lat,
+        lon = poi.lon,
+        nome = poi.nome,
+        luogo = luoghi.nome(poi.lat, poi.lon),
+    )
+    val intento = android.content.Intent(
+        android.content.Intent.ACTION_VIEW,
+        Uri.parse(indirizzo),
+    )
+    runCatching { contesto.startActivity(intento) }
 }
 
 /**

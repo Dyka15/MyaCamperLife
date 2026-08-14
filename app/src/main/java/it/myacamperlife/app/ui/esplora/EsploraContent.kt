@@ -34,7 +34,9 @@ import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Dossier
+import it.myacamperlife.app.dominio.Luoghi
 import it.myacamperlife.app.dominio.PoiVicino
+import it.myacamperlife.app.ui.dintorni.RigaPoi
 
 /**
  * Esplora: cosa c'e' nei dintorni, **senza rete**.
@@ -52,12 +54,16 @@ import it.myacamperlife.app.dominio.PoiVicino
 fun EsploraContent(
     perCategoria: Map<CategoriaPoi, Int>,
     risultati: (CategoriaPoi?) -> List<PoiVicino>,
+    /** I toponimi salvati: dicono in che paese sta un punto, senza rete. */
+    luoghi: Luoghi,
     haScorta: Boolean,
     dossier: List<Dossier>,
     aiConfigurata: Boolean,
     inCorso: Boolean,
     onScarica: () -> Unit,
     onApri: (PoiVicino) -> Unit,
+    /** La scheda del posto su Google Maps: orari, foto, recensioni. */
+    onMaps: (PoiVicino) -> Unit,
     onChiedi: (String) -> Unit,
     onDossier: (Dossier) -> Unit,
     onImpostaAi: () -> Unit,
@@ -128,7 +134,12 @@ fun EsploraContent(
         }
 
         items(elenco, key = { it.poi.id }) { vicino ->
-            RigaPoi(vicino, onTocco = { onApri(vicino) })
+            RigaPoi(
+                vicino = vicino,
+                luoghi = luoghi,
+                onMappa = { onApri(vicino) },
+                onMaps = { onMaps(vicino) },
+            )
         }
 
         if (elenco.isEmpty()) {
@@ -167,33 +178,6 @@ private fun Vuoto(onScarica: () -> Unit) {
             Text(stringResource(R.string.esplora_scarica))
         }
     }
-}
-
-@Composable
-private fun RigaPoi(vicino: PoiVicino, onTocco: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onTocco)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(vicino.poi.etichetta(), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = listOfNotNull(vicino.poi.categoria.senzaNome, vicino.poi.dettaglio)
-                    .joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text(
-            text = vicino.distanza,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 12.dp),
-        )
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 }
 
 /**

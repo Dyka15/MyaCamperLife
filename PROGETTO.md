@@ -175,6 +175,7 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Tenere più viaggi, e riaprire quelli passati in sola consultazione | 1 |
 | Aprire la **scheda di una tappa**: **tutto** quello che il file dice di quella tappa — descrizione con i capoversi e ogni campo in più — meteo del suo giorno, dintorni di quel posto, e scorrimento laterale alla tappa dopo | 10 / 14 |
 | Chiedere a un modello dei dintorni **di quella tappa**, e ritrovare la risposta arrivandoci | 10 |
+| Aprire una riga dei dintorni ("Da vedere · 24") e leggere **tutti** i punti di quella categoria: nome, in che paese sono, quanto distano, con la mappa offline sulla riga e la scheda di Google Maps accanto | 15 |
 
 ### 4.2 Diario di bordo
 
@@ -362,7 +363,10 @@ azioni rapide. **Diario** sono le giornate. **Numeri** sono consumi, autonomia e
 Un tocco su una tappa apre **la sua scheda**, che sta sopra le quattro schede: la
 descrizione per intero dall'itinerario, il meteo del **suo** giorno, cosa c'è nei suoi
 dintorni, da dove ci si arriva e quanta strada c'è, e un pulsante che chiede al modello di
-quel posto. Si scorre di lato per la tappa successiva — un itinerario si legge in fila, e
+quel posto. Le righe dei dintorni si aprono: "Da vedere · 24" porta all'elenco delle
+ventiquattro, ognuna con il paese in cui si trova — il geocoding inverso lo fa l'app con i
+toponimi salvati, senza rete — e con due collegamenti, la mappa del telefono che funziona
+offline e la scheda di Google Maps per orari e recensioni. Si scorre di lato per la tappa successiva — un itinerario si legge in fila, e
 tornare all'elenco per aprire la tappa dopo sarebbero due tocchi per quello che fa un dito.
 Tutto tranne il pulsante funziona senza rete: sono dati che l'app ha già.
 

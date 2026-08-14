@@ -362,6 +362,12 @@
     <string name="scheda_dintorni_da_cercare">Niente salvato qui intorno. La ricerca ha bisogno di rete una volta sola: quello che trova resta.</string>
     <string name="scheda_dintorni_cerca">Cerca i dintorni di questa tappa</string>
     <string name="scheda_categoria_quante">%1$s · %2$d</string>
+    <string name="scheda_categoria_apri">Vedi tutti</string>
+
+    <!-- L'elenco completo di una categoria nei dintorni -->
+    <string name="dintorni_categoria_titolo">%1$s intorno a %2$s</string>
+    <string name="dintorni_categoria_quanti">%1$d punti salvati, dal più vicino</string>
+    <string name="dintorni_maps">Maps</string>
     <string name="scheda_da">Si arriva da %1$s</string>
     <string name="scheda_da_con_distanza">Da %1$s · %2$d km · %3$s</string>
     <string name="scheda_posizione_nel_viaggio">Tappa %1$d di %2$d</string>

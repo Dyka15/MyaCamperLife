@@ -28,6 +28,7 @@ import it.myacamperlife.app.dominio.Consumi
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
 import it.myacamperlife.app.dominio.Itinerario
+import it.myacamperlife.app.dominio.Luoghi
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Modello
@@ -141,6 +142,12 @@ class ViaggiViewModel(
         val tratte: Tratte = Tratte(),
         val poi: List<Poi> = emptyList(),
         /**
+         * I toponimi salvati con i punti d'interesse: sono il geocoding inverso
+         * offline, e servono a dire **in che paese** sta un punto. Le coordinate
+         * da sole non rispondono alla domanda che si fa guardando un elenco.
+         */
+        val luoghi: Luoghi = Luoghi(),
+        /**
          * La scorta di previsioni. Sta nello stato e non si rilegge a ogni
          * scheda: e' un file piccolo, e la schermata di una tappa deve aprirsi
          * senza toccare il disco.
@@ -209,6 +216,17 @@ class ViaggiViewModel(
             val da = quiVicino ?: return emptyList()
             return Dintorni.vicini(poi, da.lat, da.lon, categoria)
         }
+
+        /**
+         * Tutti i punti di una categoria attorno a una tappa, **senza tetto**.
+         *
+         * Il tetto dei trenta risultati vale dove si scorre per curiosita'; qui
+         * si e' toccato "Da vedere · 24" e ci si aspetta ventiquattro righe.
+         * Troncare a trenta senza dirlo farebbe sparire dei punti dal conteggio
+         * che li ha annunciati — e' lo stesso numero, e deve tornare.
+         */
+        fun tuttiDi(tappa: Tappa, categoria: CategoriaPoi): List<PoiVicino> =
+            Dintorni.vicini(poi, tappa.lat, tappa.lon, categoria, quanti = Int.MAX_VALUE)
 
         /**
          * La scheda di una tappa: descrizione, meteo di quel giorno, dintorni.
@@ -405,6 +423,7 @@ class ViaggiViewModel(
                 impostazioni = impostazioni,
                 tratte = archivio.tratte(slug),
                 poi = archivio.poi(slug),
+                luoghi = archivio.luoghi(slug),
                 meteo = archivio.meteo(slug),
                 dossier = archivio.dossier(slug),
                 quiVicino = archivio.dovePunto(slug),
@@ -427,6 +446,7 @@ class ViaggiViewModel(
                 impostazioni = dati.impostazioni,
                 tratte = dati.tratte,
                 poi = dati.poi,
+                luoghi = dati.luoghi,
                 meteo = dati.meteo,
                 dossier = dati.dossier,
                 quiVicino = dati.quiVicino,
@@ -449,6 +469,7 @@ class ViaggiViewModel(
         val impostazioni: Impostazioni,
         val tratte: Tratte,
         val poi: List<Poi>,
+        val luoghi: Luoghi,
         val meteo: Meteo?,
         val dossier: List<Dossier>,
         val quiVicino: Coordinate?,

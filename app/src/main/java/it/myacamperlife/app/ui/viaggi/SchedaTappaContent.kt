@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.dominio.CampiExtra
+import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Poi
@@ -84,6 +85,8 @@ fun SchedaTappaContent(
     onDossier: (Dossier) -> Unit,
     /** Cerca i dintorni **di questa** tappa: un punto, una richiesta, salvata. */
     onScarica: (Tappa) -> Unit,
+    /** Apre l'elenco completo di una categoria dei dintorni di questa tappa. */
+    onCategoria: (Tappa, CategoriaPoi) -> Unit,
     /** Disfa un check-in dato per errore. Chiede conferma prima. */
     onAnnullaCheckin: (Tappa) -> Unit,
     /** Sposta le date da questa tappa in avanti, questa compresa. */
@@ -139,6 +142,7 @@ fun SchedaTappaContent(
             onChiedi = { onChiedi(tappa) },
             onDossier = onDossier,
             onScarica = { onScarica(tappa) },
+            onCategoria = { categoria -> onCategoria(tappa, categoria) },
             onAnnullaCheckin = { onAnnullaCheckin(tappa) },
             onSpostaDate = { onSpostaDate(tappa) },
         )
@@ -157,6 +161,7 @@ private fun Scheda(
     onChiedi: () -> Unit,
     onDossier: (Dossier) -> Unit,
     onScarica: () -> Unit,
+    onCategoria: (CategoriaPoi) -> Unit,
     onAnnullaCheckin: () -> Unit,
     onSpostaDate: () -> Unit,
 ) {
@@ -237,7 +242,9 @@ private fun Scheda(
                 if (scheda.dintorni.isEmpty()) {
                     Sottotitolo(stringResource(R.string.scheda_dintorni_da_cercare))
                 } else {
-                    scheda.dintorni.forEach { RigaDintorno(it) }
+                    scheda.dintorni.forEach { riassunto ->
+                        RigaDintorno(riassunto) { onCategoria(riassunto.categoria) }
+                    }
                 }
                 // Il pulsante c'e' **sempre**, anche quando qualcosa e' gia'
                 // salvato: la ricerca e' per questa tappa e non per il viaggio,
@@ -463,13 +470,21 @@ private fun Chiedi(aiConfigurata: Boolean, inCorso: Boolean, onChiedi: () -> Uni
     }
 }
 
-/** "Aree di sosta · 3 — la piu' vicina: Area Lido, 1,2 km". */
+/**
+ * "Aree di sosta · 3 — la piu' vicina: Area Lido, 1,2 km".
+ *
+ * **La riga si apre.** Un numero che si legge e non si tocca lascia la domanda a
+ * meta': "Da vedere · 24" dice che ce ne sono ventiquattro e non quali. Il tocco
+ * porta all'elenco completo della categoria; "Vedi tutti" e' scritto perche' un
+ * bersaglio toccabile che non lo dichiara non viene toccato.
+ */
 @Composable
-private fun RigaDintorno(riassunto: RiassuntoCategoria) {
+private fun RigaDintorno(riassunto: RiassuntoCategoria, onTocco: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .clickable(onClick = onTocco)
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -491,11 +506,17 @@ private fun RigaDintorno(riassunto: RiassuntoCategoria) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            text = riassunto.piuVicino.distanza,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 12.dp),
-        )
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 12.dp)) {
+            Text(
+                text = riassunto.piuVicino.distanza,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = stringResource(R.string.scheda_categoria_apri),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
