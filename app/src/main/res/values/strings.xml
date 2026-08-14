@@ -14,6 +14,7 @@
     <string name="azione_elimina">Elimina</string>
     <string name="azione_annulla">Annulla</string>
     <string name="azione_chiudi">Chiudi</string>
+    <string name="azione_copia">Copia</string>
     <string name="azione_salva">Salva</string>
     <string name="azione_scarta">Scarta</string>
     <string name="azione_checkin">Sono arrivato</string>

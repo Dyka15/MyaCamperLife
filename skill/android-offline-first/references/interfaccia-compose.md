@@ -73,6 +73,30 @@ tabelle locali** era finito dentro `if (aiConfigurata)` solo perché era nato co
 l'annullamento di una funzione che usa un modello: senza chiave API, l'unico modo
 di rifare quel file era invisibile.
 
+## Il testo che si legge va anche preso
+
+**Un `Text` di Compose non è selezionabile.** Sembra testo, si comporta come un
+disegno, e nessun errore lo segnala: la scoperta arriva dall'utente, davanti a una
+risposta lunga che voleva mandare a qualcuno. Ogni testo *da leggere* — la risposta
+di un modello, un riepilogo, una riga d'esito da cui copiare un identificativo — va
+dentro un `SelectionContainer`, e se è lungo merita anche un pulsante che lo copia
+intero: una frase la si prende con le dita, la risposta intera con un tocco, e su
+un telefono tenuto in una mano il secondo gesto vince.
+
+```kotlin
+val appunti = LocalClipboardManager.current
+SelectionContainer { Text(testo) }
+TextButton(onClick = { appunti.setText(AnnotatedString(testo)) }) { Text("Copia") }
+```
+
+Da Android 13 la conferma della copia la mostra il sistema: **non aggiungere un
+avviso tuo**, sarebbero due messaggi per lo stesso gesto.
+
+Il caso peggiore è la riga che *serve* per copiare: se mostri l'elenco degli
+identificativi visibili a una chiave API e poi non si possono selezionare, la
+funzione costringe a ricopiarli a mano — e un carattere sbagliato dà un 404 che
+sembra un problema di chiave.
+
 ## I testi stanno nel dominio, le stringhe nelle risorse
 
 - **Comporre una frase è logica**: cosa dire, in che ordine, cosa tacere quando

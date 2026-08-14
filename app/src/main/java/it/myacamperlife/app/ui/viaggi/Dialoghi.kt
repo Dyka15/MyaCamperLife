@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -36,9 +37,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
 import it.myacamperlife.app.archivio.Csv
@@ -1411,7 +1414,11 @@ fun BriefingDialog(briefing: Briefing?, onChiudi: () -> Unit) {
                 } else {
                     val corpo = TestoBriefing.corpo(briefing)
                     if (corpo.isNotBlank()) {
-                        Text(corpo, style = MaterialTheme.typography.bodyMedium)
+                        // Selezionabile come la risposta di un modello: e' testo
+                        // che si vuole mandare a qualcuno, non un'illustrazione.
+                        SelectionContainer {
+                            Text(corpo, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
                 Text(
@@ -1685,22 +1692,42 @@ fun etichettaModalita(modalita: Modalita): Int = when (modalita) {
  * Si mostra il Markdown grezzo e non reso: sarebbe una libreria in piu' per
  * fare il grassetto, e quel testo lo si legge una volta per decidere dove
  * dormire. La stessa cosa vale per il diario, che si legge dalle tabelle.
+ *
+ * **Il testo si seleziona, e c'e' un pulsante per copiarlo tutto.** Un `Text` di
+ * Compose non e' selezionabile di suo: sembra testo e si comporta come un
+ * disegno, e la scoperta arriva quando serve mandare a qualcuno l'indirizzo di
+ * un'area di sosta. Due strade perche' rispondono a due gesti diversi — una
+ * frase la si prende con le dita, la risposta intera con un tocco, e su un
+ * telefono in mano dentro un camper la seconda vince.
  */
 @Composable
 fun DossierDialog(titolo: String, testo: String?, onChiudi: () -> Unit) {
+    val appunti = LocalClipboardManager.current
+
     AlertDialog(
         onDismissRequest = onChiudi,
         title = { Text(titolo, maxLines = 2) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text(
-                    text = testo ?: stringResource(R.string.dossier_perso),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            SelectionContainer {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        text = testo ?: stringResource(R.string.dossier_perso),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onChiudi) { Text(stringResource(R.string.azione_chiudi)) }
+        },
+        dismissButton = {
+            // Da Android 13 la conferma della copia la mostra il sistema: un
+            // nostro messaggio ne farebbe due per lo stesso gesto.
+            testo?.let { pieno ->
+                TextButton(onClick = { appunti.setText(AnnotatedString(pieno)) }) {
+                    Text(stringResource(R.string.azione_copia))
+                }
+            }
         },
     )
 }
@@ -1972,9 +1999,15 @@ private fun EsitoScritto(etichetta: Int, esito: String?, quando: String?) {
     val letta = quando
         ?.let { runCatching { OffsetDateTime.parse(it).format(LETTA) }.getOrNull() ?: it }
         ?: stringResource(R.string.impostazioni_mai)
-    Text(
-        text = stringResource(etichetta, letta, testo),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    // Selezionabile: da questa riga si copia l'identificativo di un modello nel
+    // campo qui sopra, e un testo che non si seleziona costringerebbe a
+    // ricopiarlo a mano — "groq/compound-mini" sbagliato di un carattere da' un
+    // 404 che sembra un problema di chiave.
+    SelectionContainer {
+        Text(
+            text = stringResource(etichetta, letta, testo),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

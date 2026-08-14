@@ -47,6 +47,7 @@ PACCHETTI: dict[str, str] = {
     ),
     "androidx.compose.foundation.shape": "RoundedCornerShape CircleShape",
     "androidx.compose.foundation.text": "KeyboardOptions",
+    "androidx.compose.foundation.text.selection": "SelectionContainer DisableSelection",
     "androidx.compose.material3": (
         "Text Card CardDefaults Icon IconButton TextButton Switch Checkbox AlertDialog "
         "OutlinedTextField TextField MaterialTheme Scaffold HorizontalDivider VerticalDivider "
@@ -65,10 +66,11 @@ PACCHETTI: dict[str, str] = {
     "androidx.compose.ui.res": "stringResource painterResource",
     "androidx.compose.ui.draw": "clip alpha",
     "androidx.compose.ui.layout": "ContentScale",
+    "androidx.compose.ui.text": "AnnotatedString",
     "androidx.compose.ui.text.font": "FontFamily FontWeight",
     "androidx.compose.ui.text.style": "TextDecoration TextAlign TextOverflow",
     "androidx.compose.ui.text.input": "KeyboardType PasswordVisualTransformation",
-    "androidx.compose.ui.platform": "LocalContext LocalConfiguration",
+    "androidx.compose.ui.platform": "LocalContext LocalConfiguration LocalClipboardManager",
     "androidx.compose.ui.graphics": "Color asImageBitmap",
     "androidx.lifecycle.compose": "collectAsStateWithLifecycle",
     "androidx.core.content": "FileProvider ContextCompat",
