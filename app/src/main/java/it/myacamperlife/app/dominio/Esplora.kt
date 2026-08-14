@@ -227,10 +227,16 @@ object Esplora {
         appendLine()
         appendLine(risposta.testo.trim())
 
-        if (risposta.fonti.isNotEmpty()) {
-            appendLine()
-            appendLine("## Fonti")
-            appendLine()
+        // La sezione c'e' **sempre**, anche vuota: "nessuna fonte dichiarata" e'
+        // un'informazione — dice che quella risposta viene dalla memoria del
+        // modello e non da qualcosa che si puo' andare a controllare. La sua
+        // assenza invece si confonde con un difetto dell'app, ed e' successo.
+        appendLine()
+        appendLine("## Fonti")
+        appendLine()
+        if (risposta.fonti.isEmpty()) {
+            appendLine("_Nessuna fonte dichiarata: il modello ha risposto senza cercare._")
+        } else {
             risposta.fonti.forEach { fonte ->
                 appendLine("- [${fonte.etichetta()}](${fonte.indirizzo})")
             }

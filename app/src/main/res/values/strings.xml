@@ -393,6 +393,7 @@
     <string name="modelli_dimentica">Dimentica la chiave</string>
     <string name="modelli_visibili">Quali modelli vedo?</string>
     <string name="modelli_visibili_esito">Ultima verifica (%1$s): %2$s</string>
+    <string name="modelli_risposta_esito">Ultima risposta (%1$s): %2$s</string>
     <string name="modelli_groq_spiegazione">Groq non è Grok: è un servizio che esegue modelli aperti, con una fascia gratuita senza carta. Per Esplora serve un modello che cerchi sul web — i «compound» lo fanno, gli altri rispondono a memoria e senza fonti.</string>
     <string name="modelli_prompt">Il prompt di Esplora</string>
     <string name="modelli_prompt_vuoto">Vuoto: si usa quello predefinito</string>

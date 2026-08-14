@@ -1847,6 +1847,15 @@ fun ModelliDialog(
                     impostazioni.modelliEsito,
                     impostazioni.modelliProvatoIl,
                 )
+                // **Com'e' andata l'ultima risposta.** Quante fonti sono tornate e
+                // in quali campi era fatta la risposta: e' la riga che distingue
+                // «il modello non ha cercato» da «l'app guarda nel posto
+                // sbagliato», e da fuori quelle due cose sono identiche.
+                EsitoScritto(
+                    R.string.modelli_risposta_esito,
+                    impostazioni.aiEsito,
+                    impostazioni.aiProvatoIl,
+                )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 

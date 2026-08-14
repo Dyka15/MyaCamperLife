@@ -265,6 +265,22 @@ class Archivio(private val radice: File) {
      * caratteri, e tagliarli a meta' renderebbe la riga inutile proprio nel punto
      * in cui serve copiarne uno.
      */
+    /**
+     * Annota com'e' andata l'ultima domanda a un modello, e quando.
+     *
+     * Il tetto e' alto come per l'elenco dei modelli, e per la stessa ragione: la
+     * parte utile — i nomi dei campi della risposta — sta in fondo alla riga, e
+     * tagliarla porterebbe via proprio quella.
+     */
+    fun annotaAi(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        salvaImpostazioni(
+            impostazioni().copy(
+                aiEsito = esito.take(1_000),
+                aiProvatoIl = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            ),
+        )
+    }
+
     fun annotaModelli(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {
         salvaImpostazioni(
             impostazioni().copy(

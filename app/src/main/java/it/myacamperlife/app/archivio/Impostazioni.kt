@@ -113,6 +113,18 @@ data class Impostazioni(
     val modelliProvatoIl: String? = null,
 
     /**
+     * Com'e' andata l'ultima domanda a un modello, e quando.
+     *
+     * Porta il fornitore, l'identificativo usato, quanto testo e' tornato, quante
+     * fonti, e **i nomi dei campi** della risposta grezza. Gli ultimi servono a
+     * una domanda che si fa solo a distanza: dove mette le fonti questo
+     * fornitore. Nomi di campi e conteggi, niente del contenuto e niente della
+     * chiave: puo' stare in un file rispecchiato.
+     */
+    val aiEsito: String? = null,
+    val aiProvatoIl: String? = null,
+
+    /**
      * Il prompt di sistema di Esplora. Vuoto significa "usa quello di riposo",
      * cosi' migliorandolo in una versione nuova chi non l'ha toccato lo riceve.
      */

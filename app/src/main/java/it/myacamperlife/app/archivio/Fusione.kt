@@ -233,6 +233,8 @@ class Fusione(private val archivio: Archivio) {
             importProvatoIl = null,
             modelliEsito = null,
             modelliProvatoIl = null,
+            aiEsito = null,
+            aiProvatoIl = null,
         )
         if (intatte != Impostazioni()) return EsitoFusione()
 
@@ -249,6 +251,8 @@ class Fusione(private val archivio: Archivio) {
                 importProvatoIl = nostre.importProvatoIl,
                 modelliEsito = nostre.modelliEsito,
                 modelliProvatoIl = nostre.modelliProvatoIl,
+                aiEsito = nostre.aiEsito,
+                aiProvatoIl = nostre.aiProvatoIl,
             ),
         )
         return EsitoFusione(impostazioni = true)

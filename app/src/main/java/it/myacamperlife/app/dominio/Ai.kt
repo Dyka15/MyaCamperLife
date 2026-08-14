@@ -209,9 +209,60 @@ object Ai {
         val testo = stringa(messaggio, "content")?.trim()?.takeUnless { it.isEmpty() }
             ?: return null
 
-        val fonti = (indirizzi(messaggio) + indirizzi(radice["citations"]))
-            .distinctBy { it.indirizzo }
+        // **Tutta la risposta, non solo il messaggio.** La prima versione guardava
+        // dentro `message` e in `citations`, e su una risposta vera non ha trovato
+        // niente: i risultati stanno da qualche altra parte. Cercare in tutto
+        // l'oggetto costa un attraversamento di un JSON piccolo.
+        val dichiarate = indirizzi(radice).distinctBy { it.indirizzo }
+
+        // E se il modello non dichiara niente, i link **nella prosa** valgono
+        // come fonti: un `compound` scrive "[Rothsee Camping](https://…)" dentro
+        // la risposta, e quel link e' esattamente cio' che serve controllare.
+        // Meglio una fonte ricavata dal testo che una colonna vuota.
+        val fonti = (dichiarate + fontiDalTesto(testo)).distinctBy { it.indirizzo }
         return RispostaModello(testo, fonti, Modello.GROQ)
+    }
+
+    /**
+     * I collegamenti scritti dentro una risposta.
+     *
+     * Prima i link Markdown, che portano anche il titolo; poi gli indirizzi nudi.
+     * La punteggiatura finale si toglie: "vedi https://esempio.it." non contiene
+     * un indirizzo che finisce con un punto.
+     */
+    fun fontiDalTesto(testo: String): List<Fonte> {
+        val marcati = MARKDOWN.findAll(testo).map { trovato ->
+            Fonte(
+                titolo = trovato.groupValues[1].trim().takeUnless { it.isEmpty() },
+                indirizzo = pulisci(trovato.groupValues[2]),
+            )
+        }
+        val nudi = NUDO.findAll(testo).map { Fonte(null, pulisci(it.value)) }
+        return (marcati + nudi).distinctBy { it.indirizzo }.toList()
+    }
+
+    private fun pulisci(indirizzo: String): String =
+        indirizzo.trimEnd('.', ',', ';', ':', ')', ']', '"', '\'', '»')
+
+    private val MARKDOWN = Regex("""\[([^\]]{0,200})]\((https?://[^\s)]+)\)""")
+    private val NUDO = Regex("""https?://[^\s)\]<>"']+""")
+
+    /**
+     * L'impronta di una risposta: com'e' fatta, non cosa dice.
+     *
+     * Serve a una domanda che si fa a distanza: **dove ha messo le fonti questo
+     * fornitore?** Il formato non e' documentato in modo affidabile e cambia; io
+     * ho il codice e non ho il telefono, quindi la risposta deve arrivare in una
+     * riga che l'utente puo' leggere e mandarmi. Sono nomi di campi e conteggi:
+     * niente della risposta, niente della chiave.
+     */
+    fun impronta(corpo: String): String {
+        val radice = oggetto(corpo) ?: return "risposta non JSON, ${corpo.length} caratteri"
+        val messaggio = ((radice["choices"] as? JsonArray)?.firstOrNull() as? JsonObject)
+            ?.get("message") as? JsonObject
+        val fuori = radice.keys.joinToString(",")
+        val dentro = messaggio?.keys?.joinToString(",") ?: "nessun message"
+        return "campi: [$fuori] message: [$dentro]"
     }
 
     /**
@@ -251,8 +302,17 @@ object Ai {
         }
     }
 
-    /** Otto livelli: oltre non c'e' JSON di risposta, c'e' un ciclo o un guasto. */
-    private const val PROFONDITA = 8
+    /**
+     * Sedici livelli.
+     *
+     * Erano otto quando la ricerca partiva dal messaggio, e sono diventati pochi
+     * appena e' partita dalla radice: `choices` → scelta → `message` →
+     * `executed_tools` → strumento → `output` → il JSON dentro quella stringa →
+     * `results` → risultato fa nove passi, e al nono le fonti sparivano **in
+     * silenzio**. Un tetto serve — un JSON malformato potrebbe essere profondo
+     * quanto vuole — ma va tenuto largo rispetto alla struttura vera.
+     */
+    private const val PROFONDITA = 16
 
     // --- quali modelli vede la chiave -----------------------------------------
 

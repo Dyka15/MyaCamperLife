@@ -142,14 +142,18 @@ class EsploraTest {
     }
 
     @Test
-    fun `un dossier senza fonti non ha la sezione delle fonti`() {
+    fun `un dossier senza fonti lo dice invece di tacere`() {
         val testo = Esplora.dossier(
             domanda = "Domanda",
             contesto = "",
             risposta = RispostaModello("Risposta", emptyList(), Modello.GROK),
             istante = adesso,
         )
-        assertTrue(testo, !testo.contains("## Fonti"))
+        // La sezione c'e' anche vuota: "nessuna fonte dichiarata" dice che quella
+        // risposta viene dalla memoria del modello e non da qualcosa da
+        // controllare. La sua assenza si confondeva con un difetto dell'app.
+        assertTrue(testo, testo.contains("## Fonti"))
+        assertTrue(testo, testo.contains("Nessuna fonte dichiarata"))
         assertTrue(testo, !testo.contains("Cosa sapeva"))
     }
 }

@@ -12,7 +12,20 @@ import kotlinx.coroutines.withContext
 
 /** Com'e' andata: una risposta, o il motivo per cui non c'e'. */
 sealed interface EsitoAi {
-    data class Risposta(val risposta: RispostaModello, val diRiserva: Boolean) : EsitoAi
+    data class Risposta(
+        val risposta: RispostaModello,
+        val diRiserva: Boolean,
+        /**
+         * Com'era fatta la risposta grezza: i nomi dei campi, non il contenuto.
+         *
+         * Serve a rispondere a distanza alla domanda «dove ha messo le fonti
+         * questo fornitore», che e' costata un giro: le fonti non c'erano e
+         * dall'esterno non si poteva sapere se mancavano nella risposta o se le
+         * cercavo nel posto sbagliato.
+         */
+        val impronta: String? = null,
+    ) : EsitoAi
+
     data class Guaio(val guaio: GuaioAi) : EsitoAi
 }
 
@@ -69,7 +82,7 @@ class Assistente(private val context: Context) {
             if (riserva == principale || !chiavi.configurato(riserva)) continue
             val esito = prova(riserva, sistema, domanda, impostazioni, conRicerca)
             if (esito is EsitoAi.Risposta) {
-                return@withContext EsitoAi.Risposta(esito.risposta, diRiserva = true)
+                return@withContext esito.copy(diRiserva = true)
             }
         }
 
@@ -159,8 +172,15 @@ class Assistente(private val context: Context) {
                     Modello.GROK -> Ai.leggiGrok(esito.corpo)
                     Modello.GROQ -> Ai.leggiGroq(esito.corpo)
                 }
-                if (risposta == null) EsitoAi.Guaio(GuaioAi.Vuota(modello))
-                else EsitoAi.Risposta(risposta, diRiserva = false)
+                if (risposta == null) {
+                    EsitoAi.Guaio(GuaioAi.Vuota(modello))
+                } else {
+                    EsitoAi.Risposta(
+                        risposta = risposta,
+                        diRiserva = false,
+                        impronta = Ai.impronta(esito.corpo),
+                    )
+                }
             }
             is EsitoHttp.Rifiutato -> EsitoAi.Guaio(
                 GuaioAi.Rifiutata(modello, esito.codice, Ai.errore(esito.corpo)),

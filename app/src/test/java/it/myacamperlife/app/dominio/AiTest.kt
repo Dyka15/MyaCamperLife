@@ -181,6 +181,59 @@ class AiTest {
     }
 
     @Test
+    fun `le fonti di Groq si cercano in tutta la risposta, non solo nel messaggio`() {
+        // La prima versione guardava dentro `message` e in `citations`, e su una
+        // risposta vera non ha trovato niente: i risultati stavano altrove.
+        val fuori = """
+            {"choices":[{"message":{"content":"Testo"}}],
+             "search_results":{"results":[{"url":"https://esempio.de/uno","title":"Uno"}]}}
+        """.trimIndent()
+        val fonte = Ai.leggiGroq(fuori)!!.fonti.single()
+        assertEquals("https://esempio.de/uno", fonte.indirizzo)
+        assertEquals("Uno", fonte.titolo)
+    }
+
+    @Test
+    fun `senza fonti dichiarate valgono i link scritti nella risposta`() {
+        // Un `compound` cita dentro la prosa. Un link ricavato dal testo e'
+        // meno preciso di uno dichiarato, ed e' infinitamente meglio di niente:
+        // e' l'indirizzo che si va a controllare.
+        val conProsa = """
+            {"choices":[{"message":{"content":
+              "Prova [Rothsee Camping](https://rothsee-camping.de/info) oppure https://roth.de/sosta."}}]}
+        """.trimIndent()
+        val fonti = Ai.leggiGroq(conProsa)!!.fonti
+        assertEquals(2, fonti.size)
+        assertEquals("Rothsee Camping", fonti.first().titolo)
+        assertEquals("https://rothsee-camping.de/info", fonti.first().indirizzo)
+        // Il punto finale della frase non fa parte dell'indirizzo.
+        assertEquals("https://roth.de/sosta", fonti.last().indirizzo)
+    }
+
+    @Test
+    fun `un link dichiarato e lo stesso link nel testo contano una volta`() {
+        val doppio = """
+            {"choices":[{"message":{"content":"Vedi [Qui](https://a.de/x)",
+              "executed_tools":[{"output":"{\"results\":[{\"url\":\"https://a.de/x\"}]}"}]}}]}
+        """.trimIndent()
+        assertEquals(1, Ai.leggiGroq(doppio)!!.fonti.size)
+    }
+
+    @Test
+    fun `l'impronta dice i campi e non il contenuto`() {
+        val impronta = Ai.impronta(groq)
+        assertTrue(impronta, impronta.contains("choices"))
+        assertTrue(impronta, impronta.contains("executed_tools"))
+        // Il contenuto no: quella riga finisce in un file rispecchiato su un cloud.
+        assertTrue(impronta, !impronta.contains("Rothenburg"))
+    }
+
+    @Test
+    fun `l'impronta di una risposta che non e' JSON lo dice`() {
+        assertTrue(Ai.impronta("<html>502</html>").startsWith("risposta non JSON"))
+    }
+
+    @Test
     fun `una risposta di Groq senza ricerca non ha fonti ma ha il testo`() {
         // E' il caso di un modello secco tipo openai/gpt-oss-120b: risponde a
         // memoria. Deve funzionare, e deve essere evidente che fonti non ce ne

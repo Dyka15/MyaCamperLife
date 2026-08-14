@@ -1394,6 +1394,7 @@ class ViaggiViewModel(
                         posizione = posizione?.let { Posizione(it.lat, it.lon) },
                         tappa = tappa,
                     )
+                    annotaRisposta(esito, impostazioni)
                 }
                 aggiornaViaggio(viaggio)
                 _stato.update {
@@ -1409,6 +1410,32 @@ class ViaggiViewModel(
                 it.copy(inCorso = false, avviso = Avviso.AiFallita(esito.guaio))
             }
         }
+    }
+
+    /**
+     * Scrive com'e' andata l'ultima domanda a un modello.
+     *
+     * **Il conteggio delle fonti e i nomi dei campi stanno nella stessa riga**, e
+     * insieme rispondono alla domanda che da fuori non si puo' rispondere: se le
+     * fonti mancano perche' il modello non ha cercato, oppure perche' le ha messe
+     * in un campo che l'app non guarda. Sono nomi e numeri: niente del contenuto,
+     * niente della chiave.
+     */
+    private fun annotaRisposta(esito: EsitoAi.Risposta, impostazioni: Impostazioni) {
+        val risposta = esito.risposta
+        archivio.annotaAi(
+            buildString {
+                append(risposta.modello.nome)
+                append(" ")
+                append(impostazioni.modello(risposta.modello))
+                append(": ")
+                append(risposta.testo.length)
+                append(" caratteri, ")
+                append(risposta.fonti.size)
+                append(" fonti")
+                esito.impronta?.let { append(" — ").append(it) }
+            },
+        )
     }
 
     /** Il testo di un dossier salvato. */
@@ -1450,6 +1477,7 @@ class ViaggiViewModel(
             is EsitoAi.Risposta -> {
                 withContext(Dispatchers.IO) {
                     archivio.scriviProsa(viaggio.slug, giorno, esito.risposta.testo)
+                    annotaRisposta(esito, stato.impostazioni)
                 }
                 aggiornaViaggio(viaggio)
                 _stato.update { it.copy(inCorso = false, avviso = Avviso.DiarioRiscritto) }
