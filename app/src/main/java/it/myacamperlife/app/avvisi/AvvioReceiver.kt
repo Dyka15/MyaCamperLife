@@ -32,11 +32,14 @@ class AvvioReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val impostazioni = archivio.impostazioni()
-                SvegliaBriefing.programma(
+                val prossima = SvegliaBriefing.programma(
                     context = applicazione,
                     attivo = impostazioni.briefingAttivo,
                     ora = impostazioni.ora,
                 )
+                // Scritta anche qui: dopo un riavvio e' il momento in cui la
+                // sveglia si perde, e la data nel file dice se e' stata rimessa.
+                archivio.annotaSveglia(prossima)
                 GuardianoBriefing.programma(applicazione)
             } finally {
                 risultato.finish()

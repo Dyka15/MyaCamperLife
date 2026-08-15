@@ -31,14 +31,27 @@ object SvegliaBriefing {
      * cambia l'impostazione, e dal guardiano ogni sei ore. Chiamarla dieci
      * volte di fila non fa danno: sostituisce la sveglia con la stessa.
      */
-    fun programma(context: Context, attivo: Boolean, ora: Int, adesso: LocalDateTime = LocalDateTime.now()) {
-        val gestore = context.getSystemService(AlarmManager::class.java) ?: return
+    /**
+     * @return quando scattera', o `null` se il riepilogo e' spento (o se il
+     *   sistema non ha un `AlarmManager`, che non succede ma si gestisce).
+     *   **Il valore di ritorno non e' un ornamento**: e' quello che si scrive
+     *   nelle impostazioni, ed e' l'unico modo di sapere, guardando il telefono
+     *   il giorno dopo, se una sveglia era davvero in coda — su HyperOS vengono
+     *   portate via senza dire niente.
+     */
+    fun programma(
+        context: Context,
+        attivo: Boolean,
+        ora: Int,
+        adesso: LocalDateTime = LocalDateTime.now(),
+    ): LocalDateTime? {
+        val gestore = context.getSystemService(AlarmManager::class.java) ?: return null
         val intento = pendente(context, PendingIntent.FLAG_UPDATE_CURRENT)
 
         if (!attivo) {
             gestore.cancel(intento)
             intento.cancel()
-            return
+            return null
         }
 
         val quando = Briefings.prossimoScatto(ora, adesso)
@@ -47,9 +60,12 @@ object SvegliaBriefing {
             quando.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
             intento,
         )
+        return quando
     }
 
-    fun annulla(context: Context) = programma(context, attivo = false, ora = 0)
+    fun annulla(context: Context) {
+        programma(context, attivo = false, ora = 0)
+    }
 
     /** Vero se una sveglia e' gia' in coda: e' il controllo del guardiano. */
     fun programmata(context: Context): Boolean =

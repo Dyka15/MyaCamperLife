@@ -235,6 +235,9 @@ class Fusione(private val archivio: Archivio) {
             modelliProvatoIl = null,
             aiEsito = null,
             aiProvatoIl = null,
+            briefingEsito = null,
+            briefingProvatoIl = null,
+            briefingSvegliaIl = null,
         )
         if (intatte != Impostazioni()) return EsitoFusione()
 
@@ -253,6 +256,11 @@ class Fusione(private val archivio: Archivio) {
                 modelliProvatoIl = nostre.modelliProvatoIl,
                 aiEsito = nostre.aiEsito,
                 aiProvatoIl = nostre.aiProvatoIl,
+                // La sveglia e' di **questa** installazione: quella di un altro
+                // telefono non dice niente su cosa c'e' in coda qui.
+                briefingEsito = nostre.briefingEsito,
+                briefingProvatoIl = nostre.briefingProvatoIl,
+                briefingSvegliaIl = nostre.briefingSvegliaIl,
             ),
         )
         return EsitoFusione(impostazioni = true)

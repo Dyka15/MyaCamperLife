@@ -19,6 +19,7 @@ import it.myacamperlife.app.dominio.Coordinate
 import it.myacamperlife.app.dominio.Cronaca
 import it.myacamperlife.app.dominio.Dintorni
 import it.myacamperlife.app.dominio.Dossier
+import it.myacamperlife.app.dominio.EsitoBriefing
 import it.myacamperlife.app.dominio.Esplora
 import it.myacamperlife.app.dominio.GiorniDelViaggio
 import it.myacamperlife.app.dominio.GiornoTappa
@@ -48,6 +49,7 @@ import it.myacamperlife.app.dominio.Spese
 import it.myacamperlife.app.dominio.StimaAutonomia
 import it.myacamperlife.app.dominio.Tappa
 import it.myacamperlife.app.dominio.Tappe
+import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.dominio.Tratte
 import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.dominio.Waypoint
@@ -61,6 +63,7 @@ import it.myacamperlife.app.rete.RicercaIndirizzo
 import it.myacamperlife.app.rete.Scorte
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
@@ -90,7 +93,16 @@ class ViaggiViewModel(
      * E' l'unico pezzo di Android che serve qui, e arriva da fuori cosi' il
      * resto della classe resta leggibile senza un telefono.
      */
-    private val riarma: (Impostazioni) -> Unit = {},
+    private val riarma: (Impostazioni) -> LocalDateTime? = { null },
+    /**
+     * Manda **davvero** la notifica del riepilogo, adesso. Torna `false` se il
+     * sistema l'ha scartata per mancanza di permesso.
+     *
+     * Serve a un pulsante di prova, e quel pulsante e' l'unico modo di
+     * distinguere «la sveglia non e' scattata» da «la notifica non passa»: due
+     * guasti con due rimedi diversi che da fuori si vedono identici.
+     */
+    private val manda: (Briefing) -> Boolean = { false },
     /**
      * Riempie la scorta dalla rete. Torna `true` se ha aggiornato qualcosa.
      * Ha un valore di riposo che non fa niente: senza, questa classe non si
@@ -364,6 +376,9 @@ class ViaggiViewModel(
 
         /** Quali modelli vede una chiave: l'elenco, o perche' non si sa. */
         data class ModelliVerificati(val esito: EsitoModelli) : Avviso
+
+        /** Com'e' finita la prova del riepilogo: mandata, o perche' no. */
+        data class BriefingProvato(val esito: EsitoBriefing) : Avviso
         data class SpecchioScelto(val cartella: String) : Avviso
         data class SpecchioFatto(val file: Int) : Avviso
         data class CartellaFusa(val esito: EsitoFusione) : Avviso
@@ -1077,7 +1092,12 @@ class ViaggiViewModel(
         _stato.update { it.copy(impostazioni = nuove, avviso = Avviso.ImpostazioniSalvate) }
         // La sveglia segue l'impostazione senza aspettare il prossimo avvio:
         // spegnere il riepilogo e vederlo arrivare stasera sarebbe assurdo.
-        riarma(nuove)
+        val prossima = riarma(nuove)
+        val conSveglia = withContext(Dispatchers.IO) {
+            archivio.annotaSveglia(prossima)
+            archivio.impostazioni()
+        }
+        _stato.update { it.copy(impostazioni = conSveglia) }
         _stato.value.aperto?.let { aggiornaViaggio(it) }
     }
 
@@ -1436,6 +1456,33 @@ class ViaggiViewModel(
                 esito.impronta?.let { append(" — ").append(it) }
             },
         )
+    }
+
+    /**
+     * Manda il riepilogo **adesso**, come lo manderebbe alle 19:00.
+     *
+     * Non e' l'anteprima: quella compone il testo e lo mostra dentro l'app, e
+     * quindi non prova niente della catena che conta — canale, permesso,
+     * consegna. Questo pulsante percorre la strada vera, e scrive l'esito nello
+     * stesso posto dove lo scrive la sveglia. Se la notifica arriva toccandolo ma
+     * non arriva la sera, il guasto e' nella sveglia (e su HyperOS si sa dove
+     * andare a guardare); se non arriva nemmeno cosi', e' il permesso.
+     */
+    fun provaBriefing() = viewModelScope.launch {
+        val briefing = briefingDiStasera()
+        val esito = when {
+            briefing == null -> EsitoBriefing.SenzaViaggio
+            briefing.vuoto -> EsitoBriefing.NienteDaDire
+            !manda(briefing) -> EsitoBriefing.SenzaPermesso
+            else -> EsitoBriefing.Mandato(TestoBriefing.titolo(briefing))
+        }
+        val impostazioni = withContext(Dispatchers.IO) {
+            archivio.annotaBriefing(esito.riassunto())
+            archivio.impostazioni()
+        }
+        _stato.update {
+            it.copy(impostazioni = impostazioni, avviso = Avviso.BriefingProvato(esito))
+        }
     }
 
     /** Il testo di un dossier salvato. */

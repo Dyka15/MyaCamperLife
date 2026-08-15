@@ -41,6 +41,7 @@ import it.myacamperlife.app.dominio.Waypoint
 import java.io.File
 import java.text.Normalizer
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -279,6 +280,37 @@ class Archivio(private val radice: File) {
                 aiProvatoIl = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
             ),
         )
+    }
+
+    /**
+     * Annota com'e' finito l'ultimo riepilogo serale, e quando.
+     *
+     * Il riepilogo e' l'unica funzione che gira **quando nessuno guarda**: senza
+     * questa riga, «non mi e' arrivata la notifica» non ha nessun posto in cui
+     * trovare risposta il giorno dopo.
+     */
+    fun annotaBriefing(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {
+        salvaImpostazioni(
+            impostazioni().copy(
+                briefingEsito = esito.take(300),
+                briefingProvatoIl = adesso.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+            ),
+        )
+    }
+
+    /**
+     * Annota quando scattera' la prossima sveglia.
+     *
+     * **Scrive solo se e' cambiata.** Questa la si chiama a ogni avvio dell'app e
+     * ogni sei ore dal guardiano: riscrivere lo stesso valore sarebbe un file
+     * toccato per niente, e nella cartella specchio un file che cambia data
+     * senza cambiare contenuto.
+     */
+    fun annotaSveglia(quando: LocalDateTime?) {
+        val scritta = quando?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        val vecchie = impostazioni()
+        if (vecchie.briefingSvegliaIl == scritta) return
+        salvaImpostazioni(vecchie.copy(briefingSvegliaIl = scritta))
     }
 
     fun annotaModelli(esito: String, adesso: OffsetDateTime = OffsetDateTime.now()) {

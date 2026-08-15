@@ -125,6 +125,26 @@ data class Impostazioni(
     val aiProvatoIl: String? = null,
 
     /**
+     * Com'e' finito l'ultimo riepilogo serale, e quando.
+     *
+     * **La funzione piu' difficile da diagnosticare dell'app**, perche' l'unica
+     * che gira quando nessuno guarda: se non arriva, non c'e' niente da guardare
+     * il giorno dopo. Cinque esiti diversi — mandata, niente da dire, permesso
+     * mancante, spenta, nessun viaggio — e tutti indistinguibili da fuori.
+     */
+    val briefingEsito: String? = null,
+    val briefingProvatoIl: String? = null,
+
+    /**
+     * Quando scattera' la prossima sveglia, come l'ha programmata l'app.
+     *
+     * Serve a distinguere «la sveglia non era in coda» da «era in coda e il
+     * sistema l'ha portata via»: su HyperOS la seconda succede in silenzio, e
+     * una data di ieri in questo campo la racconta.
+     */
+    val briefingSvegliaIl: String? = null,
+
+    /**
      * Il prompt di sistema di Esplora. Vuoto significa "usa quello di riposo",
      * cosi' migliorandolo in una versione nuova chi non l'ha toccato lo riceve.
      */

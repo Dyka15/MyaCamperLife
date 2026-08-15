@@ -769,6 +769,12 @@ fun MyaApp(vista: ViaggiViewModel) {
                     briefingAperto = true
                 }
             },
+            onMandaBriefing = {
+                // Il dialogo resta aperto: la riga d'esito compare qui sotto, e
+                // chiuderlo costringerebbe a riaprirlo per leggerla.
+                notificheConcesse = Avvisi(contesto).permessoConcesso()
+                vista.provaBriefing()
+            },
             onPermessoNotifiche = {
                 if (notificheConcesse) Sistema.apriNotifiche(contesto)
                 else chiediNotifiche.launch(Avvisi.PERMESSI)
@@ -1019,6 +1025,9 @@ private fun messaggio(avviso: ViaggiViewModel.Avviso): String = when (avviso) {
     // identificativi, o il codice HTTP con la frase del servizio. Tradurlo
     // vorrebbe dire perdere proprio la parte da copiare.
     is ViaggiViewModel.Avviso.ModelliVerificati -> avviso.esito.riassunto()
+    // Come per i modelli: il riassunto lo scrive chi conosce l'esito, e dice il
+    // rimedio. Tradurlo qui vorrebbe dire riscriverlo in due posti.
+    is ViaggiViewModel.Avviso.BriefingProvato -> avviso.esito.riassunto()
     is ViaggiViewModel.Avviso.SpecchioScelto ->
         stringResource(R.string.specchio_scelto, avviso.cartella)
     is ViaggiViewModel.Avviso.SpecchioFatto ->

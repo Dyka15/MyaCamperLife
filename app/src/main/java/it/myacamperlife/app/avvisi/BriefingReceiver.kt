@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import it.myacamperlife.app.MyaApplication
+import it.myacamperlife.app.dominio.EsitoBriefing
+import it.myacamperlife.app.dominio.TestoBriefing
 import it.myacamperlife.app.rete.Scorte
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
@@ -37,7 +39,7 @@ class BriefingReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val impostazioni = archivio.impostazioni()
-                SvegliaBriefing.programma(
+                val prossima = SvegliaBriefing.programma(
                     context = applicazione,
                     attivo = impostazioni.briefingAttivo,
                     ora = impostazioni.ora,
@@ -46,23 +48,43 @@ class BriefingReceiver : BroadcastReceiver() {
                     // istante invece che domani.
                     adesso = LocalDateTime.now().plusMinutes(1),
                 )
-                if (!impostazioni.briefingAttivo) return@launch
+                archivio.annotaSveglia(prossima)
+
+                // **Ogni strada scrive com'e' finita**, compresa quella che non
+                // fa niente: "spento" e "non e' scattata" sono due cose diverse,
+                // e senza la riga si somigliano troppo.
+                if (!impostazioni.briefingAttivo) {
+                    archivio.annotaBriefing(EsitoBriefing.Spento.riassunto())
+                    return@launch
+                }
 
                 // La scorta si rinfresca adesso, che e' l'unico momento
                 // prevedibile in cui l'app gira da sola.
-                archivio.slugCorrente()?.let { slug ->
-                    Scorte(applicazione, archivio).aggiornaMeteo(slug)
-                }
+                val slug = archivio.slugCorrente()
+                slug?.let { Scorte(applicazione, archivio).aggiornaMeteo(it) }
 
-                val briefing = archivio.briefingCorrente() ?: return@launch
+                val briefing = archivio.briefingCorrente()
+                if (briefing == null) {
+                    archivio.annotaBriefing(EsitoBriefing.SenzaViaggio.riassunto())
+                    return@launch
+                }
                 // Un riepilogo che non ha niente da dire non si manda: una
                 // notifica vuota insegna a ignorare le notifiche.
-                if (briefing.vuoto) return@launch
-
-                Avvisi(applicazione).apply {
-                    preparaCanale()
-                    mostra(briefing)
+                if (briefing.vuoto) {
+                    archivio.annotaBriefing(EsitoBriefing.NienteDaDire.riassunto())
+                    return@launch
                 }
+
+                val avvisi = Avvisi(applicazione)
+                avvisi.preparaCanale()
+                val passata = avvisi.mostra(briefing)
+                archivio.annotaBriefing(
+                    if (passata) {
+                        EsitoBriefing.Mandato(TestoBriefing.titolo(briefing)).riassunto()
+                    } else {
+                        EsitoBriefing.SenzaPermesso.riassunto()
+                    },
+                )
             } finally {
                 risultato.finish()
             }

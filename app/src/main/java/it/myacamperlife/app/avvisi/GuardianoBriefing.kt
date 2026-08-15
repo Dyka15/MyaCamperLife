@@ -38,11 +38,20 @@ class GuardianoBriefing(
 
         if (!impostazioni.briefingAttivo) {
             SvegliaBriefing.annulla(applicazione)
+            archivio.annotaSveglia(null)
             return Result.success()
         }
 
         if (!SvegliaBriefing.programmata(applicazione)) {
-            SvegliaBriefing.programma(applicazione, attivo = true, ora = impostazioni.ora)
+            // Se si arriva qui la sveglia era stata portata via: e' il caso per
+            // cui questo guardiano esiste, e va scritto — la data nuova nelle
+            // impostazioni e' la prova che e' successo.
+            val prossima = SvegliaBriefing.programma(
+                applicazione,
+                attivo = true,
+                ora = impostazioni.ora,
+            )
+            archivio.annotaSveglia(prossima)
         }
         return Result.success()
     }

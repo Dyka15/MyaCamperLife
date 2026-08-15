@@ -16,6 +16,7 @@ import it.myacamperlife.app.archivio.Fusione
 import it.myacamperlife.app.archivio.Posizioni
 import it.myacamperlife.app.archivio.Specchio
 import it.myacamperlife.app.archivio.SpecchioLavoro
+import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.SvegliaBriefing
 import it.myacamperlife.app.rete.Assistente
 import it.myacamperlife.app.rete.Geocodifica
@@ -39,6 +40,11 @@ class MainActivity : ComponentActivity() {
                             attivo = impostazioni.briefingAttivo,
                             ora = impostazioni.ora,
                         )
+                    },
+                    // La notifica vera, per il pulsante di prova: il ViewModel
+                    // non conosce Android, e questo e' il pezzo che serve.
+                    manda = { briefing ->
+                        Avvisi(applicationContext).run { preparaCanale(); mostra(briefing) }
                     },
                     scorte = Scorte(
                         context = applicationContext,

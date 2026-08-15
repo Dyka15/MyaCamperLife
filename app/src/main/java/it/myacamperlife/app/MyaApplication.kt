@@ -37,11 +37,14 @@ class MyaApplication : Application() {
         // I/O, perche' le impostazioni stanno in un file.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val impostazioni = archivio.impostazioni()
-            SvegliaBriefing.programma(
+            val prossima = SvegliaBriefing.programma(
                 context = this@MyaApplication,
                 attivo = impostazioni.briefingAttivo,
                 ora = impostazioni.ora,
             )
+            // Scrive solo se e' cambiata: aprire l'app dieci volte non deve
+            // toccare il file dieci volte.
+            archivio.annotaSveglia(prossima)
             GuardianoBriefing.programma(this@MyaApplication)
         }
     }

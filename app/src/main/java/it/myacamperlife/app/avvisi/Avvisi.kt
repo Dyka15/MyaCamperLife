@@ -42,12 +42,13 @@ class Avvisi(private val context: Context) {
     ) == PackageManager.PERMISSION_GRANTED
 
     /**
-     * Mostra il riepilogo. Non fa niente se non c'e' il permesso: da Android 13
-     * la notifica verrebbe scartata in silenzio, e provarci lo stesso
-     * solleverebbe soltanto un'eccezione da gestire.
+     * Mostra il riepilogo. **Torna `false` se non c'e' il permesso**, invece di
+     * non fare niente: da Android 13 la notifica verrebbe scartata in silenzio,
+     * e il silenzio e' precisamente il guaio — chi chiama scrive l'esito, cosi'
+     * la sera dopo si legge «manca il permesso» invece di indovinare.
      */
-    fun mostra(briefing: Briefing) {
-        if (!permessoConcesso()) return
+    fun mostra(briefing: Briefing): Boolean {
+        if (!permessoConcesso()) return false
 
         val corpo = TestoBriefing.corpo(briefing)
         val notifica = NotificationCompat.Builder(context, CANALE)
@@ -63,6 +64,7 @@ class Avvisi(private val context: Context) {
             .build()
 
         NotificationManagerCompat.from(context).notify(ID_BRIEFING, notifica)
+        return true
     }
 
     private fun apriApp(): PendingIntent = PendingIntent.getActivity(

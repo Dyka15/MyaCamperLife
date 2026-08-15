@@ -112,6 +112,9 @@
     <string name="impostazioni_km_pieno">Km con un pieno</string>
     <string name="impostazioni_km_pieno_spiegazione">Quanti chilometri fa il camper con un serbatoio pieno. Serve a stimare l\'autonomia. Lascia vuoto per non usarla.</string>
     <string name="impostazioni_salvate">Impostazioni salvate</string>
+    <string name="impostazioni_manda_briefing">Mandala adesso</string>
+    <string name="impostazioni_briefing_esito">Ultimo riepilogo (%1$s): %2$s</string>
+    <string name="impostazioni_briefing_sveglia">Prossima sveglia: %1$s</string>
 
     <!-- Numeri -->
     <string name="numeri_autonomia">Autonomia</string>

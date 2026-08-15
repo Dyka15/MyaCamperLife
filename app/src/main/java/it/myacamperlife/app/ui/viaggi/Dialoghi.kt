@@ -1076,7 +1076,10 @@ fun ImpostazioniDialog(
     onSincronizza: () -> Unit,
     onSpegniCartella: () -> Unit,
     onSalva: (Impostazioni) -> Unit,
+    /** Mostra l'anteprima del testo dentro l'app. */
     onProvaBriefing: () -> Unit,
+    /** Manda la notifica vera, adesso: prova la catena, non il testo. */
+    onMandaBriefing: () -> Unit,
     onAggiornaScorta: () -> Unit,
     onScaricaDintorni: () -> Unit,
     onPermessoNotifiche: () -> Unit,
@@ -1142,9 +1145,30 @@ fun ImpostazioniDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    TextButton(onClick = onProvaBriefing) {
-                        Text(stringResource(R.string.impostazioni_prova_briefing))
+                    Row {
+                        TextButton(onClick = onProvaBriefing) {
+                            Text(stringResource(R.string.impostazioni_prova_briefing))
+                        }
+                        // **Due pulsanti perche' provano due cose diverse.**
+                        // L'anteprima mostra il testo dentro l'app e non prova
+                        // niente della consegna; questo percorre la strada vera —
+                        // canale, permesso, notifica — ed e' il solo modo di
+                        // distinguere «la sveglia non scatta» da «la notifica non
+                        // passa», che da fuori si vedono identici.
+                        TextButton(onClick = onMandaBriefing) {
+                            Text(stringResource(R.string.impostazioni_manda_briefing))
+                        }
                     }
+                    // Com'e' finita l'ultima volta, e quando scattera' la
+                    // prossima: il riepilogo e' l'unica funzione che gira quando
+                    // nessuno guarda, e senza queste due righe "non mi e'
+                    // arrivata" non ha nessun posto in cui trovare risposta.
+                    EsitoScritto(
+                        R.string.impostazioni_briefing_esito,
+                        impostazioni.briefingEsito,
+                        impostazioni.briefingProvatoIl,
+                    )
+                    Sveglia(impostazioni.briefingSvegliaIl)
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1989,6 +2013,29 @@ private fun Quando(etichetta: Int, istante: OffsetDateTime?) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
+
+/**
+ * Quando scattera' il prossimo riepilogo, come l'ha programmato l'app.
+ *
+ * **Una data passata e' una diagnosi**: vuol dire che la sveglia era in coda e il
+ * sistema l'ha portata via — su HyperOS succede in silenzio — e che nemmeno il
+ * guardiano l'ha rimessa. Nessuna data vuol dire che non e' mai stata
+ * programmata, che e' un guaio diverso.
+ */
+@Composable
+private fun Sveglia(quando: String?) {
+    val testo = quando?.let {
+        runCatching { java.time.LocalDateTime.parse(it).format(SVEGLIA) }.getOrNull() ?: it
+    } ?: return
+    Text(
+        text = stringResource(R.string.impostazioni_briefing_sveglia, testo),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private val SVEGLIA: java.time.format.DateTimeFormatter =
+    java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM, HH:mm", java.util.Locale.ITALIAN)
 
 /**
  * Com'e' andata l'ultima ricerca dei dintorni, come l'ha scritta chi l'ha fatta.
