@@ -230,6 +230,12 @@ private fun Scheda(
             item {
                 Sezione(R.string.scheda_meteo) {
                     Corpo(TestoMeteo.riga(previsione))
+                    // Le tre fasce sotto il giorno intero, non al suo posto:
+                    // "18–31°" dice come sara' la giornata, le fasce dicono
+                    // **quando** — ed e' la decisione che si prende davvero,
+                    // camminare la mattina o il pomeriggio. Quando mancano (file
+                    // vecchio, giorno lontano) resta la riga del giorno.
+                    TestoMeteo.fasce(previsione).forEach { Sottotitolo(it) }
                     // L'eta' del dato non e' cortesia: e' cio' che impedisce di
                     // credere a una previsione ferma da due giorni.
                     TestoMeteo.eta(scheda.meteoOreFa)?.let { Sottotitolo(it) }

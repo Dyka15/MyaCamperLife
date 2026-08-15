@@ -94,8 +94,12 @@ object TestoBriefing {
     private fun meteo(briefing: Briefing): String? {
         val previsione = briefing.meteoDomani ?: return null
         val riga = TestoMeteo.riga(previsione)
+        // Le fasce **solo per domani**, e solo il cielo: domani e' il giorno su
+        // cui si decide qualcosa stasera, e una notifica con tre fasce per
+        // cinque giorni non la legge nessuno.
+        val fasce = TestoMeteo.fasceInLinea(previsione)?.let { "\n$it" } ?: ""
         val eta = TestoMeteo.eta(briefing.meteoOreFa)
-        return if (eta == null) riga else "$riga · $eta"
+        return if (eta == null) riga + fasce else "$riga · $eta$fasce"
     }
 
     private fun avviso(autonomia: Autonomia?): String {

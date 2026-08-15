@@ -72,6 +72,7 @@ object RispostaMeteo {
         val pioggia = numeri(giornaliero, "precipitation_sum")
         val probabilita = interi(giornaliero, "precipitation_probability_max")
         val vento = numeri(giornaliero, "wind_speed_10m_max")
+        val perGiorno = fasce(oggetto["hourly"] as? JsonObject)
 
         return giorni.mapIndexed { i, giorno ->
             Previsione(
@@ -82,8 +83,70 @@ object RispostaMeteo {
                 pioggiaMm = pioggia.getOrNull(i),
                 probabilitaPioggia = probabilita.getOrNull(i),
                 ventoKmh = vento.getOrNull(i),
+                fasce = perGiorno[giorno].orEmpty(),
             )
         }
+    }
+
+    /**
+     * Il blocco `hourly`, ridotto a tre fasce per giorno.
+     *
+     * **Si aggrega qui e si salva aggregato.** Le ore grezze sarebbero centosessanta
+     * righe per punto per giorno in un file che va letto su un telefono senza
+     * rete: quello che serve a decidere se camminare la mattina o il pomeriggio
+     * sono tre righe, e le tre righe si calcolano una volta.
+     *
+     * Le regole, una per campo, ognuna scelta per come si usa il dato:
+     *
+     * - **temperature**: minima e massima *dentro la fascia*, non la media — "17–22°"
+     *   dice come vestirsi, "19°" no.
+     * - **probabilita' di pioggia**: la piu' alta. Una fascia con un'ora al 70%
+     *   e' una fascia in cui puoi bagnarti, anche se la media dice 20%.
+     * - **millimetri**: la somma. Sono una quantita', non uno stato.
+     * - **vento**: il massimo. Con un camper conta la raffica, non la media.
+     * - **cielo**: il piu' grave fra le ore (→ [CieloMeteo.gravita]). Un
+     *   temporale di un'ora e' la cosa da sapere di quel pomeriggio; la media
+     *   di sole e temporale sarebbe "nuvoloso", cioe' una previsione falsa.
+     *
+     * Le ore sono locali perche' la richiesta chiede `timezone=auto`: la fascia
+     * si ricava dai caratteri dell'ora nel timestamp, senza fusi da convertire.
+     */
+    private fun fasce(orario: JsonObject?): Map<String, List<Fascia>> {
+        val ore = testi(orario ?: return emptyMap(), "time")
+        if (ore.isEmpty()) return emptyMap()
+
+        val temperature = numeri(orario, "temperature_2m")
+        val probabilita = interi(orario, "precipitation_probability")
+        val pioggia = numeri(orario, "precipitation")
+        val codici = interi(orario, "weather_code")
+        val vento = numeri(orario, "wind_speed_10m")
+
+        // Chiave: il giorno e la fascia. Le ore fuori dalle tre fasce — la notte —
+        // si scartano qui, e non vengono contate da nessuna parte.
+        val gruppi = LinkedHashMap<Pair<String, FasciaGiorno>, MutableList<Int>>()
+        ore.forEachIndexed { i, istante ->
+            val giorno = istante.substringBefore('T').takeIf { it.length == 10 } ?: return@forEachIndexed
+            val ora = istante.substringAfter('T', "").take(2).toIntOrNull() ?: return@forEachIndexed
+            val fascia = FasciaGiorno.di(ora) ?: return@forEachIndexed
+            gruppi.getOrPut(giorno to fascia) { mutableListOf() }.add(i)
+        }
+
+        return gruppi.entries
+            .groupBy({ it.key.first }) { (chiave, indici) ->
+                val temperatureDentro = indici.mapNotNull { temperature.getOrNull(it) }
+                Fascia(
+                    quale = chiave.second,
+                    codice = indici.mapNotNull { codici.getOrNull(it) }
+                        .maxByOrNull { CieloMeteo.da(it).gravita },
+                    minima = temperatureDentro.minOrNull(),
+                    massima = temperatureDentro.maxOrNull(),
+                    pioggiaMm = indici.mapNotNull { pioggia.getOrNull(it) }
+                        .takeIf { it.isNotEmpty() }?.sum(),
+                    probabilitaPioggia = indici.mapNotNull { probabilita.getOrNull(it) }.maxOrNull(),
+                    ventoKmh = indici.mapNotNull { vento.getOrNull(it) }.maxOrNull(),
+                )
+            }
+            .mapValues { (_, fasce) -> fasce.sortedBy { it.quale.ordinal } }
     }
 
     private fun colonna(oggetto: JsonObject, nome: String) =
@@ -117,6 +180,7 @@ object RispostaMeteo {
         return "https://api.open-meteo.com/v1/forecast" +
             "?latitude=$lat&longitude=$lon" +
             "&daily=$CAMPI" +
+            "&hourly=$CAMPI_ORARI" +
             "&timezone=auto" +
             "&forecast_days=${giorni.coerceIn(1, 16)}"
     }
@@ -131,6 +195,16 @@ object RispostaMeteo {
     private const val CAMPI =
         "weather_code,temperature_2m_max,temperature_2m_min," +
             "precipitation_sum,precipitation_probability_max,wind_speed_10m_max"
+
+    /**
+     * I campi orari, da cui si ricavano le tre fasce.
+     *
+     * Cinque e non piu': ogni campo in piu' sono centosessantotto numeri per
+     * punto, e con dieci tappe la risposta cresce in fretta. Questi cinque sono
+     * quelli che finiscono nella riga di una fascia.
+     */
+    private const val CAMPI_ORARI =
+        "weather_code,temperature_2m,precipitation,precipitation_probability,wind_speed_10m"
 
     /** Sette giorni: piu' in la' la previsione non dice niente di utile. */
     const val GIORNI = 7

@@ -72,7 +72,7 @@ Nessuno di questi input è necessario al funzionamento: sono scorta.
 
 | Input | Fonte | Quando arriva | A cosa serve |
 |---|---|---|---|
-| **Previsioni meteo** | Open-Meteo, senza chiave | **Ogni sera alle 19:00**, se c'è connessione: da domani in avanti | Briefing serale, dossier di tappa |
+| **Previsioni meteo** | Open-Meteo, senza chiave. Giorno intero **e** tre fasce (mattino, pomeriggio, sera) aggregate dalle ore | **Ogni sera alle 19:00**, se c'è connessione: da domani in avanti | Briefing serale, dossier di tappa |
 | **Distanze e tempi di guida** | OSRM | All'import dell'itinerario, e quando si aggiunge una tappa | "Prossima tappa: 34 km, 45 min", e i km previsti per domani |
 | **Punti di interesse** | OpenStreetMap via Overpass, in un corridoio di quindici chilometri intorno all'itinerario | Una volta per viaggio, all'import o col pulsante nelle impostazioni | Aree di sosta, campeggi, carico/scarico, acqua, distributori, supermercati, cose da vedere |
 | **Toponimi** | La stessa richiesta: i paesi lungo il percorso arrivano insieme ai punti di interesse | Una volta per viaggio | Dare un nome alla posizione senza rete |
@@ -241,6 +241,8 @@ sull'estratto conto, e a sapere quanti contanti stanno finendo.
 | Sopravvivere a riavvio del telefono e a HyperOS che congela le app | 5 |
 | Scaricare il meteo alle 19:00 e mostrarlo accanto alle tappe | 6 |
 | Avere il briefing anche senza rete, con l'età del dato meteo dichiarata | 6 |
+| Leggere il meteo **diviso in mattino, pomeriggio e sera**: è quando serve saperlo, non quanto in media | 16 |
+| Sapere **com'è finito** l'ultimo riepilogo serale e quando scatterà il prossimo, e poterlo mandare adesso per provare la catena | 16 |
 
 ### 4.6 Esplora
 
