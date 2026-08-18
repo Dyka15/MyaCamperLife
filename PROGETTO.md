@@ -91,7 +91,7 @@ foglio di calcolo senza conversioni.
 
 | File | Contenuto |
 |---|---|
-| `viaggi/<viaggio>/tappe.csv` | Le tappe con stato (`da_fare`, `fatta`, `saltata`), data di check-in, e **ogni campo che l'itinerario portava** nella colonna `altro` |
+| `viaggi/<viaggio>/tappe.csv` | Le tappe con stato (`da_fare`, `fatta`, `saltata`), data di check-in, `origine` (dall'itinerario o aggiunta a mano) e **ogni campo che l'itinerario portava** nella colonna `altro` |
 | `viaggi/<viaggio>/spostamenti.csv` | Posizioni e check-in |
 | `viaggi/<viaggio>/note.csv` | Le note di viaggio |
 | `viaggi/<viaggio>/rifornimenti.csv` | Chilometri, litri, importo, pieno sì/no |

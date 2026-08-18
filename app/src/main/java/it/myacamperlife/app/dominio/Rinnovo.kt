@@ -70,6 +70,7 @@ object Rinnovi {
                 giorno = punto.giorno,
                 descrizione = punto.descrizione,
                 altro = punto.altro,
+                origine = OrigineTappa.ITINERARIO,
             )
         }
 

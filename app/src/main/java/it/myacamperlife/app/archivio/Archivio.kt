@@ -15,6 +15,7 @@ import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.dominio.GiornoTappa
 import it.myacamperlife.app.dominio.Luoghi
 import it.myacamperlife.app.dominio.Meteo
+import it.myacamperlife.app.dominio.OrigineTappa
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Poi
 import it.myacamperlife.app.dominio.Programmi
@@ -430,6 +431,7 @@ class Archivio(private val radice: File) {
                 giorno = punto.giorno,
                 descrizione = punto.descrizione,
                 altro = punto.altro,
+                origine = OrigineTappa.ITINERARIO,
             )
         }
         tabellaTappe(viaggio.slug).accodaTutte(tappe.map { TappeTabella.riga(it, ts) })
@@ -705,6 +707,9 @@ class Archivio(private val radice: File) {
             lat = lat,
             lon = lon,
             giorno = giorno?.trim()?.takeUnless { it.isEmpty() },
+            // Aggiunta a mano: l'itinerario non ne parla, e il programma della
+            // giornata non e' suo.
+            origine = OrigineTappa.MANO,
         )
         val dopo = Tappe.inserisci(prima, nuova, primaDi)
         val ts = ts(adesso)

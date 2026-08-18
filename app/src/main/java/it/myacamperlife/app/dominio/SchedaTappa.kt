@@ -43,6 +43,10 @@ data class SchedaTappa(
      * Garmisch e l'Eibsee, e quel testo racconta il giorno intero. Piu' tappe
      * dello stesso giorno mostrano quindi lo stesso programma, ed e' giusto —
      * l'itinerario e' scritto cosi', e cosi' si legge.
+     *
+     * Ma solo per le tappe **che vengono dall'itinerario**: sotto una tappa
+     * aggiunta a mano quello stesso testo racconterebbe posti che non c'entrano.
+     * La regola sta in [Programmi.perTappa].
      */
     val programma: SezioneGiorno? = null,
 ) {
@@ -101,7 +105,7 @@ object Schede {
                 )
             },
             dossier = dossier.filter { it.tappa != null && it.tappa == tappa.nome },
-            programma = Programmi.per(programma, giorno),
+            programma = Programmi.perTappa(programma, giorno, tappa),
         )
     }
 }

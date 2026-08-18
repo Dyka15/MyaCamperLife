@@ -1,6 +1,7 @@
 package it.myacamperlife.app.archivio
 
 import it.myacamperlife.app.dominio.CampiExtra
+import it.myacamperlife.app.dominio.OrigineTappa
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
 
@@ -25,10 +26,14 @@ object TappeTabella {
     const val ALTRO = "altro"
     const val STATO = "stato"
     const val CHECKIN = "checkin"
+    const val ORIGINE = "origine"
 
     val COLONNE = listOf(
         Csv.ID, Csv.TS, Csv.CANCELLATO,
         ORDINE, NOME, LAT, LON, TIPO, GIORNO, DESCRIZIONE, ALTRO, STATO, CHECKIN,
+        // In fondo, come ogni colonna nuova: chi legge per nome non se ne
+        // accorge, e i file scritti prima restano leggibili.
+        ORIGINE,
     )
 
     fun riga(tappa: Tappa, ts: String, cancellata: Boolean = false): Map<String, String> = mapOf(
@@ -47,6 +52,7 @@ object TappeTabella {
         ALTRO to CampiExtra.scrivi(tappa.altro),
         STATO to tappa.stato.codice,
         CHECKIN to Csv.testo(tappa.checkinIl),
+        ORIGINE to tappa.origine.codice,
     )
 
     /**
@@ -71,6 +77,8 @@ object TappeTabella {
             altro = CampiExtra.leggi(riga.testo(ALTRO)),
             stato = StatoTappa.da(riga.testo(STATO)),
             checkinIl = riga.testo(CHECKIN),
+            // Vuota o assente vuol dire IGNOTA: le righe di prima non lo dicevano.
+            origine = OrigineTappa.da(riga.testo(ORIGINE)),
         )
     }
 

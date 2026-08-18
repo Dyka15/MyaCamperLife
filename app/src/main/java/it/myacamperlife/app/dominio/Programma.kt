@@ -86,6 +86,61 @@ object Programmi {
         giorno?.let { data -> sezioni.firstOrNull { it.giorno == data } }
 
     /**
+     * La giornata da mostrare **sotto una tappa**.
+     *
+     * Il programma si aggancia alle tappe per data, e per una tappa aggiunta a
+     * mano la data combacia mentre il racconto e' di altri posti: si leggeva
+     * "Abensberg → Regensburg" sotto il nome di Landshut, cioe' una cosa falsa
+     * detta con l'autorevolezza dell'itinerario. **Meglio non mostrare niente.**
+     *
+     * Tre casi, uno per origine:
+     *
+     * - dall'itinerario: il programma del giorno e' suo, anche quando nomina
+     *   altri posti — piu' tappe dello stesso giorno raccontano lo stesso
+     *   giorno, e l'itinerario e' scritto cosi';
+     * - a mano: niente, sempre;
+     * - **ignota** — le righe scritte prima che questa colonna esistesse — si
+     *   decide con un indizio: se il programma non nomina la tappa, non parla di
+     *   lei. E' una regola imperfetta e lo si accetta in un verso solo: nasconde
+     *   qualche programma legittimo (una giornata intitolata "Giorno 5:
+     *   trasferimento", che non nomina nessun posto), e non ne mostra di
+     *   sbagliati.
+     */
+    fun perTappa(
+        sezioni: List<SezioneGiorno>,
+        giorno: LocalDate?,
+        tappa: Tappa,
+    ): SezioneGiorno? {
+        if (tappa.origine == OrigineTappa.MANO) return null
+        val sezione = per(sezioni, giorno) ?: return null
+        if (tappa.origine == OrigineTappa.ITINERARIO) return sezione
+        return sezione.takeIf { nomina(it, tappa.nome) }
+    }
+
+    /**
+     * Vero se una giornata nomina un posto.
+     *
+     * Confronto tollerante, perche' i nomi non combaciano mai alla lettera: la
+     * tappa si chiama "Roth / Rothsee" e il programma dice "Rothsee", oppure
+     * "Bad Reichenhall" contro "Reichenhall". Si guardano le parole della tappa
+     * da quattro lettere in su — sotto ci sono gli articoli e le preposizioni,
+     * che si trovano ovunque — e basta che una compaia.
+     */
+    private fun nomina(sezione: SezioneGiorno, nome: String): Boolean {
+        val dove = normalizza(sezione.etichetta + " " + sezione.titolo.orEmpty() + " " + sezione.testo)
+        return normalizza(nome)
+            .split(' ')
+            .filter { it.length >= 4 }
+            .any { dove.contains(it) }
+    }
+
+    /** Minuscole e senza accenti: "Umag" e "Umago" si somigliano abbastanza. */
+    private fun normalizza(testo: String): String = java.text.Normalizer
+        .normalize(testo.lowercase(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .replace(Regex("[^a-z0-9 ]"), " ")
+
+    /**
      * Le giornate di piu' documenti, dove **l'ultimo vince** sui giorni che
      * copre.
      *

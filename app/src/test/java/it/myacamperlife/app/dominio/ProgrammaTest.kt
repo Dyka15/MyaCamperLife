@@ -166,6 +166,57 @@ class ProgrammaTest {
         assertNull(Programmi.per(sezioni, null))
     }
 
+    // --- il programma sotto una tappa ------------------------------------------
+
+    private fun tappa(
+        nome: String,
+        origine: OrigineTappa = OrigineTappa.ITINERARIO,
+    ) = Tappa(id = nome, ordine = 1, nome = nome, lat = 45.0, lon = 11.0, origine = origine)
+
+    private val seiAgosto = LocalDate.parse("2026-08-06")
+
+    @Test
+    fun `una tappa aggiunta a mano non mostra il programma del giorno`() {
+        // E' il difetto vero: Landshut, aggiunta a mano il 18 agosto, mostrava
+        // "Abensberg → Regensburg" — una cosa falsa detta con l'autorevolezza
+        // dell'itinerario. Meglio niente.
+        assertNull(Programmi.perTappa(sezioni, seiAgosto, tappa("Landshut", OrigineTappa.MANO)))
+    }
+
+    @Test
+    fun `una tappa dell'itinerario mostra il programma anche se nomina altri posti`() {
+        // Il 6 agosto si passa da Lonigo, Garmisch e l'Eibsee: sotto Garmisch il
+        // testo parla anche degli altri due, e va bene — e' la giornata.
+        val sezione = Programmi.perTappa(sezioni, seiAgosto, tappa("Garmisch-Partenkirchen"))
+        assertNotNull(sezione)
+        assertEquals(Programmi.per(sezioni, seiAgosto), sezione)
+    }
+
+    @Test
+    fun `di origine ignota vale l'indizio del nome`() {
+        // Le righe scritte prima della colonna: si guarda se il programma la
+        // nomina. Lonigo c'e', Landshut no.
+        assertNotNull(Programmi.perTappa(sezioni, seiAgosto, tappa("Lonigo", OrigineTappa.IGNOTA)))
+        assertNull(Programmi.perTappa(sezioni, seiAgosto, tappa("Landshut", OrigineTappa.IGNOTA)))
+    }
+
+    @Test
+    fun `l'indizio del nome tollera le differenze di scrittura`() {
+        // "Garmisch" da solo contro "Garmisch-Partenkirchen" del programma, e
+        // maiuscole diverse: i nomi non combaciano mai alla lettera.
+        assertNotNull(Programmi.perTappa(sezioni, seiAgosto, tappa("garmisch", OrigineTappa.IGNOTA)))
+        assertNotNull(
+            Programmi.perTappa(sezioni, seiAgosto, tappa("Lago dell'Eibsee", OrigineTappa.IGNOTA)),
+        )
+    }
+
+    @Test
+    fun `senza giorno non c'e' programma, qualunque sia l'origine`() {
+        OrigineTappa.entries.forEach { origine ->
+            assertNull(Programmi.perTappa(sezioni, null, tappa("Lonigo", origine)))
+        }
+    }
+
     // --- prudenza -------------------------------------------------------------
 
     @Test

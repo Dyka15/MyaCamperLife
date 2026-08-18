@@ -26,7 +26,37 @@ data class Tappa(
     val stato: StatoTappa = StatoTappa.DA_FARE,
     /** Istante ISO-8601 del check-in, quando c'e' stato. */
     val checkinIl: String? = null,
+    /**
+     * Da dove arriva questa tappa: dall'itinerario, o aggiunta a mano.
+     *
+     * **Serve a sapere di chi parla il programma della giornata.** Quel testo si
+     * aggancia alle tappe per data, e per una tappa aggiunta a mano il giorno
+     * combacia ma il racconto e' di altri posti: si finiva per leggere
+     * "Abensberg → Regensburg" sotto il nome di Landshut.
+     */
+    val origine: OrigineTappa = OrigineTappa.IGNOTA,
 )
+
+/**
+ * Chi ha messo una tappa nell'itinerario.
+ *
+ * [IGNOTA] non e' un caso da evitare: e' quello di tutte le righe scritte prima
+ * che questa colonna esistesse, ed e' il motivo per cui il valore di riposo non
+ * puo' essere nessuno dei due veri — indovinare vorrebbe dire sbagliare su
+ * ventiquattro tappe per indovinarne una.
+ */
+enum class OrigineTappa(val codice: String) {
+    ITINERARIO("itinerario"),
+    MANO("mano"),
+    IGNOTA(""),
+    ;
+
+    companion object {
+        fun da(codice: String?): OrigineTappa =
+            entries.firstOrNull { it.codice.isNotEmpty() && it.codice == codice?.trim()?.lowercase() }
+                ?: IGNOTA
+    }
+}
 
 enum class StatoTappa(val codice: String) {
     DA_FARE("da_fare"),
