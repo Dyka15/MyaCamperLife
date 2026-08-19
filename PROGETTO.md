@@ -369,8 +369,9 @@ contenitore, non nelle singole schermate.
 └─────────────────────────────────────────────┘
 ```
 
-**Viaggio** è la schermata d'apertura: dove sei, dove vai, l'itinerario, e le quattro
-azioni rapide. **Diario** sono le giornate. **Numeri** sono consumi, autonomia e spese.
+**Viaggio** è la schermata d'apertura: dove sei, dove vai, l'itinerario, e le cinque
+azioni rapide — che **non scorrono**: scorre l'itinerario, perché un pulsante da andare a
+cercare in cima costa i due tocchi che l'app si è impegnata a non chiedere. **Diario** sono le giornate. **Numeri** sono consumi, autonomia e spese.
 **Esplora** è la ricerca nei dintorni.
 
 Un tocco su una tappa apre **la sua scheda**, che sta sopra le quattro schede: la

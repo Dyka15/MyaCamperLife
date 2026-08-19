@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="surface">#FFFBF8</color>
-    <color name="ic_launcher_background">#9C4221</color>
+    <!-- Il cielo dell'illustrazione dell'icona: si vede solo dove un lanciatore
+         rimpicciolisce il davanti invece di ritagliarlo. -->
+    <color name="ic_launcher_background">#68B4ED</color>
 </resources>

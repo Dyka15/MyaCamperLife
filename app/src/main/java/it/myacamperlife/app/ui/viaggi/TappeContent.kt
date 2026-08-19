@@ -64,52 +64,60 @@ fun TappeContent(
      */
     ultimoImport: String? = null,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 96.dp),
-    ) {
-        item {
-            Testata(corrente, prossima, versoProssima)
-            AzioniRapide(onPosizione, onFoto, onNota, onLitri, onSpesa)
-            HorizontalDivider()
-        }
+    // **Testata e azioni non scorrono.** Prima stavano dentro l'elenco, e
+    // scorrendo le tappe se ne andavano: le cinque azioni rapide sono l'intera
+    // ragione per cui questa schermata batte il bot — "mandare una foto non
+    // richiede comandi" — e un pulsante che si deve andare a cercare in cima
+    // costa i due tocchi che l'app si e' impegnata a non chiedere. Scorre
+    // l'itinerario, che e' l'unica parte che puo' essere lunga.
+    Column(modifier = Modifier.fillMaxSize()) {
+        Testata(corrente, prossima, versoProssima)
+        AzioniRapide(onPosizione, onFoto, onNota, onLitri, onSpesa)
+        HorizontalDivider()
 
-        items(tappe, key = { it.id }) { tappa ->
-            RigaTappa(tappa, onTocco = { onTappa(tappa) })
-        }
-
-        if (tappe.isEmpty()) {
-            item {
-                Text(
-                    stringResource(R.string.viaggio_senza_tappe),
-                    modifier = Modifier.padding(24.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(bottom = 96.dp),
+        ) {
+            items(tappe, key = { it.id }) { tappa ->
+                RigaTappa(tappa, onTocco = { onTappa(tappa) })
             }
-        }
 
-        // **In fondo all'itinerario, dove la domanda nasce.** Si arriva qui
-        // scorrendo le tappe che restano, ed e' guardandole che uno si accorge
-        // che non sono piu' quelle che vuole fare.
-        if (tappe.any { it.stato == StatoTappa.DA_FARE }) {
-            item {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
-                    TextButton(onClick = onSostituisci) {
-                        Text(stringResource(R.string.azione_sostituisci_itinerario))
-                    }
+            if (tappe.isEmpty()) {
+                item {
                     Text(
-                        stringResource(R.string.sostituisci_spiegazione),
-                        style = MaterialTheme.typography.bodySmall,
+                        stringResource(R.string.viaggio_senza_tappe),
+                        modifier = Modifier.padding(24.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    ultimoImport?.let { esito ->
+                }
+            }
+
+            // **In fondo all'itinerario, dove la domanda nasce.** Si arriva qui
+            // scorrendo le tappe che restano, ed e' guardandole che uno si accorge
+            // che non sono piu' quelle che vuole fare.
+            if (tappe.any { it.stato == StatoTappa.DA_FARE }) {
+                item {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
+                        TextButton(onClick = onSostituisci) {
+                            Text(stringResource(R.string.azione_sostituisci_itinerario))
+                        }
                         Text(
-                            text = stringResource(R.string.tappe_ultimo_import, esito),
+                            stringResource(R.string.sostituisci_spiegazione),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp),
                         )
+                        ultimoImport?.let { esito ->
+                            Text(
+                                text = stringResource(R.string.tappe_ultimo_import, esito),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
                     }
                 }
             }

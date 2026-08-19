@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- L'icona dell'app.
+
+     Il davanti e' l'illustrazione del camper, generata da `icona/camper.png`
+     con `icona/genera.py`. Copre tutto il riquadro di proposito: le maschere di
+     Android ne ritagliano fino al 18% per lato, e un'immagine che si ferma prima
+     lascerebbe una cornice di colore piatto attorno a se'.
+
+     Il **monocromatico resta il camper vettoriale**: le icone a tema del sistema
+     devono essere una sagoma su un livello solo, e un'illustrazione a colori non
+     puo' diventarlo. Sono due disegni della stessa cosa, usati in due posti
+     diversi, ed e' il motivo per cui il vettore non si butta.
+
+     Lo sfondo si vede solo se un lanciatore rimpicciolisce il davanti: e' il
+     colore del cielo dell'illustrazione, cosi' non stona. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <foreground android:drawable="@drawable/ic_launcher_foto" />
     <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
