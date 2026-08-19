@@ -9,25 +9,39 @@ Cosa fa, e perche':
    raggio non si indovina: si scende lungo la diagonale fino al primo pixel che
    non e' bianco, e si taglia di quello. Un angolo arrotondato dentro la
    maschera arrotondata del sistema si vede, e sembra un errore.
-2. **Rimpicciolisce l'illustrazione al 78%** del riquadro e riempie il bordo
-   **allungando i pixel di contorno**: il cielo continua sopra, l'asfalto sotto,
-   gli alberi ai lati. Le maschere di Android ritagliano fino al 18% per lato — su
-   un lanciatore col cerchio si perderebbero i cartelli e le ruote — e un bordo
-   che continua il disegno non si vede. Sfocare il centro invece che stirare i
-   bordi dava una cornice scura, perche' al centro c'e' il camper.
-3. Salva un PNG a 324 px: sono 108dp a densita' xxhdpi, quella dei telefoni su
+2. **Inquadra il camper** e non tutta la scena: a icona piena l'illustrazione
+   intera fa un camper piccolo in mezzo al paesaggio, e a 48dp non si capisce
+   cos'e'. Il riquadro e' scelto a occhio ([RIQUADRO]) e verificato guardando il
+   risultato — riconoscere il soggetto in una foto e' l'unica cosa qui che il
+   codice non sa fare da se'. Si tiene il **basso**, perche' le ruote sull'asfalto
+   dicono "camper" mentre il cielo non dice niente.
+3. **Rimpicciolisce al 82%** del riquadro e riempie il bordo **allungando i pixel
+   di contorno**: il cielo continua sopra, l'asfalto sotto. Le maschere di Android
+   ritagliano fino al 18% per lato, e un bordo che continua il disegno non si
+   vede. Sfocare il centro invece che stirare i bordi dava una cornice scura,
+   perche' al centro c'e' il camper.
+4. Salva un PNG a 324 px: sono 108dp a densita' xxhdpi, quella dei telefoni su
    cui gira. Il doppio dei pixel raddoppia il peso dell'APK per un'icona che
    nessuno guarda con la lente.
+
+Con `--anteprima` scrive anche come la ritaglia un lanciatore col cerchio, che e'
+il caso peggiore: e' il controllo che ha portato a questo riquadro invece di uno
+piu' stretto, in cui la maschera mangiava il tetto.
 
 L'originale resta qui accanto e **non** finisce nell'APK: sta in `icona/` e non
 in `res/`, cosi' il pacchetto porta solo il file generato.
 """
 
 import sys
-from PIL import Image
+from PIL import Image, ImageDraw
 
 LATO = 324
-DENTRO = 0.78
+DENTRO = 0.82
+
+# Il riquadro dentro l'illustrazione, in frazioni del lato: sinistra, alto,
+# destra, basso. Scelto guardando il camper, non calcolato: cercarlo per colore
+# trova anche le nuvole, che sono dello stesso bianco-crema della carrozzeria.
+RIQUADRO = (0.02, 0.10, 0.94, 1.00)
 
 
 def bordi(immagine: Image.Image) -> tuple[int, int, int, int]:
@@ -76,8 +90,9 @@ def genera(origine: str, destinazione: str) -> None:
         (sinistra + margine, alto + margine, destra - margine, basso - margine)
     )
 
+    inquadrata = inquadra(ritagliata)
     dentro = int(LATO * DENTRO)
-    ridotta = ritagliata.resize((dentro, dentro), Image.LANCZOS)
+    ridotta = inquadrata.resize((dentro, dentro), Image.LANCZOS)
 
     scarto = (LATO - dentro) // 2
     tela = Image.new("RGB", (LATO, LATO))
@@ -85,6 +100,28 @@ def genera(origine: str, destinazione: str) -> None:
     contorno(tela, ridotta, scarto)
     tela.save(destinazione, optimize=True)
     print(f"{destinazione}: {LATO}x{LATO}")
+
+
+def inquadra(disegno: Image.Image) -> Image.Image:
+    """Il quadrato attorno al camper, ancorato in basso.
+
+    Ancorato in basso e non centrato: tagliando si perde il cielo, che in un'icona
+    da 48dp non dice niente, e si tengono le ruote sull'asfalto, che dicono
+    "camper".
+    """
+    larghezza, altezza = disegno.size
+    sinistra, alto, destra, basso = RIQUADRO
+    riquadro = disegno.crop(
+        (
+            int(larghezza * sinistra),
+            int(altezza * alto),
+            int(larghezza * destra),
+            int(altezza * basso),
+        )
+    )
+    lato = min(riquadro.size)
+    scarto = (riquadro.size[0] - lato) // 2
+    return riquadro.crop((scarto, riquadro.size[1] - lato, scarto + lato, riquadro.size[1]))
 
 
 def contorno(tela: Image.Image, disegno: Image.Image, scarto: int) -> None:
@@ -113,6 +150,27 @@ def contorno(tela: Image.Image, disegno: Image.Image, scarto: int) -> None:
         tela.paste(angolo, (x, y))
 
 
+def anteprima(icona: str, destinazione: str) -> None:
+    """Come la ritaglia un lanciatore col cerchio: 66dp su 108dp, il caso peggiore."""
+    tela = Image.open(icona).convert("RGB")
+    lato = tela.size[0]
+    diametro = int(lato * 66 / 108)
+    maschera = Image.new("L", (lato, lato), 0)
+    ImageDraw.Draw(maschera).ellipse(
+        ((lato - diametro) // 2, (lato - diametro) // 2,
+         (lato + diametro) // 2, (lato + diametro) // 2),
+        fill=255,
+    )
+    fuori = Image.new("RGB", (lato, lato), (30, 30, 30))
+    fuori.paste(tela, (0, 0), maschera)
+    fuori.save(destinazione)
+    print(f"{destinazione}: come la vede un lanciatore col cerchio")
+
+
 if __name__ == "__main__":
-    origine = sys.argv[1] if len(sys.argv) > 1 else "icona/camper.png"
-    genera(origine, "app/src/main/res/drawable-nodpi/ic_launcher_foto.png")
+    argomenti = [a for a in sys.argv[1:] if not a.startswith("--")]
+    origine = argomenti[0] if argomenti else "icona/camper.png"
+    icona = "app/src/main/res/drawable-nodpi/ic_launcher_foto.png"
+    genera(origine, icona)
+    if "--anteprima" in sys.argv:
+        anteprima(icona, "/tmp/icona-cerchio.png")
