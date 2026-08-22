@@ -118,7 +118,16 @@ class Archivio(private val radice: File) {
     fun cartellaScontrini(slug: String): File =
         File(cartellaViaggio(slug), SpeseTabella.CARTELLA).apply { mkdirs() }
 
-    fun diario(slug: String): Diario = Diario(File(cartellaViaggio(slug), "diario.md"))
+    fun diario(slug: String): Diario = Diario(fileDiario(slug))
+
+    /**
+     * Il file `diario.md`, per chi lo deve **aprire** invece che leggere.
+     *
+     * L'archivio e' fatto di file veri di proposito: e' l'unico modo perche' il
+     * diario resti leggibile anche il giorno in cui questa app non ci sara' piu'.
+     * Poterlo aprire con l'editor che uno preferisce e' quella promessa, mostrata.
+     */
+    fun fileDiario(slug: String): File = File(cartellaViaggio(slug), "diario.md")
 
     // --- la scorta: rete presa in anticipo ------------------------------------
 

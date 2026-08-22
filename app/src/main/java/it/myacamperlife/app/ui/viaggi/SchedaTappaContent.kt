@@ -1,6 +1,7 @@
 package it.myacamperlife.app.ui.viaggi
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -355,6 +356,23 @@ private fun Testata(scheda: SchedaTappa, quante: Int) {
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
+
+            // Le coordinate stanno **qui e non nell'elenco**: nell'elenco erano
+            // su ogni riga e non le leggeva nessuno, qui sono accanto al
+            // pulsante che apre la mappa — che e' cosa se ne fa davvero — e si
+            // possono prendere con le dita quando servono a qualcun altro.
+            SelectionContainer {
+                Text(
+                    text = stringResource(
+                        R.string.coordinate,
+                        "%.4f".format(scheda.tappa.lat),
+                        "%.4f".format(scheda.tappa.lon),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
     }
 }

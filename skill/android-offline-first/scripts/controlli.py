@@ -36,14 +36,15 @@ MANIFEST = pathlib.Path("app/src/main/AndroidManifest.xml")
 # dieci minuti dopo il push.
 PACCHETTI: dict[str, str] = {
     "androidx.compose.foundation.layout": (
-        "padding fillMaxWidth fillMaxSize fillMaxHeight width height size Row Column Box "
+        "padding fillMaxWidth fillMaxSize fillMaxHeight width height size Row Column Box IntrinsicSize "
         "Spacer Arrangement PaddingValues wrapContentWidth FlowRow FlowColumn "
         "ExperimentalLayoutApi"
     ),
-    "androidx.compose.foundation.lazy": "LazyColumn LazyRow items itemsIndexed",
+    "androidx.compose.foundation.lazy": "LazyColumn LazyRow items itemsIndexed stickyHeader",
     "androidx.compose.foundation.pager": "HorizontalPager VerticalPager rememberPagerState",
     "androidx.compose.foundation": (
-        "clickable verticalScroll horizontalScroll rememberScrollState background border Image"
+        "clickable verticalScroll horizontalScroll rememberScrollState background border Image "
+        "ExperimentalFoundationApi"
     ),
     "androidx.compose.foundation.shape": "RoundedCornerShape CircleShape",
     "androidx.compose.foundation.text": "KeyboardOptions",
@@ -62,7 +63,7 @@ PACCHETTI: dict[str, str] = {
     ),
     "androidx.compose.runtime.saveable": "rememberSaveable",
     "androidx.compose.ui": "Modifier Alignment",
-    "androidx.compose.ui.unit": "dp sp",
+    "androidx.compose.ui.unit": "dp sp Dp",
     "androidx.compose.ui.res": "stringResource painterResource",
     "androidx.compose.ui.draw": "clip alpha",
     "androidx.compose.ui.layout": "ContentScale",

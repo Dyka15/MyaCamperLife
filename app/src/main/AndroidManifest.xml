@@ -43,6 +43,13 @@
             <data android:scheme="geo" />
         </intent>
         <package android:name="com.miui.securitycenter" />
+        <!-- Aprire diario.md con l'editor che l'utente preferisce. Senza questa
+             dichiarazione `resolveActivity` risponde null anche quando l'app
+             c'e', e il pulsante sembrerebbe rotto. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="text/*" />
+        </intent>
     </queries>
 
     <application

@@ -57,6 +57,9 @@
     <string name="tappa_da_fare">Tappa ancora da fare.</string>
     <string name="tappa_fatta">Ci sei già stato. Una tappa fatta non si salta.</string>
     <string name="tappa_saltata">Tappa saltata.</string>
+    <string name="tappa_saltata_breve">saltata</string>
+    <string name="filo_tratto">%1$d km · %2$s di guida</string>
+    <string name="filo_arrivato">arrivato alle %1$s</string>
     <string name="tappa_aggiunta">Aggiunta la tappa %1$s</string>
 
     <!-- Nota -->
@@ -86,6 +89,8 @@
 
     <!-- Diario -->
     <string name="diario_vuoto">Il diario è vuoto</string>
+    <string name="diario_apri_file">Apri diario.md</string>
+    <string name="diario_senza_app">Nessuna app di questo telefono apre i file di testo.</string>
     <string name="diario_vuoto_spiegazione">Registra una posizione, una nota o una foto: compaiono qui e finiscono in diario.md.</string>
     <string name="genere_arrivo">Arrivo</string>
     <string name="genere_posizione">Posizione</string>

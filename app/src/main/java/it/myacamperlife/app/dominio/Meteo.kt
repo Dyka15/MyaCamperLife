@@ -278,6 +278,20 @@ object TestoMeteo {
         else String.format(java.util.Locale.ITALIAN, "%.1f", millimetri)
 
     /**
+     * La previsione in poche parole: "Sereno 18–31°".
+     *
+     * Serve dove lo spazio e' quello di un'etichetta — l'intestazione di una
+     * giornata nell'itinerario — e la riga intera non ci sta. Si tengono le due
+     * cose che si guardano davvero: com'e' il cielo e quanto fa caldo.
+     */
+    fun breve(previsione: DatiMeteo): String? {
+        val cielo = previsione.cielo.takeUnless { it == CieloMeteo.IGNOTO }?.descrizione
+            ?.replaceFirstChar { it.uppercase() }
+        val gradi = temperature(previsione)
+        return listOfNotNull(cielo, gradi).joinToString(" ").takeUnless { it.isBlank() }
+    }
+
+    /**
      * Le fasce di una giornata, una riga per fascia: "Mattino: sereno, 17–22°".
      *
      * Vuota quando le fasce non ci sono — file vecchio, o giorno oltre

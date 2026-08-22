@@ -471,6 +471,8 @@ fun MyaApp(vista: ViaggiViewModel) {
                     corrente = stato.corrente,
                     prossima = stato.prossima,
                     versoProssima = stato.versoProssima,
+                    tratte = stato.tratte,
+                    meteo = stato.meteo,
                     onPosizione = { conPosizione { vista.registraPosizione() } },
                     onFoto = {
                         ambito.launch {
@@ -493,6 +495,15 @@ fun MyaApp(vista: ViaggiViewModel) {
                     prosaPossibile = vista.aiConfigurata(),
                     onProsa = vista::riscriviGiornata,
                     onCronaca = vista::rigeneraDiario,
+                    onApriFile = vista.fileDiario()?.let { file ->
+                        {
+                            if (!apriTesto(contesto, file)) {
+                                ambito.launch {
+                                    avvisi.showSnackbar(contesto.getString(R.string.diario_senza_app))
+                                }
+                            }
+                        }
+                    },
                     onVoce = { voceScelta = it },
                     allegato = vista::allegato,
                     onFoto = { fotoAperta = it },
@@ -906,6 +917,35 @@ private fun apriInGoogleMaps(contesto: android.content.Context, poi: Poi, luoghi
         Uri.parse(indirizzo),
     )
     runCatching { contesto.startActivity(intento) }
+}
+
+/**
+ * Apre un file di testo con l'app che l'utente preferisce.
+ *
+ * **E' la promessa dell'archivio, mostrata**: i file sono testo vero proprio
+ * perche' un giorno si possano leggere senza questa app, e poterli aprire adesso
+ * con l'editor che uno ha gia' e' la dimostrazione che quel giorno funzionera'.
+ *
+ * Due tipi provati in fila: prima `text/markdown`, che gli editor di Markdown
+ * dichiarano, poi `text/plain`, che apre chiunque. Il primo da' l'app giusta, il
+ * secondo garantisce che qualcosa si apra.
+ *
+ * L'Uri passa dal FileProvider con il permesso di lettura per una volta sola: il
+ * file resta dov'e', non se ne fa una copia in giro.
+ *
+ * @return `false` se su questo telefono non c'e' niente che apra un file di
+ *   testo — cosa rara ma non impossibile, e allora chi chiama lo dice invece di
+ *   lasciare un tocco senza effetto.
+ */
+private fun apriTesto(contesto: android.content.Context, file: File): Boolean {
+    val uri = uriDi(contesto, file)
+    return listOf("text/markdown", "text/plain").any { tipo ->
+        val intento = android.content.Intent(android.content.Intent.ACTION_VIEW)
+            .setDataAndType(uri, tipo)
+            .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (intento.resolveActivity(contesto.packageManager) == null) return@any false
+        runCatching { contesto.startActivity(intento) }.isSuccess
+    }
 }
 
 /**

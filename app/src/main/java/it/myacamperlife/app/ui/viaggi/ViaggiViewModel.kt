@@ -1485,6 +1485,16 @@ class ViaggiViewModel(
         }
     }
 
+    /**
+     * Il file del diario del viaggio aperto, se c'e' ed esiste.
+     *
+     * Torna il file e non il testo: serve a passarlo a un'altra app, e un testo
+     * non si passa — si ricopia, e una copia in piu' e' una verita' in meno.
+     */
+    fun fileDiario(): File? = _stato.value.aperto
+        ?.let { archivio.fileDiario(it.slug) }
+        ?.takeIf { it.exists() && it.length() > 0 }
+
     /** Il testo di un dossier salvato. */
     suspend fun testoDossier(nome: String): String? {
         val slug = _stato.value.aperto?.slug ?: return null

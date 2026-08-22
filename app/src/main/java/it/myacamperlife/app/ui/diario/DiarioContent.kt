@@ -43,6 +43,13 @@ fun DiarioContent(
     prosaPossibile: Boolean,
     onProsa: (LocalDate) -> Unit,
     onCronaca: () -> Unit,
+    /**
+     * Apre `diario.md` con un'altra app: `null` se il file non c'e' ancora.
+     *
+     * Nullo e non spento: prima del primo diario non c'e' niente da aprire, e un
+     * pulsante che non fa niente e' peggio di un pulsante che non c'e'.
+     */
+    onApriFile: (() -> Unit)? = null,
     onVoce: (Voce) -> Unit,
     /** Il file dell'allegato, per le voci che ne hanno uno. */
     allegato: (Voce) -> File?,
@@ -119,8 +126,19 @@ fun DiarioContent(
                 // `if (prosaPossibile)` per il solo motivo che era nato come
                 // l'annullamento della prosa — e cosi' senza una chiave API
                 // l'unico modo di rifare il file del diario era invisibile.
-                TextButton(onClick = onCronaca) {
-                    Text(stringResource(R.string.diario_torna_cronaca))
+                Row {
+                    TextButton(onClick = onCronaca) {
+                        Text(stringResource(R.string.diario_torna_cronaca))
+                    }
+                    // **Il diario e' un file, e si puo' portare via.** E' la
+                    // ragione per cui l'archivio e' fatto di file di testo invece
+                    // che di un database: aprirlo con l'editor che uno preferisce
+                    // e' quella promessa, resa visibile.
+                    onApriFile?.let { apri ->
+                        TextButton(onClick = apri) {
+                            Text(stringResource(R.string.diario_apri_file))
+                        }
+                    }
                 }
                 Text(
                     stringResource(R.string.diario_prosa_spiegazione),

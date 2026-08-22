@@ -1,16 +1,27 @@
 package it.myacamperlife.app.ui.viaggi
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.stickyHeader
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -19,17 +30,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.dominio.Fermata
+import it.myacamperlife.app.dominio.Filo
+import it.myacamperlife.app.dominio.GiornataFilo
+import it.myacamperlife.app.dominio.Meteo
 import it.myacamperlife.app.dominio.Percorso
 import it.myacamperlife.app.dominio.StatoTappa
 import it.myacamperlife.app.dominio.Tappa
+import it.myacamperlife.app.dominio.TestoMeteo
+import it.myacamperlife.app.dominio.Tratte
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
@@ -41,12 +63,17 @@ import java.time.format.DateTimeFormatter
  * Se qui registrare qualcosa costasse sei tocchi, l'app sarebbe peggiore di
  * quello che sostituisce. Da qui le azioni in cima, sempre a portata.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TappeContent(
     tappe: List<Tappa>,
     corrente: Tappa?,
     prossima: Tappa?,
     versoProssima: Percorso?,
+    /** Le distanze su strada gia' calcolate: senza, i tratti non si mostrano. */
+    tratte: Tratte? = null,
+    /** La scorta di previsioni: da' il tempo di ogni giornata. */
+    meteo: Meteo? = null,
     onPosizione: () -> Unit,
     onFoto: () -> Unit,
     onNota: () -> Unit,
@@ -75,14 +102,38 @@ fun TappeContent(
         AzioniRapide(onPosizione, onFoto, onNota, onLitri, onSpesa)
         HorizontalDivider()
 
+        // L'orologio si legge una volta sola, come nella scheda di tappa: "oggi"
+        // che cambia mentre guardi lo schermo sarebbe esatto e inquietante.
+        val oggi = remember { LocalDate.now() }
+        val adesso = remember { OffsetDateTime.now() }
+        val giornate = remember(tappe, tratte, meteo, oggi) {
+            Filo.componi(tappe, oggi, tratte, meteo, adesso)
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
             contentPadding = PaddingValues(bottom = 96.dp),
         ) {
-            items(tappe, key = { it.id }) { tappa ->
-                RigaTappa(tappa, onTocco = { onTappa(tappa) })
+            giornate.forEach { giornata ->
+                // L'intestazione resta in cima mentre si scorre: su un
+                // itinerario di ventiquattro tappe, senza, si perde il conto di
+                // che giorno si sta guardando.
+                stickyHeader(key = "giorno-${giornata.etichetta}-${giornata.fermate.first().tappa.id}") {
+                    IntestazioneGiornata(giornata)
+                }
+                itemsIndexed(
+                    giornata.fermate,
+                    key = { _, fermata -> fermata.tappa.id },
+                ) { indice, fermata ->
+                    RigaFermata(
+                        fermata = fermata,
+                        prima = indice > 0,
+                        ultima = indice == giornata.fermate.lastIndex,
+                        onTocco = { onTappa(fermata.tappa) },
+                    )
+                }
             }
 
             if (tappe.isEmpty()) {
@@ -214,76 +265,203 @@ private fun AzioneRapida(icona: Int, etichetta: Int, onTocco: () -> Unit) {
     }
 }
 
+/**
+ * L'intestazione di una giornata: quando, e che tempo fa.
+ *
+ * Ha uno sfondo pieno e non trasparente perche' resta appiccicata in cima
+ * mentre le tappe le scorrono sotto: senza, si leggerebbero due testi
+ * sovrapposti.
+ */
 @Composable
-private fun RigaTappa(tappa: Tappa, onTocco: () -> Unit) {
+private fun IntestazioneGiornata(giornata: GiornataFilo) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Text(
+            text = giornata.etichetta,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        // Il tempo di quel giorno, in due parole. Manca finche' la scorta non
+        // copre quella data, e allora la riga semplicemente non lo dice.
+        giornata.previsione?.let { previsione ->
+            TestoMeteo.breve(previsione)?.let { breve ->
+                Text(
+                    text = breve,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Una tappa nel filo.
+ *
+ * **Il filo e' un segno, non una decorazione**: la linea verticale dice che le
+ * tappe sono in fila e che fra l'una e l'altra si guida, e il pallino dice a che
+ * punto sei. Pieno se ci sei stato, vuoto se e' da fare, spento se l'hai
+ * saltata — e il barrato resta solo sul nome, cosi' ogni cosa e' detta una volta.
+ *
+ * **Il numero d'ordine resta.** Su un itinerario di ventiquattro tappe e' come
+ * ci si tiene il segno parlandone: "la sedici" e' un nome piu' corto di
+ * "Landshut".
+ */
+@Composable
+private fun RigaFermata(
+    fermata: Fermata,
+    prima: Boolean,
+    ultima: Boolean,
+    onTocco: () -> Unit,
+) {
+    val tappa = fermata.tappa
+    val colorePallino = when {
+        fermata.corrente -> MaterialTheme.colorScheme.primary
+        tappa.stato == StatoTappa.FATTA -> MaterialTheme.colorScheme.secondary
+        tappa.stato == StatoTappa.SALTATA -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val pieno = fermata.corrente || tappa.stato == StatoTappa.FATTA
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onTocco)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            // **`IntrinsicSize.Min` non e' un vezzo**: il filo a sinistra deve
+            // essere alto quanto il testo a destra, e dentro una lista che
+            // scorre l'altezza disponibile e' infinita — `fillMaxHeight` non
+            // avrebbe niente da riempire e il filo sparirebbe. Cosi' la riga
+            // misura prima il suo contenuto, e il filo si adegua.
+            .height(IntrinsicSize.Min)
+            .padding(end = 16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // Il segno di stato e' un carattere, non un'icona: due glifi non
-        // giustificano dieci megabyte di material-icons-extended.
-        Text(
-            text = segno(tappa.stato),
-            style = MaterialTheme.typography.titleMedium,
-            fontFamily = FontFamily.Monospace,
-            color = when (tappa.stato) {
-                StatoTappa.FATTA -> MaterialTheme.colorScheme.primary
-                StatoTappa.SALTATA -> MaterialTheme.colorScheme.onSurfaceVariant
-                StatoTappa.DA_FARE -> MaterialTheme.colorScheme.onSurface
-            },
-            modifier = Modifier.width(28.dp),
+        Binario(
+            colore = colorePallino,
+            pieno = pieno,
+            sopra = prima,
+            sotto = !ultima,
         )
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = tappa.nome,
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration =
-                    if (tappa.stato == StatoTappa.SALTATA) TextDecoration.LineThrough else null,
-            )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(top = 10.dp, bottom = 12.dp),
+        ) {
+            // Quanto si guida per arrivare qui. Sta sopra il nome perche' e'
+            // quello che succede prima: si parte, si guida, si arriva.
+            fermata.arrivoDa?.let { percorso ->
+                Text(
+                    text = stringResource(
+                        R.string.filo_tratto,
+                        Math.round(percorso.km).toInt(),
+                        percorso.durata,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 2.dp),
+                )
+            }
 
+            Row(verticalAlignment = Alignment.Top) {
+                Text(
+                    text = tappa.nome,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (tappa.stato == StatoTappa.SALTATA) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    textDecoration =
+                        if (tappa.stato == StatoTappa.SALTATA) TextDecoration.LineThrough else null,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = tappa.ordine.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+
+            // Il tipo e l'ora d'arrivo. Le coordinate non ci sono piu': non le
+            // legge nessuno, e stanno nella scheda della tappa insieme al
+            // pulsante che apre la mappa, che e' cosa se ne fa davvero.
             val sotto = listOfNotNull(
-                tappa.giorno,
-                tappa.tipo,
-                stringResource(
-                    R.string.coordinate,
-                    "%.4f".format(tappa.lat),
-                    "%.4f".format(tappa.lon),
-                ),
+                tappa.tipo?.replace('_', ' '),
+                oraDiArrivo(tappa.checkinIl)?.let { stringResource(R.string.filo_arrivato, it) },
+                stringResource(R.string.tappa_saltata_breve).takeIf {
+                    tappa.stato == StatoTappa.SALTATA
+                },
             ).joinToString(" · ")
-
-            Text(
-                text = sotto,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (sotto.isNotEmpty()) {
+                Text(
+                    text = sotto,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             tappa.descrizione?.let { descrizione ->
                 Text(
                     text = descrizione,
                     style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
-
-        Text(
-            text = tappa.ordine.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 8.dp),
-        )
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 }
 
-private fun segno(stato: StatoTappa): String = when (stato) {
-    StatoTappa.FATTA -> "✓"
-    StatoTappa.DA_FARE -> "○"
-    StatoTappa.SALTATA -> "⤫"
+/** Il filo e il suo pallino, nella colonna di sinistra. */
+@Composable
+private fun Binario(colore: Color, pieno: Boolean, sopra: Boolean, sotto: Boolean) {
+    Column(
+        modifier = Modifier
+            .width(40.dp)
+            .fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spazio(sopra, altezza = 14.dp)
+        Box(
+            modifier = Modifier
+                .size(11.dp)
+                .clip(CircleShape)
+                .background(if (pieno) colore else MaterialTheme.colorScheme.surface)
+                .border(1.5.dp, colore, CircleShape),
+        )
+        if (sotto) {
+            Box(
+                modifier = Modifier
+                    .width(2.dp)
+                    .weight(1f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            )
+        }
+    }
+}
+
+/** Il pezzo di filo sopra il pallino: c'e' solo se sopra c'e' una tappa. */
+@Composable
+private fun Spazio(disegnato: Boolean, altezza: Dp) {
+    if (disegnato) {
+        Box(
+            modifier = Modifier
+                .width(2.dp)
+                .height(altezza)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        )
+    } else {
+        Spacer(modifier = Modifier.height(altezza))
+    }
 }
 
 /** L'ora del check-in, o `null` se il campo e' assente o illeggibile. */

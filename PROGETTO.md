@@ -242,6 +242,8 @@ sull'estratto conto, e a sapere quanti contanti stanno finendo.
 | Scaricare il meteo alle 19:00 e mostrarlo accanto alle tappe | 6 |
 | Avere il briefing anche senza rete, con l'età del dato meteo dichiarata | 6 |
 | Leggere il meteo **diviso in mattino, pomeriggio e sera**: è quando serve saperlo, non quanto in media | 16 |
+| Leggere l'itinerario **per giornate**, con il meteo del giorno e quanto si guida fra una tappa e l'altra | 17 |
+| Aprire `diario.md` con l'editor preferito del telefono | 17 |
 | Sapere **com'è finito** l'ultimo riepilogo serale e quando scatterà il prossimo, e poterlo mandare adesso per provare la catena | 16 |
 
 ### 4.6 Esplora
