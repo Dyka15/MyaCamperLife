@@ -40,7 +40,12 @@ PACCHETTI: dict[str, str] = {
         "Spacer Arrangement PaddingValues wrapContentWidth FlowRow FlowColumn "
         "ExperimentalLayoutApi"
     ),
-    "androidx.compose.foundation.lazy": "LazyColumn LazyRow items itemsIndexed stickyHeader",
+    # Solo simboli di **primo livello**: `stickyHeader` e' un membro di
+    # LazyListScope e non si importa. Metterlo qui ha fatto chiedere al
+    # controllo un import inesistente, e la CI e' caduta su quello: una voce
+    # sbagliata in questa tabella non e' un falso allarme innocuo, fabbrica
+    # una correzione sbagliata.
+    "androidx.compose.foundation.lazy": "LazyColumn LazyRow items itemsIndexed",
     "androidx.compose.foundation.pager": "HorizontalPager VerticalPager rememberPagerState",
     "androidx.compose.foundation": (
         "clickable verticalScroll horizontalScroll rememberScrollState background border Image "

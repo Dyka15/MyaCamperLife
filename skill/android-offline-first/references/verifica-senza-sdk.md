@@ -58,6 +58,14 @@ un guasto:
 Aggiungi controlli al file quando un difetto ti sfugge due volte: è la stessa
 logica di una prova di regressione.
 
+**La tabella dei simboli contiene solo simboli di primo livello.** Ci ho messo
+`stickyHeader`, che è un *membro* di `LazyListScope` e non si importa: il
+controllo ha chiesto un import inesistente, io l'ho aggiunto, e la CI è caduta
+su quello. Un controllo statico sbagliato è peggio di un controllo mancante —
+il primo non trova un difetto, il secondo ne fabbrica uno, e con l'autorità di
+uno strumento. Prima di aggiungere un simbolo alla tabella, verifica che
+esista davvero un `import` che lo porta.
+
 ## 3. La CI come compilatore
 
 Il workflow gira i test unitari, poi `assembleDebug`, poi `assembleRelease`. Si
