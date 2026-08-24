@@ -12,7 +12,16 @@ name: Rilascio
 on:
   push:
     tags: [ 'v*' ]
+  # La stessa cosa a mano, dando il nome della versione. Serve dove il tag non
+  # si puo' spingere — le credenziali di un ambiente remoto possono valere per i
+  # rami e non per i tag — e allora **il tag lo crea questo workflow**, che ha il
+  # permesso `contents: write` per farlo.
   workflow_dispatch:
+    inputs:
+      versione:
+        description: "Nome della versione, es. v1.0"
+        required: true
+        default: v1.0
 
 jobs:
   rilascio:
@@ -100,6 +109,9 @@ jobs:
       - name: Pubblica la Release
         uses: softprops/action-gh-release@v2
         with:
+          # Da un tag e' il tag; da un avvio a mano e' quello che si e' scritto,
+          # e l'azione lo crea sul commit di adesso.
+          tag_name: ${{ inputs.versione || github.ref_name }}
           files: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/mapping/release/mapping.txt
