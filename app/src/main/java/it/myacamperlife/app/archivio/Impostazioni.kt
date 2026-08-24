@@ -84,6 +84,19 @@ data class Impostazioni(
     val importProvatoIl: String? = null,
 
     /**
+     * Il pacchetto dell'app di mappe da usare per "apri nella mappa".
+     *
+     * Nullo vuol dire **chiedi ogni volta**, cioe' lascia decidere ad Android
+     * con la sua app predefinita. E' il valore di riposo perche' e' l'unico che
+     * non puo' sbagliare: un pacchetto salvato puo' sparire — app disinstallata,
+     * telefono nuovo — e allora si torna da soli alla scelta di sistema.
+     *
+     * E' un nome di pacchetto, niente di riservato: puo' stare nel file
+     * rispecchiato.
+     */
+    val appMappe: String? = null,
+
+    /**
      * Quale modello si prova per primo. L'altro fa da riserva.
      */
     val principale: String = "gemini",

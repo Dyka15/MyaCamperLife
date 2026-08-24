@@ -171,7 +171,7 @@ La colonna *fase* rimanda alla tabella di marcia dell'analisi, sezione 8.
 | Aggiungere una tappa scegliendo dove inserirla nell'itinerario | 2 |
 | **Riscrivere il seguito del viaggio** caricando un itinerario nuovo: le tappe da fare vengono sostituite, quelle fatte e saltate restano, e niente di registrato si perde | 15 |
 | Vedere distanza e tempo di guida verso la prossima tappa | 6 |
-| Aprire una tappa nell'app di mappe installata, per la navigazione vera | 2 |
+| Aprire una tappa nell'app di mappe **che scegli tu** — o con il selettore ogni volta, se preferisci decidere sul momento | 2 / 17 |
 | Tenere più viaggi, e riaprire quelli passati in sola consultazione | 1 |
 | Aprire la **scheda di una tappa**: **tutto** quello che il file dice di quella tappa — descrizione con i capoversi e ogni campo in più — meteo del suo giorno, dintorni di quel posto, e scorrimento laterale alla tappa dopo | 10 / 14 |
 | Chiedere a un modello dei dintorni **di quella tappa**, e ritrovare la risposta arrivandoci | 10 |

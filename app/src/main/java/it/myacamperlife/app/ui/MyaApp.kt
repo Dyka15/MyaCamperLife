@@ -45,6 +45,7 @@ import it.myacamperlife.app.archivio.Specchio
 import it.myacamperlife.app.avvisi.Avvisi
 import it.myacamperlife.app.avvisi.Sistema
 import it.myacamperlife.app.rete.EsitoDintorni
+import it.myacamperlife.app.sistema.AppMappe
 import it.myacamperlife.app.dominio.Briefing
 import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Coordinate
@@ -225,6 +226,15 @@ fun MyaApp(vista: ViaggiViewModel) {
         val azione = dopoIlPermesso
         dopoIlPermesso = null
         if (esiti.values.any { it }) azione?.invoke() else vista.permessoPosizioneNegato()
+    }
+
+    // Apre un punto con l'app scelta nelle impostazioni, e **dice** quando non
+    // c'e' niente da aprire: un pulsante che non fa niente e' il difetto che
+    // questa app si e' impegnata a non avere.
+    fun apriMappa(lat: Double, lon: Double, nome: String) {
+        if (!apriNellaMappa(contesto, lat, lon, nome, stato.impostazioni.appMappe)) {
+            ambito.launch { avvisi.showSnackbar(contesto.getString(R.string.mappa_senza_app)) }
+        }
     }
 
     fun conPosizione(azione: () -> Unit) {
@@ -429,7 +439,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     },
                     luoghi = stato.luoghi,
                     onMappa = { vicino ->
-                        apriNellaMappa(contesto, vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
+                        apriMappa(vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
                     },
                     onMaps = { vicino -> apriInGoogleMaps(contesto, vicino.poi, stato.luoghi) },
                 )
@@ -449,9 +459,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     inCorso = stato.inCorso,
                     onCheckin = { tappa -> conPosizione { vista.checkin(tappa) } },
                     onAlterna = vista::alternaSalto,
-                    onMappa = { tappa ->
-                        apriNellaMappa(contesto, tappa.lat, tappa.lon, tappa.nome)
-                    },
+                    onMappa = { tappa -> apriMappa(tappa.lat, tappa.lon, tappa.nome) },
                     onChiedi = vista::chiediDiTappa,
                     onDossier = { salvato ->
                         ambito.launch {
@@ -527,7 +535,7 @@ fun MyaApp(vista: ViaggiViewModel) {
                     inCorso = stato.inCorso,
                     onScarica = vista::cercaDintorniQui,
                     onApri = { vicino ->
-                        apriNellaMappa(contesto, vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
+                        apriMappa(vicino.poi.lat, vicino.poi.lon, vicino.poi.etichetta())
                     },
                     onMaps = { vicino -> apriInGoogleMaps(contesto, vicino.poi, stato.luoghi) },
                     onChiedi = vista::chiedi,
@@ -770,6 +778,9 @@ fun MyaApp(vista: ViaggiViewModel) {
     if (impostazioniAperte) {
         ImpostazioniDialog(
             impostazioni = stato.impostazioni,
+            // Si chiede al sistema quando il dialogo si apre, non prima: un
+            // elenco di app installate invecchia, e questo si legge in un attimo.
+            appDiMappe = remember { AppMappe.installate(contesto) },
             notificheConcesse = notificheConcesse,
             batteriaSenzaLimiti = Sistema.batteriaSenzaLimiti(contesto),
             avvioAutomaticoDisponibile = Sistema.avvioAutomaticoDisponibile(contesto),
@@ -871,26 +882,25 @@ fun MyaApp(vista: ViaggiViewModel) {
 }
 
 /**
- * Apre un punto di interesse nell'app di mappe.
+ * Apre un punto di interesse nell'app di mappe **scelta dall'utente**.
  *
  * Un intent `geo:` e non un modulo di navigazione: Organic Maps e OsmAnd fanno
  * quel lavoro meglio di quanto potremmo farlo noi, funzionano offline, e sono
  * probabilmente gia' installati. Due righe invece di un gigabyte di grafo
  * stradale.
+ *
+ * Quale delle app installate lo riceva era pero' una decisione di Android — la
+ * sua "app predefinita" — e non dell'utente: adesso e' un'impostazione, e senza
+ * scelta si torna al comportamento di prima. Il perche' e il come stanno in
+ * [AppMappe].
  */
 private fun apriNellaMappa(
     contesto: android.content.Context,
     lat: Double,
     lon: Double,
     nome: String,
-) {
-    val intento = android.content.Intent(
-        android.content.Intent.ACTION_VIEW,
-        Uri.parse(Mappe.geo(lat, lon, nome)),
-    )
-    // Se non c'e' nessuna app di mappe non si fa niente, invece di cadere.
-    if (intento.resolveActivity(contesto.packageManager) != null) contesto.startActivity(intento)
-}
+    pacchetto: String?,
+): Boolean = AppMappe.apri(contesto, lat, lon, nome, pacchetto)
 
 /**
  * Apre la scheda di un punto su Google Maps.

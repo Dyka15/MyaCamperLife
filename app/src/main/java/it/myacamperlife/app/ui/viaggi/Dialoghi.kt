@@ -22,6 +22,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -56,6 +57,7 @@ import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.dominio.Indirizzo
 import it.myacamperlife.app.dominio.Modalita
 import it.myacamperlife.app.dominio.Modello
+import it.myacamperlife.app.sistema.AppMappa
 import it.myacamperlife.app.dominio.Momento
 import it.myacamperlife.app.dominio.Rifornimento
 import it.myacamperlife.app.dominio.Slittamento
@@ -1076,6 +1078,8 @@ fun ImpostazioniDialog(
     onSincronizza: () -> Unit,
     onSpegniCartella: () -> Unit,
     onSalva: (Impostazioni) -> Unit,
+    /** Le app di mappe installate, per scegliere quale apre le tappe. */
+    appDiMappe: List<AppMappa> = emptyList(),
     /** Mostra l'anteprima del testo dentro l'app. */
     onProvaBriefing: () -> Unit,
     /** Manda la notifica vera, adesso: prova la catena, non il testo. */
@@ -1089,6 +1093,7 @@ fun ImpostazioniDialog(
     onChiudi: () -> Unit,
 ) {
     var km by remember { mutableStateOf(impostazioni.kmConUnPieno?.toString().orEmpty()) }
+    var appMappe by remember { mutableStateOf(impostazioni.appMappe) }
     var briefing by remember { mutableStateOf(impostazioni.briefingAttivo) }
     var ora by remember { mutableStateOf(impostazioni.ora.toString()) }
 
@@ -1169,6 +1174,40 @@ fun ImpostazioniDialog(
                         impostazioni.briefingProvatoIl,
                     )
                     Sveglia(impostazioni.briefingSvegliaIl)
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // **Quale app apre le tappe.** Prima decideva Android con la
+                // sua app predefinita, e cambiarla voleva dire andarla a cercare
+                // nelle impostazioni di sistema: una scelta fatta mesi fa in due
+                // secondi e poi immutabile da qui.
+                Text(
+                    stringResource(R.string.impostazioni_app_mappe),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                if (appDiMappe.isEmpty()) {
+                    Text(
+                        stringResource(R.string.impostazioni_app_mappe_nessuna),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    // "Chiedi ogni volta" per prima: e' il valore di riposo, ed
+                    // e' l'unico che non puo' sbagliare — se l'app scelta viene
+                    // disinstallata, si torna qui da soli.
+                    SceltaMappe(
+                        etichetta = stringResource(R.string.impostazioni_app_mappe_chiedi),
+                        scelta = appMappe == null,
+                        onScelta = { appMappe = null },
+                    )
+                    appDiMappe.forEach { app ->
+                        SceltaMappe(
+                            etichetta = app.nome,
+                            scelta = appMappe == app.pacchetto,
+                            onScelta = { appMappe = app.pacchetto },
+                        )
+                    }
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1361,6 +1400,7 @@ fun ImpostazioniDialog(
                     onSalva(
                         impostazioni.copy(
                             kmConUnPieno = valore,
+                            appMappe = appMappe,
                             briefingAttivo = briefing,
                             oraBriefing = oraScelta ?: impostazioni.ora,
                         ),
@@ -2012,6 +2052,31 @@ private fun Quando(etichetta: Int, istante: OffsetDateTime?) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+/**
+ * Una riga di scelta fra le app di mappe.
+ *
+ * Un `RadioButton` e non un elenco a tendina: le app di mappe su un telefono
+ * sono due o tre, e una tendina nasconderebbe dietro un tocco quello che qui si
+ * legge tutto insieme. La riga intera e' toccabile, non solo il pallino.
+ */
+@Composable
+private fun SceltaMappe(etichetta: String, scelta: Boolean, onScelta: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onScelta)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = scelta, onClick = onScelta)
+        Text(
+            text = etichetta,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+    }
 }
 
 /**
