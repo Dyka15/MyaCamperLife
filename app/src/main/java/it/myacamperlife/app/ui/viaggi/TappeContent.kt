@@ -282,8 +282,11 @@ private fun IntestazioneGiornata(giornata: GiornataFilo) {
     ) {
         Text(
             text = giornata.etichetta,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            // Il terzo colore — rosso mattone — e' di queste righe e di nessuna
+            // altra: sono il segno che divide l'itinerario in giornate, e in
+            // crema come i nomi delle tappe si perdevano nella lista.
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.weight(1f),
         )
         // Il tempo di quel giorno, in due parole. Manca finche' la scorta non

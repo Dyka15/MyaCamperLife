@@ -23,6 +23,43 @@ class GiornoTappaTest {
     }
 
     @Test
+    fun `giorno e mese senza anno sono una data, non un numero`() {
+        // **Il difetto che ha spostato un itinerario intero di un mese.** Il
+        // campo `giorno` di questo viaggio dice "6/8", e senza questa forma il
+        // testo cadeva fino a "solo il numero": il 6 letto il 22 agosto diventava
+        // il 6 settembre. Nessun errore da nessuna parte — una data sbagliata e'
+        // una data valida — e le intestazioni delle giornate dicevano settembre.
+        val ventidueAgosto = data("2026-08-22")
+        assertEquals(data("2026-08-06"), leggi("6/8", ventidueAgosto))
+        assertEquals(data("2026-08-08"), leggi("8/8", ventidueAgosto))
+        assertEquals(data("2026-12-31"), leggi("31.12", ventidueAgosto))
+        assertEquals(data("2026-09-03"), leggi("3-9", ventidueAgosto))
+    }
+
+    @Test
+    fun `giorno e mese guardano avanti come le altre forme parziali`() {
+        // "6/1" letto a dicembre e' l'Epifania che viene, non quella passata.
+        assertEquals(data("2027-01-06"), leggi("6/1", data("2026-12-20")))
+    }
+
+    @Test
+    fun `una data impossibile scritta come giorno e mese non ripiega sul numero`() {
+        // Dentro "32/8" c'e' un 8 che sembra un giorno del mese: leggerlo cosi'
+        // metterebbe la tappa a caso, ed e' la regola della prima forma
+        // riconosciuta.
+        assertNull(leggi("32/8"))
+        assertNull(leggi("6/13"))
+    }
+
+    @Test
+    fun `la forma con l'anno resta intera`() {
+        // Il pericolo della forma nuova: leggere "6/8" dentro "6/8/2026" e
+        // buttare via l'anno.
+        assertEquals(data("2026-08-06"), leggi("6/8/2026", data("2027-01-01")))
+        assertEquals(data("2026-08-06"), leggi("6/8/26", data("2027-01-01")))
+    }
+
+    @Test
     fun `la forma italiana ha il giorno prima del mese`() {
         assertEquals(data("2026-08-06"), leggi("06/08/2026"))
         assertEquals(data("2026-08-06"), leggi("6.8.2026"))

@@ -36,6 +36,7 @@ object GiornoTappa {
 
         ISO.find(pulito)?.let { return iso(it) }
         NUMERICA.find(pulito)?.let { return numerica(it) }
+        GIORNO_MESE.find(pulito)?.let { return giornoMese(it, riferimento) }
         MESE_ESTESO.find(pulito)?.let { trovato ->
             // Solo se il mese e' un mese: "6 tappe" non e' una data, e deve
             // poter ripiegare sul giorno da solo.
@@ -88,11 +89,38 @@ object GiornoTappa {
         trovato.groupValues[3].takeUnless { it.isEmpty() }?.let { scritto ->
             return data(scritto.toInt(), mese, giorno)
         }
+        return inAvanti(mese, giorno, riferimento)
+    }
 
+    /**
+     * `6/8`, `8-9`, `6.8`: giorno e mese senza anno, come si scrive un
+     * itinerario a mano.
+     *
+     * **E' la forma che mancava**, e la mancanza non si vedeva: cadendo fino a
+     * [soloIlNumero] il testo `6/8` diventava «il 6», e il 6 letto il 22 agosto
+     * e' il 6 **settembre**. Un mese intero di scarto, sulle intestazioni delle
+     * giornate e in tutto quello che le usa, senza nessun errore da nessuna
+     * parte — perche' una data sbagliata e' una data valida.
+     *
+     * L'anno si risolve in avanti come per `6 agosto`: e' la stessa forma con il
+     * mese scritto in cifre.
+     */
+    private fun giornoMese(trovato: MatchResult, riferimento: LocalDate): LocalDate? =
+        inAvanti(
+            mese = trovato.groupValues[2].toInt(),
+            giorno = trovato.groupValues[1].toInt(),
+            riferimento = riferimento,
+        )
+
+    /**
+     * L'anno di una data che non ce l'ha.
+     *
+     * Un itinerario guarda avanti: "6 gennaio" letto a dicembre e' fra un mese,
+     * non undici mesi fa. Un mese di tolleranza indietro tiene buona la tappa di
+     * ieri che non hai ancora spuntato.
+     */
+    private fun inAvanti(mese: Int, giorno: Int, riferimento: LocalDate): LocalDate? {
         val questAnno = data(riferimento.year, mese, giorno) ?: return null
-        // Un itinerario guarda avanti: "6 gennaio" letto a dicembre e' fra un
-        // mese, non undici mesi fa. Un mese di tolleranza indietro tiene buona
-        // la tappa di ieri che non hai ancora spuntato.
         return if (questAnno >= riferimento.minusMonths(1)) questAnno
         else data(riferimento.year + 1, mese, giorno)
     }
@@ -130,6 +158,13 @@ object GiornoTappa {
 
     private val ISO = Regex("""\b(\d{4})-(\d{1,2})-(\d{1,2})\b""")
     private val NUMERICA = Regex("""\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b""")
+
+    /**
+     * Giorno e mese, senza anno. La coda `(?![/.\-]?\d)` esclude la forma
+     * completa — quella l'ha gia' presa [NUMERICA] — e impedisce che `6/8/2026`
+     * venga letto a meta'.
+     */
+    private val GIORNO_MESE = Regex("""(?<!\d)(\d{1,2})[/.\-](\d{1,2})(?![/.\-]?\d)""")
     private val MESE_ESTESO = Regex("""\b(\d{1,2})\s*°?\s+([a-zàèéìòù]{3,})\.?(?:\s+(\d{4}))?""")
 
     /**

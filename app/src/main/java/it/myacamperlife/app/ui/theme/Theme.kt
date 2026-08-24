@@ -14,10 +14,17 @@ import androidx.compose.ui.platform.LocalContext
 /**
  * I colori dell'app, presi dall'illustrazione dell'icona.
  *
- * Carrozzeria, cielo, pino, cartello, asfalto: sono i cinque colori del camper
- * disegnato, ed erano gia' la cosa piu' riconoscibile che l'app avesse. Prima la
- * tavolozza era un'altra — terracotta e verde — e **non l'ha mai vista nessuno**,
- * perche' il colore dinamico la sostituiva con quella dello sfondo del telefono.
+ * Carrozzeria, cartello, pino, asfalto: sono i colori del camper disegnato, ed
+ * erano gia' la cosa piu' riconoscibile che l'app avesse. Prima la tavolozza era
+ * un'altra — terracotta e verde — e **non l'ha mai vista nessuno**, perche' il
+ * colore dinamico la sostituiva con quella dello sfondo del telefono.
+ *
+ * Il **mattone** e' l'unico che non viene dal disegno, ed e' entrato per un
+ * lavoro preciso: le date che dividono l'itinerario in giornate. In crema si
+ * confondevano con i nomi delle tappe — stesso colore, peso diverso, e il peso
+ * da solo non segna dove finisce un giorno. E' il rosso della strada italiana:
+ * cartelli, mattoni, tetti. **Non e' il rosso d'errore**, che resta quello di
+ * Material e vuol dire un'altra cosa.
  */
 private val Carrozzeria = Color(0xFFE7D9BC)
 private val CarrozzeriaChiara = Color(0xFFF3EADA)
@@ -25,8 +32,8 @@ private val Cartello = Color(0xFF8A5A33)
 private val CartelloScuro = Color(0xFF4A2E17)
 private val Pino = Color(0xFF2F5D50)
 private val PinoChiaro = Color(0xFF8FBFAE)
-private val Cielo = Color(0xFF1B6FB0)
-private val CieloChiaro = Color(0xFF9ECBEE)
+private val Mattone = Color(0xFFB4432A)
+private val MattoneChiaro = Color(0xFFF0977F)
 private val Asfalto = Color(0xFF16120F)
 private val AsfaltoTiepido = Color(0xFF2A231D)
 private val Carta = Color(0xFFFFFBF5)
@@ -47,7 +54,7 @@ private val ColoriChiari = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFD3E6DE),
     onSecondaryContainer = Color(0xFF17352C),
-    tertiary = Cielo,
+    tertiary = Mattone,
     onTertiary = Color.White,
     background = Carta,
     onBackground = Color(0xFF1E1913),
@@ -63,8 +70,6 @@ private val ColoriChiari = lightColorScheme(
  *
  * E' il tema in cui l'app si usa davvero — di sera, dentro un camper — e la
  * carrozzeria chiara sull'asfalto e' esattamente il contrasto dell'illustrazione.
- * Il cielo resta come terzo colore, per le cose che informano e non comandano:
- * il tempo di una giornata.
  */
 private val ColoriScuri = darkColorScheme(
     primary = Carrozzeria,
@@ -75,8 +80,8 @@ private val ColoriScuri = darkColorScheme(
     onSecondary = Color(0xFF10281F),
     secondaryContainer = Color(0xFF23453A),
     onSecondaryContainer = Color(0xFFCDE7DC),
-    tertiary = CieloChiaro,
-    onTertiary = Color(0xFF0C2A40),
+    tertiary = MattoneChiaro,
+    onTertiary = Color(0xFF3A1207),
     background = Asfalto,
     onBackground = Color(0xFFECE3D6),
     surface = Asfalto,
