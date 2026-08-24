@@ -262,6 +262,7 @@ di poterne fare a meno:
 
 | | |
 |---|---|
+| [MANUALE.md](MANUALE.md) | **Come si usa**: il ritmo di un viaggio, le quattro schermate, la sincronizzazione, cosa guardare quando qualcosa non torna |
 | [PROGETTO.md](PROGETTO.md) | Cos'è e cosa fa: input, output, funzionalità, schermate, confini |
 | [ANALISI.md](ANALISI.md) | Si può fare: cosa regge offline e cosa no, workflow per workflow, con le scelte tecniche e la tabella di marcia |
 
