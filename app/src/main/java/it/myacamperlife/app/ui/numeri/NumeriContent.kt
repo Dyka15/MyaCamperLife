@@ -16,12 +16,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.ui.comuni.PulsanteAzione
 import it.myacamperlife.app.dominio.Autonomia
 import it.myacamperlife.app.dominio.Consumo
 import it.myacamperlife.app.dominio.Conto
@@ -255,7 +255,11 @@ private fun Spiegazione(testo: String, azione: String? = null, onAzione: (() -> 
         modifier = Modifier.padding(top = 8.dp),
     )
     if (azione != null && onAzione != null) {
-        TextButton(onClick = onAzione) { Text(azione) }
+        PulsanteAzione(
+            testo = azione,
+            onClick = onAzione,
+            modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
 

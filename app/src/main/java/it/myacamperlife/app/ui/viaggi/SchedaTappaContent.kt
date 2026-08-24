@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -24,7 +25,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.ui.comuni.PulsanteAzione
 import it.myacamperlife.app.dominio.CampiExtra
 import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Dossier
@@ -257,9 +258,11 @@ private fun Scheda(
                 // salvato: la ricerca e' per questa tappa e non per il viaggio,
                 // e cercare di nuovo dopo essersi spostati e' il gesto normale.
                 // Quello che torna si accoda, non sostituisce.
-                TextButton(onClick = onScarica, enabled = !inCorso) {
-                    Text(stringResource(R.string.scheda_dintorni_cerca))
-                }
+                PulsanteAzione(
+                    etichetta = R.string.scheda_dintorni_cerca,
+                    onClick = onScarica,
+                    abilitato = !inCorso,
+                )
             }
         }
 
@@ -410,41 +413,33 @@ private fun Azioni(
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.Start,
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (scheda.tappa.stato == StatoTappa.DA_FARE) {
-                TextButton(onClick = onCheckin) {
-                    Text(stringResource(R.string.azione_checkin))
-                }
+                PulsanteAzione(R.string.azione_checkin, onCheckin)
             }
             // Su una tappa dove sei stato, saltare non vuol dire niente.
             if (scheda.tappa.stato != StatoTappa.FATTA) {
-                TextButton(onClick = onAlterna) {
-                    Text(
-                        if (scheda.tappa.stato == StatoTappa.SALTATA) {
-                            stringResource(R.string.azione_ripristina)
-                        } else {
-                            stringResource(R.string.azione_salta)
-                        },
-                    )
-                }
+                PulsanteAzione(
+                    etichetta = if (scheda.tappa.stato == StatoTappa.SALTATA) {
+                        R.string.azione_ripristina
+                    } else {
+                        R.string.azione_salta
+                    },
+                    onClick = onAlterna,
+                )
             }
             // **Il gesto che mancava.** Su una tappa fatta non c'era niente da
             // fare: "salta/ripristina" non tocca una tappa fatta — e ha ragione
             // — quindi un check-in dato per sbaglio restava per sempre, e con
             // lui dove sei, la prossima tappa e il riepilogo della sera.
             if (scheda.tappa.stato == StatoTappa.FATTA) {
-                TextButton(onClick = onAnnullaCheckin) {
-                    Text(stringResource(R.string.azione_annulla_checkin))
-                }
+                PulsanteAzione(R.string.azione_annulla_checkin, onAnnullaCheckin)
             }
-            TextButton(onClick = onSpostaDate) {
-                Text(stringResource(R.string.azione_sposta_date))
-            }
-            TextButton(onClick = onMappa) {
-                Text(stringResource(R.string.scheda_apri_mappa))
-            }
+            PulsanteAzione(R.string.azione_sposta_date, onSpostaDate)
+            PulsanteAzione(R.string.scheda_apri_mappa, onMappa)
         }
         HorizontalDivider()
     }
@@ -461,7 +456,17 @@ private fun Azioni(
 private fun Chiedi(aiConfigurata: Boolean, inCorso: Boolean, onChiedi: () -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            FilledTonalButton(onClick = onChiedi, enabled = aiConfigurata && !inCorso) {
+            FilledTonalButton(
+                onClick = onChiedi,
+                enabled = aiConfigurata && !inCorso,
+                // Gli stessi colori di PulsanteAzione: ha un'icona dentro e non
+                // passa da li', ma e' un pulsante d'azione come gli altri e due
+                // vestiti direbbero che fa una cosa di un altro genere.
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_tab_esplora),
                     contentDescription = null,

@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.ui.comuni.PulsanteAzione
 import it.myacamperlife.app.archivio.Viaggio
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -183,9 +184,11 @@ private fun InvitoCartella(onScegli: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            TextButton(onClick = onScegli, modifier = Modifier.padding(top = 8.dp)) {
-                Text(stringResource(R.string.impostazioni_scegli_cartella))
-            }
+            PulsanteAzione(
+                etichetta = R.string.impostazioni_scegli_cartella,
+                onClick = onScegli,
+                modifier = Modifier.padding(top = 12.dp),
+            )
         }
     }
 }

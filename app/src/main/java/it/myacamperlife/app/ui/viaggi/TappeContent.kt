@@ -21,13 +21,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.ui.comuni.PulsanteAzione
 import it.myacamperlife.app.dominio.Fermata
 import it.myacamperlife.app.dominio.Filo
 import it.myacamperlife.app.dominio.GiornataFilo
@@ -152,9 +155,7 @@ fun TappeContent(
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {
                         HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
-                        TextButton(onClick = onSostituisci) {
-                            Text(stringResource(R.string.azione_sostituisci_itinerario))
-                        }
+                        PulsanteAzione(R.string.azione_sostituisci_itinerario, onSostituisci)
                         Text(
                             stringResource(R.string.sostituisci_spiegazione),
                             style = MaterialTheme.typography.bodySmall,
@@ -247,18 +248,31 @@ private fun AzioniRapide(
  * Cinque azioni su una riga: il riempimento interno del pulsante e' ridotto
  * perche' su uno schermo stretto le etichette non vadano a capo.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AzioneRapida(icona: Int, etichetta: Int, onTocco: () -> Unit) {
-    TextButton(
+    // **Un fondo, non solo testo colorato.** Sono i cinque gesti che l'app deve
+    // rendere piu' facili di un messaggio al bot, e senza sfondo si leggevano
+    // come una riga di parole in mezzo ad altre parole. La pastiglia e' quella
+    // del contenitore primario, la stessa della testata sopra: si vede che si
+    // tocca senza aggiungere un colore nuovo.
+    Surface(
         onClick = onTocco,
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = Modifier.padding(horizontal = 2.dp),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+        ) {
             Icon(painter = painterResource(icona), contentDescription = null)
             Text(
                 stringResource(etichetta),
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
+                modifier = Modifier.padding(top = 3.dp),
             )
         }
     }

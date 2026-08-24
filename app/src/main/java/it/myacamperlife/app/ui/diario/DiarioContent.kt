@@ -1,6 +1,7 @@
 package it.myacamperlife.app.ui.diario
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.ui.comuni.PulsanteAzione
 import it.myacamperlife.app.dominio.Genere
 import it.myacamperlife.app.dominio.Voce
 import it.myacamperlife.app.ui.foto.Miniatura
@@ -88,7 +89,10 @@ fun DiarioContent(
                     Text(
                         text = giorno.format(GIORNO),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        // Lo stesso mattone delle giornate dell'itinerario: le
+                        // due schermate dividono per giorno la stessa cosa, e
+                        // due colori direbbero che sono due divisioni diverse.
+                        color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f),
                     )
                     // La prosa riscrive **solo la sezione di `diario.md`**: gli
@@ -100,9 +104,11 @@ fun DiarioContent(
                     // che non esiste, e la domanda che ne nasce — "dov'e' il
                     // pulsante del diario?" — non ha nessun posto dove trovare
                     // risposta. Il perche' sta scritto in fondo alla schermata.
-                    TextButton(onClick = { onProsa(giorno) }, enabled = prosaPossibile) {
-                        Text(stringResource(R.string.diario_in_prosa))
-                    }
+                    PulsanteAzione(
+                        etichetta = R.string.diario_in_prosa,
+                        onClick = { onProsa(giorno) },
+                        abilitato = prosaPossibile,
+                    )
                 }
                 HorizontalDivider()
             }
@@ -126,18 +132,14 @@ fun DiarioContent(
                 // `if (prosaPossibile)` per il solo motivo che era nato come
                 // l'annullamento della prosa — e cosi' senza una chiave API
                 // l'unico modo di rifare il file del diario era invisibile.
-                Row {
-                    TextButton(onClick = onCronaca) {
-                        Text(stringResource(R.string.diario_torna_cronaca))
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PulsanteAzione(R.string.diario_torna_cronaca, onCronaca)
                     // **Il diario e' un file, e si puo' portare via.** E' la
                     // ragione per cui l'archivio e' fatto di file di testo invece
                     // che di un database: aprirlo con l'editor che uno preferisce
                     // e' quella promessa, resa visibile.
                     onApriFile?.let { apri ->
-                        TextButton(onClick = apri) {
-                            Text(stringResource(R.string.diario_apri_file))
-                        }
+                        PulsanteAzione(R.string.diario_apri_file, apri)
                     }
                 }
                 Text(

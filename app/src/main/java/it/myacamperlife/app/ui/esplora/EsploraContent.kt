@@ -19,7 +19,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.getValue
@@ -32,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import it.myacamperlife.app.R
+import it.myacamperlife.app.ui.comuni.PulsanteAzione
 import it.myacamperlife.app.dominio.CategoriaPoi
 import it.myacamperlife.app.dominio.Dossier
 import it.myacamperlife.app.dominio.Luoghi
@@ -153,10 +153,11 @@ fun EsploraContent(
         }
 
         item {
-            TextButton(
+            PulsanteAzione(
+                etichetta = R.string.esplora_riscarica,
                 onClick = onScarica,
-                modifier = Modifier.padding(horizontal = 8.dp),
-            ) { Text(stringResource(R.string.esplora_riscarica)) }
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
         }
     }
 }
@@ -174,9 +175,11 @@ private fun Vuoto(onScarica: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
         )
-        TextButton(onClick = onScarica, modifier = Modifier.padding(top = 8.dp)) {
-            Text(stringResource(R.string.esplora_scarica))
-        }
+        PulsanteAzione(
+            etichetta = R.string.esplora_scarica,
+            onClick = onScarica,
+            modifier = Modifier.padding(top = 12.dp),
+        )
     }
 }
 
@@ -203,9 +206,11 @@ private fun Domanda(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            TextButton(onClick = onImpostaAi) {
-                Text(stringResource(R.string.esplora_ai_configura))
-            }
+            PulsanteAzione(
+                etichetta = R.string.esplora_ai_configura,
+                onClick = onImpostaAi,
+                modifier = Modifier.padding(top = 8.dp),
+            )
             return@Column
         }
 
@@ -220,10 +225,12 @@ private fun Domanda(
             modifier = Modifier.fillMaxWidth(),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(
-                enabled = domanda.trim().length >= 3 && !inCorso,
+            PulsanteAzione(
+                etichetta = R.string.esplora_chiedi_azione,
                 onClick = onChiedi,
-            ) { Text(stringResource(R.string.esplora_chiedi_azione)) }
+                abilitato = domanda.trim().length >= 3 && !inCorso,
+                modifier = Modifier.padding(top = 8.dp),
+            )
 
             if (inCorso) {
                 CircularProgressIndicator(
