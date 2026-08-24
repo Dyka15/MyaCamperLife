@@ -1,0 +1,121 @@
+name: Rilascio
+
+# Si parte da un tag: `git tag v1.0 && git push origin v1.0`.
+#
+# **Perche' un tag e non un push su main.** Un rilascio e' una cosa che si
+# decide, non che succede: su main arriva codice tutti i giorni e l'APK di
+# debug lo segue, ma la versione che qualcuno installa e tiene per mesi deve
+# avere un momento in cui qualcuno ha detto "questa".
+#
+# Il risultato e' una Release di GitHub con l'APK firmato allegato: un
+# indirizzo permanente, non un artifact che scade dopo novanta giorni.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  rilascio:
+    name: APK firmato
+    runs-on: ubuntu-latest
+    permissions:
+      # Serve a creare la Release e ad allegarci i file. Nient'altro: il token
+      # non deve poter scrivere codice.
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Componenti SDK
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Permessi di esecuzione
+        run: chmod +x gradlew
+
+      # **Le prove girano anche qui.** Sono le stesse che girano a ogni push, e
+      # a questo punto sono quasi certamente gia' verdi: quel "quasi" e' il
+      # motivo per cui si rifanno prima di firmare qualcosa che qualcuno terra'
+      # sul telefono per mesi.
+      - name: Test unitari
+        run: ./gradlew testDebugUnitTest
+
+      # Senza chiave non si rilascia: un APK non firmato non si installa, e
+      # pubblicarlo in una Release vorrebbe dire consegnare un file inutile.
+      # Meglio fermarsi qui, dicendo cosa manca.
+      - name: Chiave di firma
+        id: chiave
+        env:
+          ARCHIVIO_BASE64: ${{ secrets.MYA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ARCHIVIO_BASE64" ]; then
+            echo "::error::Manca il segreto MYA_KEYSTORE_BASE64: senza chiave l'APK non si installa."
+            exit 1
+          fi
+          printf '%s' "$ARCHIVIO_BASE64" | base64 -d > "$RUNNER_TEMP/mya.jks"
+          echo "archivio=$RUNNER_TEMP/mya.jks" >> "$GITHUB_OUTPUT"
+
+      - name: Compila l'APK di release
+        env:
+          MYA_KEYSTORE: ${{ steps.chiave.outputs.archivio }}
+          MYA_KEYSTORE_PASSWORD: ${{ secrets.MYA_KEYSTORE_PASSWORD }}
+          MYA_KEY_ALIAS: ${{ secrets.MYA_KEY_ALIAS }}
+          MYA_KEY_PASSWORD: ${{ secrets.MYA_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      # L'archivio decifrato non sopravvive al job nemmeno se qualcosa e'
+      # fallito: `always()` vale anche quando la compilazione cade.
+      - name: Cancella la chiave dal runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/mya.jks"
+
+      # **Il controllo che dice se la firma c'e' davvero.** Senza i quattro
+      # segreti Gradle non fallisce: sforna `app-release-unsigned.apk` e tira
+      # dritto. Il nome del file e' l'unica cosa che lo dice, e nessuno lo
+      # guarda — quindi lo guarda questo passo.
+      - name: Verifica che sia firmato
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk)
+          echo "APK: $APK"
+          case "$APK" in
+            *unsigned*)
+              echo "::error::L'APK e' uscito non firmato: controlla i segreti MYA_KEYSTORE_PASSWORD, MYA_KEY_ALIAS, MYA_KEY_PASSWORD."
+              exit 1
+              ;;
+          esac
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+
+      - name: Pubblica la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/mapping/release/mapping.txt
+          generate_release_notes: true
+          body: |
+            APK firmato di MyaCamperLife.
+
+            **Prima di installare**, se stai passando da una versione di debug:
+            l'app va disinstallata (le firme sono diverse) e **disinstallare
+            porta via l'archivio dell'app**. Quindi, in quest'ordine:
+
+            1. dalle impostazioni, scegli la cartella d'archivio e aspetta che lo
+               specchio la riempia;
+            2. controlla con un gestore file che i `.csv` e i `.md` ci siano;
+            3. disinstalla, installa questo APK, riassegna la **stessa** cartella:
+               la fusione rimette dentro tutto.
+
+            `mapping.txt` serve a leggere le tracce di un crash di questa
+            versione, e vale **solo per questo APK**.

@@ -308,6 +308,27 @@ specchio, poi reinstalla e riassegna la stessa cartella — la sincronizzazione 
 trovati e l'archivio torna. È lo stesso percorso di un cambio di telefono, e per questo la
 fusione esiste.
 
+## Rilasciare una versione
+
+Un rilascio si decide, non succede: su `main` arriva codice tutti i giorni e l'APK di debug
+lo segue, ma la versione che resta sul telefono per mesi deve avere un momento in cui
+qualcuno ha detto «questa».
+
+```bash
+git tag v1.0
+git push origin v1.0
+```
+
+Il workflow [rilascio.yml](.github/workflows/rilascio.yml) rifà le prove, compila la
+release **firmata**, verifica con `apksigner` che la firma ci sia davvero — senza i segreti
+Gradle non fallisce, sforna un `-unsigned.apk` e tira dritto, e il nome del file è l'unica
+cosa che lo dice — e pubblica una **Release di GitHub** con l'APK e `mapping.txt` allegati.
+Una Release ha un indirizzo permanente; un artifact scade in novanta giorni.
+
+Il numero di versione sta in `app/build.gradle.kts`: `versionCode` deve **solo crescere** —
+Android rifiuta un aggiornamento con un numero uguale o minore — e `versionName` è quello
+che si legge in fondo alle impostazioni, accanto al commit.
+
 Se qualcosa nella release si comporta diversamente dal debug, il sospetto numero uno è una
 regola di R8 mancante: le regole stanno in [app/proguard-rules.pro](app/proguard-rules.pro),
 ognuna col motivo per cui esiste, e `isMinifyEnabled = false` in `app/build.gradle.kts` è la

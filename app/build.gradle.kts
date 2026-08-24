@@ -60,8 +60,12 @@ android {
         applicationId = "it.myacamperlife.app"
         minSdk = 33          // Android 13
         targetSdk = 35       // Android 15
+        // La prima versione pubblicata. `versionCode` e' il numero che conta per
+        // Android — deve **solo crescere**, e un aggiornamento con un numero
+        // uguale o minore viene rifiutato; `versionName` e' quello che si legge
+        // nelle impostazioni.
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0"
 
         buildConfigField("String", "COMMIT", "\"$commit\"")
 
